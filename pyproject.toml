@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "awr_api"
+version = "0.1.0"
+authors = [
+  { name="Tianshu Huang", email="tianshu2@andrew.cmu.edu" },
+]
+description = "Standalone linux-compatible TI AWR1843/DCA1000EVM API implementation."
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+dependencies = [
+    "numpy",
+    "beartype",
+    "mypy",
+    "pyserial",
+    "types-pyserial"
+]
+
+[project.urls]
+Homepage = "https://github.com/WiseLabCMU/awr-api"
+Issues = "https://github.com/WiseLabCMU/awr-api/issues"
