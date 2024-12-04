@@ -4,6 +4,7 @@ import logging
 import threading
 from queue import Queue
 
+import numpy as np
 from beartype.typing import Iterator
 
 from .awr_api import AWR1843
@@ -102,22 +103,38 @@ class AWRSystem:
 
         return self.dca.stream(self.config.raw_shape)
 
-    def qstream(self) -> Queue[RadarFrame | None]:
+    def qstream(
+        self, numpy: bool = False
+    ) -> Queue[RadarFrame | np.ndarray | None]:
         """Read into a queue from a threaded worker.
 
         The threaded worker is run with `daemon=True`. Like
         :py:meth:`.AWRSystem.stream`, `.qstream()` also relies on another
         worker to trigger :py:meth:`.AWRSystem.stop`.
 
+        Note that if a `TimeoutError` is received (e.g. after `.stop()`), the
+        error is caught, and the stream is halted.
+
+        Args:
+            numpy: return a numpy array instead of a :py:class:`.RadarFrame`.
+
         Returns:
             A queue of :py:class:`.RadarFrame` read by the capture card. When
             the stream terminates, `None` is written to the queue.
         """
-        out: Queue[RadarFrame | None] = Queue()
+        out: Queue[RadarFrame | np.ndarray | None] = Queue()
 
         def worker():
-            for frame in self.stream():
-                out.put(frame)
+            try:
+                for frame in self.stream():
+                    if numpy:
+                        out.put(
+                            np.frombuffer(frame.data, dtype=np.int16)
+                            .reshape(*self.config.raw_shape))
+                    else:
+                        out.put(frame)
+            except TimeoutError:
+                pass
             out.put(None)
 
         threading.Thread(target=worker, daemon=True).start()
