@@ -1,23 +1,48 @@
-"""DCA1000EVM API."""
+"""Capture card API."""
 
 import logging
 import socket
 import struct
 import threading
 import time
+from typing import Iterator, Optional
 
 import numpy as np
-from beartype.typing import Iterator, Optional
 
-from . import dca_types as types
+from . import defines, types
+from .defines import DCAConstants
+
+
+class DCAException(Exception):
+    """Error raised by the FPGA (via non-0 status)."""
+
+    pass
 
 
 class DCA1000EVM:
     """DCA1000EVM Interface.
 
-    Documented by [R1]_; based on a (little-endian) UDP protocol (Sec 5).
-    Included C++ source code exerpts from the mmWave API are used as a
-    secondary reference [R2]_.
+    Documented by the [*DCA1000EVM Data Capture Card User's Guide (Rev A)*](
+    https://www.ti.com/lit/ug/spruij4a/spruij4a.pdf?ts=1709104212742); based on
+    a (little-endian) UDP protocol (Sec 5). Included C++ source code exerpts
+    from the mmWave API are used as a secondary reference; see the
+    `ReferenceCode/DCA1000/SourceCode` folder in a [mmWave Studio
+    install](https://www.ti.com/tool/MMWAVE-STUDIO).
+
+    !!! usage
+
+        1. Initialization parameters can be defaults.
+        2. Setup with `.setup(...)` with the appropriate `LVDS.TWO_LANE`
+            (2544, 2944, 1843, 1642) or `LVDS.FOUR_LANE` (1243, 1443).
+        3. Start recording with `.start(...)`.
+        4. Start the radar.
+        5. Stop recording with `.stop()`.
+        6. Stop the radar.
+
+    !!! warning
+
+        The radar should be started afer `DCA1000EVM.start` to ensure
+        that the data are correctly aligned with respect to the byte count.
 
     Args:
         sys_ip: IP of this computer associated with the desired ethernet
@@ -28,22 +53,11 @@ class DCA1000EVM:
         timeout: Config socket read timeout.
         socket_buffer: Receive socket buffer size. Ensure that `socket_buffer`
             is less than `/proc/sys/net/core/rmem_max`.
-        name: Human-readable name.
+        name: logger name; should be human-readable.
 
     Raises:
         TimeoutError: request timed out (is the device connected?).
         DCAException: exception raised by the FPGA.
-
-    Usage:
-        (1) Initialization parameters can be defaults.
-        (2) Setup with `.setup(...)` with the appropriate `LVDS.TWO_LANE`
-            (1843, 1642) or `LVDS.FOUR_LANE` (1243, 1443).
-        (3) Start recording with `.start(...)`.
-        (4) Start the radar.
-            NOTE: the radar should be started afer `DCA1000EVM.start` to ensure
-            that the data are correctly aligned with respect to the byte count.
-        (5) Stop recording with `.stop()`.
-        (6) Stop the radar.
     """
 
     _MAX_PACKET_SIZE = 2048
@@ -97,7 +111,7 @@ class DCA1000EVM:
         self.data_socket.settimeout(self.timeout)
 
     def setup(
-        self, delay: float = 5.0, lvds=types.LVDS.TWO_LANE
+        self, delay: float = 5.0, lvds: defines.LVDS = defines.LVDS.TWO_LANE
     ) -> None:
         """Configure DCA1000EVM capture card.
 
@@ -109,16 +123,21 @@ class DCA1000EVM:
         self.read_fpga_version()
         self.configure_record(delay=delay)
         self.configure_fpga(
-            log=types.Log.RAW_MODE, lvds=lvds,
-            transfer=types.DataTransfer.CAPTURE,
-            format=types.DataFormat.BIT16,
-            capture=types.DataCapture.ETH_STREAM)
+            log=defines.Log.RAW_MODE, lvds=lvds,
+            transfer=defines.DataTransfer.CAPTURE,
+            format=defines.DataFormat.BIT16,
+            capture=defines.DataCapture.ETH_STREAM)
 
     def _recv(self) -> Optional[types.DataPacket]:
         """Receive data.
 
-        NOTE: due to high packet rates (up to 200KHz), we only busy-wait, and
-        manually track the timeout using `perf_counter`.
+        !!! info
+
+            Due to high packet rates (up to 200KHz), we only busy-wait, and
+            manually track the timeout using `perf_counter`.
+
+        Returns:
+            The received `DataPacket` or `None` if the timeout is reached.
         """
         timeout = time.perf_counter() + self.timeout
         while True:
@@ -142,9 +161,21 @@ class DCA1000EVM:
     ) -> Iterator[types.RadarFrame]:
         """Get a python iterator corresponding to the data stream.
 
-        NOTE: `shape` should have twice as many samples on the last axis
-        to account for two IQ uint16s per sample. Note that these samples are
-        also in IIQQ order, not IQ order.
+        Returns only when the stream is exhausted (i.e., when the radar no
+        longer sends any data). Thus, no method is provided to stop receiving
+        the stream directly; callers should instead send a stop command to the
+        radar or capture card, which then terminates the stream and causes this
+        method to return.
+
+        !!! warning
+
+            `shape` should have twice as many samples on the last axis
+            to account for two IQ uint16s per sample. Note that these samples
+            are also in IIQQ order, not IQ order; see
+            [`RadarFrame`][awr_api.capture.types.RadarFrame].
+
+        Args:
+            shape: shape of the data to be received.
         """
         size = int(np.prod(shape)) * np.dtype(np.uint16).itemsize
 
@@ -195,15 +226,19 @@ class DCA1000EVM:
         self._config_request(cmd, "Reset AR Device")
 
     def configure_fpga(
-        self, lvds=types.LVDS.TWO_LANE, log=types.Log.RAW_MODE,
-        transfer=types.DataTransfer.CAPTURE, format=types.DataFormat.BIT16,
-        capture=types.DataCapture.ETH_STREAM
+        self, lvds: defines.LVDS = defines.LVDS.TWO_LANE,
+        log: defines.Log = defines.Log.RAW_MODE,
+        transfer: defines.DataTransfer = defines.DataTransfer.CAPTURE,
+        format: defines.DataFormat = defines.DataFormat.BIT16,
+        capture: defines.DataCapture = defines.DataCapture.ETH_STREAM
     ) -> None:
         """Configure FPGA.
 
-        NOTE: This seems to cause the FPGA to ignore requests for a short time
-        after. Sending `system_aliveness` pings until it responds seems to be
-        the best way to check when it's ready again.
+        !!! note
+
+            This seems to cause the FPGA to ignore requests for a short time
+            after. Sending `system_aliveness` pings until it responds seems to
+            be the best way to check when it's ready again.
 
         Args:
             lvds: `FOUR_LANE` or `TWO_LANE`; select based on radar.
@@ -216,7 +251,8 @@ class DCA1000EVM:
             log, lvds, transfer, capture, format))
         cfg = struct.pack(
             "BBBBBB", log.value, lvds.value, transfer.value,
-            capture.value, format.value, types.FPGA_CONFIG_DEFAULT_TIMER)
+            capture.value, format.value,
+            DCAConstants.FPGA_CONFIG_DEFAULT_TIMER)
         cmd = types.Request(types.Command.CONFIG_FPGA, cfg)
         self._config_request(cmd, desc="Configure FPGA")
 
@@ -238,12 +274,18 @@ class DCA1000EVM:
     ) -> None:
         """Configure EEPROM; contains IP, MAC, port information.
 
-        NOTE: Use with extreme caution. This should never be used in normal
-        operation. May require delay before use depending on the previous cmd.
+        !!! danger
+
+            Use with extreme caution. This should never be used in normal
+            operation. May require delay before use depending on the previous
+            command.
 
         If this operation messes up the system IP and FPGA IP, the radar needs
-        to be switched to hard-coded IP mode (user switch 1; see [1]) and
-        the EEPROM correctly reprogrammed.
+        to be switched to hard-coded IP mode (user switch 1; see the TI user
+        guide[^1]) and the EEPROM correctly reprogrammed.
+
+        [^1]: [DCA1000EVM Data Capture Card User's Guide (Rev A)](
+        https://www.ti.com/lit/ug/spruij4a/spruij4a.pdf?ts=1709104212742).
         """
         cfg = struct.pack(
             "B" * (4 + 4 + 6) + "HH",
@@ -264,7 +306,14 @@ class DCA1000EVM:
         self._config_request(cmd, desc="Stop recording")
 
     def read_fpga_version(self) -> tuple[int, int, bool]:
-        """Get current FPGA version."""
+        """Get current FPGA version.
+
+        Returns:
+            A `(major, minor, playback)` tuple which contains the `major`
+                version, `minor` version, and a `playback` boolean indicating
+                whether the FPGA is in playback mode (True) or record mode
+                (False).
+        """
         cmd = types.Request(types.Command.READ_FPGA_VERSION, bytes())
         resp = self._config_request(cmd)
         if resp.status < 0:
@@ -283,16 +332,23 @@ class DCA1000EVM:
     def configure_record(self, delay: float = 25.0) -> None:
         """Configure data packets (with a packet delay in us).
 
-        The packet delay must be between 5 and 500 us (Table 19, [1]). This
+        The packet delay must be between 5 and 500 us (Table 19[^1]). This
         sets the theoretical maximum throughput to between 193 and 706 Mbps.
+
+        Args:
+            delay: packet delay, in microseconds.
+
+        [^1]: [DCA1000EVM Data Capture Card User's Guide (Rev A)](
+        https://www.ti.com/lit/ug/spruij4a/spruij4a.pdf?ts=1709104212742).
         """
         assert 5.0 <= delay
         assert delay <= 500.0
 
         converted = int(
-            delay * types.FPGA_CLK_CONVERSION_FACTOR
-            / types.FPGA_CLK_PERIOD_IN_NANO_SEC)
-        cfg = struct.pack("HHH", types.MAX_BYTES_PER_PACKET, converted, 0)
+            delay * DCAConstants.FPGA_CLK_CONVERSION_FACTOR
+            / DCAConstants.FPGA_CLK_PERIOD_IN_NANO_SEC)
+        cfg = struct.pack(
+            "HHH", DCAConstants.MAX_BYTES_PER_PACKET, converted, 0)
         cmd = types.Request(types.Command.CONFIG_RECORD, cfg)
         self._config_request(cmd, desc="Configure recording")
 
@@ -314,5 +370,5 @@ class DCA1000EVM:
             else:
                 msg = "Failure: {} (status={})".format(desc, response.status)
                 self.log.error(msg)
-                raise types.DCAException(msg)
+                raise DCAException(msg)
         return response
