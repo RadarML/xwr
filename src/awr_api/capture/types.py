@@ -24,7 +24,7 @@ class Request:
     """Command request protocol."""
 
     cmd: Command
-    data: bytes
+    data: bytes | bytearray
 
     def to_bytes(self) -> bytes:
         """Form into a single packet.
@@ -71,7 +71,7 @@ class DataPacket:
 
     sequence_number: int
     byte_count: int
-    data: bytes
+    data: bytes | bytearray
 
     @classmethod
     def from_bytes(cls, packet: bytes) -> "DataPacket":
@@ -141,5 +141,5 @@ class RadarFrame:
     """
 
     timestamp: float
-    data: bytes
+    data: bytes | bytearray
     complete: bool

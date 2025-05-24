@@ -3,11 +3,8 @@ repo_url: https://github.com/WiseLabCMU/awr-api
 repo_name: awr-api
 nav:
   - Home: index.md
-  - Setup:
-    - Overview: setup/overview.md
-    - Radar: setup/radar.md
-    - Capture Card: setup/capture.md
-  - System API: system.md
+  - Setup: setup.md
+  - High Level API: system.md
   - Capture Card:
     - API: dca/api.md
     - Defines: dca/defines.md

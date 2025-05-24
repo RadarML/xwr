@@ -32,6 +32,11 @@ docs = [
     "mkdocstrings-python-xref == 1.16.*",
     "mkdocstrings[python] == 0.29.*"
 ]
+interactive = [
+    "ipykernel",
+    "ipywidgets",
+    "matplotlib"    
+]
 
 [project.urls]
 Homepage = "https://github.com/WiseLabCMU/awr-api"

@@ -23,7 +23,8 @@ class AWRConfig:
     may be helpful for creating a configuration.
 
     Attributes:
-        port: Control serial port (usually `/dev/ttyACM0`).
+        port: Control serial port (usually `/dev/ttyACM0`). Use `None` to
+            auto-detect; see [`AWRBase`][awr_api.radar.AWRBase].
         frequency: base frequency, in GHz.
         idle_time: radar timing parameters; in microseconds.
         adc_start_time: radar timing parameters; in microseconds.
@@ -48,7 +49,7 @@ class AWRConfig:
     sample_rate: int
     frame_length: int
     frame_period: float
-    port: str = "/dev/ttyACM0"
+    port: str | None = None
     num_tx: int = 2
     num_rx: int = 4
 
@@ -352,6 +353,11 @@ class AWRSystem:
         In testing, we found that the radar may ignore commands if the frame
         timings are too tight, which prevents a soft reset. We simply reboot
         the radar via the capture card instead.
+
+        !!! warning
+
+            If you fail to `.stop()` the system before exiting, the radar may
+            become non-responsive, and require a power cycle.
         """
         self.dca.stop()
         self.dca.reset_ar_device()

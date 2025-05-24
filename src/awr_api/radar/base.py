@@ -7,6 +7,7 @@ import logging
 import time
 
 import serial
+from serial.tools import list_ports
 
 from .raw import APIMixins, BoilerplateMixins
 
@@ -35,8 +36,16 @@ class AWRBase(APIMixins, BoilerplateMixins):
         We only implement a partial API. Non-mandatory calls which do not
         affect the LVDS raw I/Q stream are not implemented.
 
+    !!! info
+
+        If the radar serial port is not provided, we auto-detect the port by
+        fetching the lowest-numbered one which contains "XDS110" in the USB
+        device description, which corresponds to the [TI XDS110 JTAG debugger](
+        https://www.ti.com/tool/TMDSEMU110-U) embedded in each radar dev board.
+
     Args:
-        port: radar control serial port; typically the lower numbered one.
+        port: radar control serial port; typically the lower numbered one. If
+            not provided (`None`), we attempt to auto-detect the port.
         baudrate: baudrate of control port.
         name: human-readable name.
     """
@@ -44,12 +53,35 @@ class AWRBase(APIMixins, BoilerplateMixins):
     _CMD_PROMPT = "\rmmwDemo:/>"
 
     def __init__(
-        self, port: str = "/dev/ttyACM0", baudrate: int = 115200,
+        self, port: str | None = None, baudrate: int = 115200,
         name: str = "AWR1843"
     ) -> None:
         self.log = logging.getLogger(name=name)
+
+        if port is None:
+            port = self.__detect_port()
+            self.log.info(f"Auto-detected port: {port}")
+
         self.port = serial.Serial(port, baudrate, timeout=None)
         self.port.set_low_latency_mode(True)
+        self.port.reset_input_buffer()
+        self.port.reset_output_buffer()
+
+    def __detect_port(self) -> str:
+        for port in list_ports.comports():
+            if port.product is not None:
+                # AWR1843Boost
+                if "XDS110" in port.product:
+                    return port.device
+                # AWR1843AOPEVM
+                if "CP2105" in port.product and "Enhanced" in port.description:
+                    return port.device
+
+        self.log.error("Failed to auto-detect radar port.")
+        raise AWRException(
+            "Auto-detecting the radar port (`port=None`) failed: none of the "
+            "available ports contain 'XDS110' in the USB description. "
+            f"Available ports: {[p.device for p in list_ports.comports()]}")
 
     def setup_from_config(self, path: str) -> None:
         """Run raw setup from a config file."""

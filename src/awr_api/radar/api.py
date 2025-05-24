@@ -25,7 +25,7 @@ class AWR1843(AWRBase):
     """
 
     def __init__(
-        self, port: str = "/dev/ttyACM0", baudrate: int = 115200,
+        self, port: str | None = None, baudrate: int = 115200,
         name: str = "AWR1843"
     ) -> None:
         super().__init__(port=port, baudrate=baudrate, name=name)
@@ -100,7 +100,7 @@ class AWR2544(AWRBase):
     """
 
     def __init__(
-        self, port: str = "/dev/ttyACM0", baudrate: int = 115200,
+        self, port: str | None = None, baudrate: int = 115200,
         name: str = "AWR1843"
     ) -> None:
         super().__init__(port=port, baudrate=baudrate, name=name)
