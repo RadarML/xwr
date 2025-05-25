@@ -50,7 +50,7 @@ class AWRBase(APIMixins, BoilerplateMixins):
         name: human-readable name.
     """
 
-    _CMD_PROMPT = "\rmmwDemo:/>"
+    _CMD_PROMPT = "mmwDemo:/>"
 
     def __init__(
         self, port: str | None = None, baudrate: int = 115200,
@@ -63,18 +63,27 @@ class AWRBase(APIMixins, BoilerplateMixins):
             self.log.info(f"Auto-detected port: {port}")
 
         self.port = serial.Serial(port, baudrate, timeout=None)
-        self.port.set_low_latency_mode(True)
+
+        # Only linux supports low latency mode.
+        if hasattr(self.port, 'set_low_latency_mode'):
+            self.port.set_low_latency_mode(True)
+        else:
+            self.log.warning(
+                "Low latency mode is only supported on linux. This may cause "
+                "initialization to take longer than expected.")
+
         self.port.reset_input_buffer()
         self.port.reset_output_buffer()
 
     def __detect_port(self) -> str:
-        for port in list_ports.comports():
-            if port.product is not None:
+        sorted_ports = sorted(list_ports.comports(), key=lambda x: x.device)
+        for port in sorted_ports:
+            if port.description is not None:
                 # AWR1843Boost
-                if "XDS110" in port.product:
+                if "XDS110" in port.description:
                     return port.device
                 # AWR1843AOPEVM
-                if "CP2105" in port.product and "Enhanced" in port.description:
+                if "CP2105" in port.description and "Enhanced" in port.description:
                     return port.device
 
         self.log.error("Failed to auto-detect radar port.")

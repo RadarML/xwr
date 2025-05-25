@@ -3,6 +3,9 @@
 from . import defines
 from .base import AWRBase
 
+# NOTE: We ignore a few naming rules to maintain consistency with TI's naming.
+# ruff: noqa: N802, N803
+
 
 class AWR1843(AWRBase):
     """Interface implementation for the TI AWR1843 family.
@@ -148,7 +151,26 @@ class AWR2544(AWRBase):
         self.frameCfg(
             numLoops=frame_length, chirpEndIdx=3,
             framePeriodicity=frame_period)
-        self.compRangeBiasAndRxChanPhase()
+        self.compRangeBiasAndRxChanPhase(rx_phase=[(0, 1)] * 16)
         self.lvdsStreamCfg()
 
         self.boilerplate_setup()
+
+    def channelCfg(
+        self, rxChannelEn: int = 0b1111, txChannelEn: int = 0b101,
+        cascading: int = 0
+    ) -> None:
+        """Channel configuration for the radar subsystem.
+
+        !!! question
+
+            Not sure what the extra args do.
+
+        Args:
+            rxChannelEn: bit-masked rx channels to enable.
+            txChannelEn: bit-masked tx channels to enable.
+            cascading: must always be set to 0.
+        """
+        cmd = "channelCfg {} {} {} 0 0".format(
+            rxChannelEn, txChannelEn, cascading)
+        self.send(cmd)

@@ -7,24 +7,27 @@
 
     In our experience, the DCA1000EVM is particularly fragile; be careful with electrostatic discharge (ESD).
 
-Ensure that the following DIP switches are set:
+1. Ensure that the following DIP switches are set:
 
-- SW2.5: `SW_CONFIG`
-- SW2.6: `USER_SW1` (the marked right side), unless the EEPROM is messed up from a misconfigured [`configure_eeprom`][awr_api.capture.DCA1000EVM.configure_eeprom] call.
+    - SW2.5: `SW_CONFIG`
+    - SW2.6: `USER_SW1` (the marked right side), unless the EEPROM is messed up from a misconfigured [`configure_eeprom`][awr_api.capture.DCA1000EVM.configure_eeprom] call.
 
-The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending on whether the FPGA will be powered via the DC jack or via the radar.
+    The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending on whether the FPGA will be powered via the DC jack or via the radar.
 
-??? info "Hardware Configuration Switches (Optional)"
+    ??? info "Hardware Configuration Switches (Optional)"
 
-    The following are configured by [`configure_fpga`][awr_api.capture.DCA1000EVM.configure_fpga] under normal operation, but can be manually set in case that isn't working:
+        The following are configured by [`configure_fpga`][awr_api.capture.DCA1000EVM.configure_fpga] under normal operation, but can be manually set in case that isn't working:
 
-    - SW1: 16-bit mode (`16BIT_ON`, `14BIT_OFF`, `12BIT_OFF`).
-    - SW2.1: `LVDS_CAPTURE`
-    - SW2.2: `ETH_STREAM`
-    - SW2.3: `AR1642_MODE` (2-lane LVDS)
-    - SW2.4: `RAW_MODE`
-    - SW2.5: `HW_CONFIG`
+        - SW1: 16-bit mode (`16BIT_ON`, `14BIT_OFF`, `12BIT_OFF`).
+        - SW2.1: `LVDS_CAPTURE`
+        - SW2.2: `ETH_STREAM`
+        - SW2.3: `AR1642_MODE` (2-lane LVDS)
+        - SW2.4: `RAW_MODE`
+        - SW2.5: `HW_CONFIG`
 
+2. Configure a static IP address for the ethernet interface assigned to the capture card.
+
+    - Unless this IP has been changed (see [`configure_eeprom`][awr_api.capture.DCA1000EVM.configure_eeprom]), it should be set to an address of `192.168.33.30` with a subnet mask of `255.255.255.0`.
 
 ## AWR1843Boost
 
@@ -38,8 +41,8 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 
 1. Set the radar to flash mode.
 
-    - Find `SOP0:2` (DIP switches on the front of the radar).
-    - Set the switches to `SOP0:2=101`, where 1 corresponds to the "on" position labeled on the PCB.
+    - Find `SOP2:0` (DIP switches on the front of the radar).
+    - Set the switches to `SOP2:0=101`, where 1 corresponds to the "on" position labeled on the PCB.
     - Find switch `S2` in the middle of the radar, and set it to `SPI` (lower position).
 
 2. Flash using [TI UniFlash](https://www.ti.com/tool/UNIFLASH).
@@ -60,8 +63,8 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 
 3. Set the radar to functional mode.
 
-    - Set `SOP0:2=001`.
-    - Note that mmWave studio expects the radar to be in *debug* mode (`SOP0:2=011`), so switching between Red Rover and mmWave Studio requires the position of the SOP switches to be changed. This is also why mmWave studio requires the MSS firmware to be "re-flashed" whenever the radar is rebooted.
+    - Set `SOP2:0=001`.
+    - Note that mmWave studio expects the radar to be in *debug* mode (`SOP2:0=011`), so switching between Red Rover and mmWave Studio requires the position of the SOP switches to be changed. This is also why mmWave studio requires the MSS firmware to be "re-flashed" whenever the radar is rebooted.
 
 ## AWR1843AOP
 
@@ -84,7 +87,7 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 1. Set the radar to flash mode.
 
     - Find `SOP0`, `SOP`, `SOP2`. `SOP2` is all the way on the left, while `SOP0` and `SOP1` are on the right-most block of 4 switches.
-    - Set `SOP0:2=001`. In both cases, on (1) is up.
+    - Set `SOP2:0=001`. In both cases, on (1) is up.
 
     ??? quote "Switch Positions"
 
@@ -132,17 +135,15 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 
     Flashing the AWR2544LOPEVM requires two jumper caps or wires in order to physicall short the required pins. One of these jumpers must remain on the board to set it to functional mode.
 
-!!! warning
-
-    The AWR2544LOPEVM is one of TI's latest radar products; if this option is missing when flashing, please [update UniFlash](https://www.ti.com/tool/UNIFLASH).
-
 1. Prepare for flashing.
 
     - Plug in a USB cable to the XDS port (on the right side).
     - Find SOP0-2. These are physical jumpers, which must be shorted using jumper caps or wires.
     - Short SOP0 and SOP2 (top and bottom).
 
-2. Flash using [TI UniFlash](https://www.ti.com/tool/UNIFLASH).
+2. Flash using the mmWave MCU-PLUS-SDK.
 
-    - Uniflash should automatically discover the radar. If not, select the `AWR2544LOPEVM` device.
-    - Select the SBL image as `sbl_qspi.release.tiimage`, and the AppImage as `awr2544_mmw_demo.appimage`.
+    In `C:\ti\mmwave_mcuplus_sdk_04_07_00_01\mmwave_mcuplus_sdk_04_07_00_01\tools\awr2544`, run the following:
+    ```
+    python C:\ti\mmwave_mcuplus_sdk_04_07_00_01\mcu_plus_sdk_awr2544_10_00_00_07\tools\boot\uart_uniflash.py -p COM5 --cfg default.cfg
+    ```
