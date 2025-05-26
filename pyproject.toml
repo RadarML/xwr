@@ -4,11 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "xwr"
-version = "0.2.0"
+version = "0.3.0"
 authors = [
   { name="Tianshu Huang", email="tianshu2@andrew.cmu.edu" },
 ]
-description = "Standalone linux-compatible TI AWR1843/DCA1000EVM API implementation."
+description = "Linux-Compatible Real-Time Raw Data Capture for TI mmWave Radars."
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
@@ -39,5 +39,5 @@ interactive = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/WiseLabCMU/awr-api"
-Issues = "https://github.com/WiseLabCMU/awr-api/issues"
+Homepage = "https://github.com/WiseLabCMU/xwr"
+Issues = "https://github.com/WiseLabCMU/xwr/issues"

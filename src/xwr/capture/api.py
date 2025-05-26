@@ -29,6 +29,23 @@ class DCA1000EVM:
     `ReferenceCode/DCA1000/SourceCode` folder in a [mmWave Studio
     install](https://www.ti.com/tool/MMWAVE-STUDIO).
 
+    !!! info "Networking Configuration"
+
+        - The network interface connected to the DCA1000EVM should be
+            configured with a static IP address matching the provided `sys_ip`,
+            e.g., `192.168.33.30` with a subnet mask of `255.255.255.0`.
+            ```sh
+            RADAR_IF=eth0  # your radar interface name, e.g., eth0, enp0s25, etc.
+            RADAR_SYS_IP=192.168.33.30
+            sudo ifconfig $(RADAR_IF) $(RADAR_SYS_IP) netmask 255.255.255.0
+            ```
+        - To reduce dropped packets, the receive socket buffer size should also
+            be increased to at least 2 frames of data (even larger is fine):
+            ```sh
+            RECV_BUF_SIZE=16777216  # 16 MiB = 21 frames (~1 sec) @ 786k each.
+            echo $(RECV_BUF_SIZE) | sudo tee /proc/sys/net/core/rmem_max
+            ```
+
     !!! usage
 
         1. Initialization parameters can be defaults.

@@ -12,6 +12,13 @@
     3. Start the radar with `.start()`.
     4. Stop the radar with `.stop()`.
 
+!!! note
+
+    You may need to provide read/write permissions to access the serial port:
+    ```sh
+    sudo chmod 777 /dev/ttyACM0  # or whatever port the radar is on.
+    ```
+
 !!! danger
 
     If the configuration is invalid, `.start()` may return an error, or

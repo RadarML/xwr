@@ -3,7 +3,7 @@
 !!! usage
 
     To use the high-level API, create a [`XWRConfig`][.] and [`DCAConfig`][.];
-    then pass these to the [`XWRSystem`][.]. Then, use [`stream`][.AWRSystem.]
+    then pass these to the [`XWRSystem`][.]. Use [`stream`][.XWRSystem.]
     or [`qstream`][.XWRSystem.] to automatically configure, start, and stream
     spectrum data from the radar.
 
@@ -37,7 +37,7 @@
             socket_buffer: 16777216
             delay: 60.0
         ```
-    
+
     === "128x128, 5m range x 1.2m/s Doppler"
 
         ```yaml
@@ -63,14 +63,39 @@
             socket_buffer: 4194304
             delay: 200.0
         ```
+
+To use `xwr`, you will need to configure the following:
+
+1. The network interface connected to the DCA1000EVM should be
+    configured with a static IP address matching the provided `sys_ip`,
+    e.g., `192.168.33.30` with a subnet mask of `255.255.255.0`.
+    ```sh
+    RADAR_IF=eth0  # your radar interface name, e.g., eth0, enp0s25, etc.
+    RADAR_SYS_IP=192.168.33.30
+    sudo ifconfig $(RADAR_IF) $(RADAR_SYS_IP) netmask 255.255.255.0
+    ```
+
+2. To reduce dropped packets, the receive socket buffer size should also
+    be increased to at least 2 frames of data (even larger is fine):
+    ```sh
+    RECV_BUF_SIZE=16777216  # 16 MiB = 21 frames (~1 sec) @ 786k each.
+    echo $(RECV_BUF_SIZE) | sudo tee /proc/sys/net/core/rmem_max
+    ```
+
+3. Provide read/write permissions for the serial ports:
+    ```sh
+    sudo chmod 777 /dev/ttyACM0  # or whatever port the radar is on.
+    ```
 """
+
 from beartype.claw import beartype_this_package
 
 beartype_this_package()
 
 # ruff: noqa: E402
 from . import capture, radar
-from .system import DCAConfig, XWRConfig, XWRSystem
+from .config import DCAConfig, XWRConfig
+from .system import XWRSystem
 
 __all__ = [
     "capture", "radar", "XWRConfig", "XWRSystem", "DCAConfig"]
