@@ -7,7 +7,7 @@ from typing import Iterator, Literal, Type, cast, overload
 
 import numpy as np
 
-from . import radar
+from . import radar as xwr_radar
 from .capture import types
 from .config import DCAConfig, XWRConfig
 
@@ -40,7 +40,8 @@ class XWRSystem:
 
     def __init__(
         self, *, radar: XWRConfig | dict, capture: DCAConfig | dict,
-        type: Type[radar.XWRBase] | str = "AWR1843", name: str = "RadarCapture"
+        type: Type[xwr_radar.XWRBase] | str = "AWR1843",
+        name: str = "RadarCapture"
     ) -> None:
         if isinstance(radar, dict):
             radar = XWRConfig(**radar)
@@ -49,7 +50,7 @@ class XWRSystem:
 
         if isinstance(type, str):
             try:
-                RadarType = getattr(radar, type)
+                RadarType = getattr(xwr_radar, type)
             except AttributeError:
                 raise ValueError(f"Unknown radar type: {type}")
         else:

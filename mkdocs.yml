@@ -1,6 +1,6 @@
-site_name: mmWave Radar SDK
-repo_url: https://github.com/WiseLabCMU/awr-api
-repo_name: awr-api
+site_name: XWR Radar SDK
+repo_url: https://github.com/WiseLabCMU/xwr
+repo_name: WiseLabCMU/xwr
 nav:
   - Home: index.md
   - Setup: setup.md

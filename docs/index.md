@@ -1,4 +1,4 @@
-# `xwr`: Linux-Compatible Real-Time Raw Data Capture for TI mmWave Radars
+# `xwr`: Linux-Based Real-Time Raw Data Capture for TI mmWave Radars
 
 ## Setup
 

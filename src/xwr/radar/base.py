@@ -127,8 +127,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
         resp = (
             rx_buf.decode('utf-8', errors='replace')
             .replace(self._CMD_PROMPT, '').replace(cmd, '')
-            .rstrip(' \n\t').lstrip(' \n\t')
-            .replace('\n', '; ').replace('\r', ''))
+            .rstrip(' ;\r\n\t').lstrip(' \n\t'))
         self.log.debug("Response: {}".format(resp))
 
         # Check for non-normal response
