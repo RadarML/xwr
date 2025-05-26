@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "awr_api"
+name = "xwr"
 version = "0.2.0"
 authors = [
   { name="Tianshu Huang", email="tianshu2@andrew.cmu.edu" },

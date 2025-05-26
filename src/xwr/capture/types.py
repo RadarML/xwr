@@ -100,7 +100,7 @@ class RadarFrame:
     !!! note
 
         Assuming the radar/capture card are configured for 16-bit capture and
-        [`SampleSwap.MSB_LSB_IQ`][awr_api.radar.defines.SampleSwap] order,
+        [`SampleSwap.MSB_LSB_IQ`][xwr.radar.defines.SampleSwap] order,
         the output data use an interleaved Complex32 format consisting of real
         (I: in-phase) and complex (Q: quadrature) `i16` parts.
 

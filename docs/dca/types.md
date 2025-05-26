@@ -1,1 +1,1 @@
-::: awr_api.capture.types
+::: xwr.capture.types

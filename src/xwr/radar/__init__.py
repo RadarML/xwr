@@ -2,7 +2,7 @@
 
 !!! usage
 
-    After selecting the appropriate `AWRXXXX` interface:
+    After selecting the appropriate `XWRXXXX` interface:
 
     1. Initialization parameters can be defaults. The `port` may need to
         be changed if multiple radars are being used, or another device
@@ -21,8 +21,8 @@
 
 from . import defines
 from .api import AWR1843, AWR2544
-from .base import AWRBase, AWRException
+from .base import XWRBase, XWRException
 
 __all__ = [
     "defines", "AWR1843", "AWR2544",
-    "AWRException", "AWRBase"]
+    "XWRException", "XWRBase"]

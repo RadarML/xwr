@@ -4,18 +4,18 @@ import logging
 import threading
 from dataclasses import dataclass
 from queue import Queue
-from typing import Iterator, Literal, cast, overload
+from typing import Iterator, Literal, Type, cast, overload
 
 import numpy as np
 
+from . import radar
 from .capture import DCA1000EVM, defines, types
-from .radar import AWR1843
 
 SPEED_OF_LIGHT = 299792458
 """Speed of light, in m/s."""
 
 @dataclass
-class AWRConfig:
+class XWRConfig:
     """Radar configuration.
 
     The [TI mmWave sensing estimator](
@@ -24,7 +24,7 @@ class AWRConfig:
 
     Attributes:
         port: Control serial port (usually `/dev/ttyACM0`). Use `None` to
-            auto-detect; see [`AWRBase`][awr_api.radar.AWRBase].
+            auto-detect; see [`XWRBase`][xwr.radar.XWRBase].
         frequency: base frequency, in GHz.
         idle_time: radar timing parameters; in microseconds.
         adc_start_time: radar timing parameters; in microseconds.
@@ -193,12 +193,12 @@ class DCAConfig:
         return dca
 
 
-class AWRSystem:
+class XWRSystem:
     """Radar capture system with a AWR1843Boost and DCA1000EVM.
 
     !!! info "Known Constraints"
 
-        The `AWRSystem` will check for certain known constraints, and warn if
+        The `XWRSystem` will check for certain known constraints, and warn if
         these are violated via a logger:
 
         - Radar data throughput is greater than 80% of the capture card
@@ -211,31 +211,41 @@ class AWRSystem:
 
     Args:
         radar: radar configuration; if `dict`, the key/value pairs are passed
-            to `AWRConfig`.
+            to `XWRConfig`.
         capture: capture card configuration; if `dict`, the key/value pairs are
             passed to `DCAConfig`.
+        type: radar type; if `str`, the class in [`xwr.radar`][xwr.radar] with
+            the corresponding name is used.
         name: friendly name for logging; can be default.
     """
 
     def __init__(
-        self, *, radar: AWRConfig | dict, capture: DCAConfig | dict,
-        name: str = "RadarCapture"
+        self, *, radar: XWRConfig | dict, capture: DCAConfig | dict,
+        type: Type[radar.XWRBase] | str = "AWR1843", name: str = "RadarCapture"
     ) -> None:
         if isinstance(radar, dict):
-            radar = AWRConfig(**radar)
+            radar = XWRConfig(**radar)
         if isinstance(capture, dict):
             capture = DCAConfig(**capture)
+
+        if isinstance(type, str):
+            try:
+                RadarType = getattr(radar, type)
+            except AttributeError:
+                raise ValueError(f"Unknown radar type: {type}")
+        else:
+            RadarType = type
 
         self.log = logging.getLogger(name)
         self._statistics(radar, capture)
 
         self.dca = capture.create()
-        self.awr = AWR1843(port=radar.port)
+        self.xwr = RadarType(port=radar.port)
 
         self.config = radar
         self.fps = 1000.0 / radar.frame_period
 
-    def _statistics(self, radar: AWRConfig, capture: DCAConfig) -> None:
+    def _statistics(self, radar: XWRConfig, capture: DCAConfig) -> None:
         """Compute (and log) statistics, and warn if potentially invalid."""
         # Network utilization
         util = radar.throughput / capture.throughput
@@ -289,8 +299,8 @@ class AWRSystem:
 
         # start capture card & radar
         self.dca.start()
-        self.awr.setup(**self.config.as_dict())
-        self.awr.start()
+        self.xwr.setup(**self.config.as_dict())
+        self.xwr.start()
 
         return self.dca.stream(self.config.raw_shape)
 

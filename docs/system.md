@@ -1,6 +1,6 @@
-::: awr_api
+::: xwr
     options:
         members:
-        - AWRSystem
+        - XWRSystem
         - DCAConfig
-        - AWRConfig
+        - XWRConfig

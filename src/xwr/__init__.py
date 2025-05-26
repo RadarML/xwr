@@ -1,16 +1,16 @@
-"""AWR1843Boost Radar & DCA1000EVM Capture Card API.
+"""TI mmWave Radar + DCA1000EVM Capture Card Raw Data Capture API.
 
 !!! usage
 
-    To use the high-level API, create a [`AWRConfig`][.] and [`DCAConfig`][.];
-    then pass these to the [`AWRSystem`][.]. Then, use [`stream`][.AWRSystem.]
-    or [`qstream`][.AWRSystem.] to automatically configure, start, and stream
+    To use the high-level API, create a [`XWRConfig`][.] and [`DCAConfig`][.];
+    then pass these to the [`XWRSystem`][.]. Then, use [`stream`][.AWRSystem.]
+    or [`qstream`][.XWRSystem.] to automatically configure, start, and stream
     spectrum data from the radar.
 
 ??? example "Example Configuration"
 
-    Note that these configurations can be passed to `AWRSystem` by simply
-    unpacking them as arguments (`system = AWRSystem(**config)`).
+    Note that these configurations can be passed to `XWRSystem` by simply
+    unpacking them as arguments (`system = XWRSystem(**config)`).
 
     === "256x64, 22m range x 8m/s Doppler"
 
@@ -70,7 +70,7 @@ beartype_this_package()
 
 # ruff: noqa: E402
 from . import capture, radar
-from .system import AWRConfig, AWRSystem, DCAConfig
+from .system import DCAConfig, XWRConfig, XWRSystem
 
 __all__ = [
-    "capture", "radar", "AWRConfig", "AWRSystem", "DCAConfig"]
+    "capture", "radar", "XWRConfig", "XWRSystem", "DCAConfig"]

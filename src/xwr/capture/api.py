@@ -172,7 +172,7 @@ class DCA1000EVM:
             `shape` should have twice as many samples on the last axis
             to account for two IQ uint16s per sample. Note that these samples
             are also in IIQQ order, not IQ order; see
-            [`RadarFrame`][awr_api.capture.types.RadarFrame].
+            [`RadarFrame`][xwr.capture.types.RadarFrame].
 
         Args:
             shape: shape of the data to be received.

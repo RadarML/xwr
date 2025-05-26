@@ -1,1 +1,1 @@
-::: awr_api.capture.defines
+::: xwr.capture.defines

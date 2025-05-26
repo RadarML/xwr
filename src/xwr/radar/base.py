@@ -12,13 +12,13 @@ from serial.tools import list_ports
 from .raw import APIMixins, BoilerplateMixins
 
 
-class AWRException(Exception):
+class XWRException(Exception):
     """Error raised by the Radar (via non-normal return message)."""
 
     pass
 
 
-class AWRBase(APIMixins, BoilerplateMixins):
+class XWRBase(APIMixins, BoilerplateMixins):
     """Generic AWR Interface for the TI demo MSS firmware.
 
     The interface is based on a UART ASCII CLI, and is documented by the
@@ -87,7 +87,7 @@ class AWRBase(APIMixins, BoilerplateMixins):
                     return port.device
 
         self.log.error("Failed to auto-detect radar port.")
-        raise AWRException(
+        raise XWRException(
             "Auto-detecting the radar port (`port=None`) failed: none of the "
             "available ports contain 'XDS110' in the USB description. "
             f"Available ports: {[p.device for p in list_ports.comports()]}")
@@ -142,7 +142,7 @@ class AWRBase(APIMixins, BoilerplateMixins):
                 pass  # header
             else:
                 self.log.error(resp)
-                raise AWRException(resp)
+                raise XWRException(resp)
 
     def start(self, reconfigure: bool = True) -> None:
         """Start radar.
