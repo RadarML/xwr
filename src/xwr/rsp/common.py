@@ -82,7 +82,7 @@ class BaseRSP(ABC):
         Args:
             x: input array.
             axis: Axis along which to pad.
-            pad: Target size after padding.
+            size: Target size after padding.
 
         Returns:
             Input array with padding applied along the specified axis.

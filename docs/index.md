@@ -30,7 +30,6 @@ You will also need to [configure the radar and capture card](setup.md) for raw d
 !!! info "Supported Devices"
 
     - AWR1843 Family: AWR1843Boost, AWR1843AOPEVM
-    - AWR2544LOPEVM
 
 ## Usage
 
