@@ -2,7 +2,7 @@
 
 import logging
 import threading
-from queue import Queue
+from queue import Empty, Queue
 from typing import Iterator, Literal, Type, cast, overload
 
 import numpy as np
@@ -176,6 +176,51 @@ class XWRSystem:
 
         threading.Thread(target=worker, daemon=True).start()
         return out
+
+    @overload
+    def dstream(
+        self, numpy: Literal[True] = True
+    ) -> Iterator[np.ndarray]:
+        ...
+
+    @overload
+    def dstream(
+        self, numpy: Literal[False] = False
+    ) -> Iterator[types.RadarFrame]:
+        ...
+
+    def dstream(
+        self, numpy: bool = False
+    ) -> Iterator[types.RadarFrame | np.ndarray]:
+        """Stream frames, dropping any frames if the consumer gets behind.
+
+        Args:
+            numpy: yield a numpy array instead of a `RadarFrame`.
+
+        Yields:
+            Read frames; the iterator terminates when the capture card stream
+                times out.
+        """
+        def drop_frames(q):
+            dropped = 0
+            latest = q.get(block=True)
+
+            while True:
+                try:
+                    latest = q.get_nowait()
+                    dropped += 1
+                except Empty:
+                    return latest, dropped
+
+        q = self.qstream(numpy=numpy)
+        while True:
+            frame, dropped = drop_frames(q)
+            if dropped > 0:
+                self.log.warning(f"Dropped {dropped} frames.")
+            if frame is None:
+                break
+            else:
+                yield frame
 
     def stop(self):
         """Stop by halting the capture card and reboot the radar.

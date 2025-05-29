@@ -20,7 +20,8 @@ dependencies = [
     "numpy>=2.0",
     "beartype>=0.20",
     "pyserial>=3.5",
-    "types-pyserial>=3.5"
+    "types-pyserial>=3.5",
+    "jaxtyping>=0.3.2",
 ]
 
 [project.optional-dependencies]
@@ -32,10 +33,13 @@ docs = [
     "mkdocstrings-python-xref == 1.16.*",
     "mkdocstrings[python] == 0.29.*"
 ]
+demo = [
+    "flask>=3.1.1",
+    "flask-socketio>=5.5.1",
+]
 interactive = [
-    "ipykernel",
-    "ipywidgets",
-    "matplotlib"    
+    "matplotlib",
+    "ipykernel"
 ]
 
 [project.urls]

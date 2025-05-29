@@ -5,6 +5,7 @@ nav:
   - Home: index.md
   - Setup: setup.md
   - High Level API: system.md
+  - Radar Processing: rsp.md
   - Capture Card:
     - API: dca/api.md
     - Defines: dca/defines.md
