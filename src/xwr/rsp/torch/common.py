@@ -4,22 +4,24 @@ from abc import ABC, abstractmethod
 from typing import Literal, overload
 
 import numpy as np
+import torch
 from jaxtyping import Complex64, Int16, Shaped
+from torch import Tensor
 
 
 @overload
 def iq_from_iiqq(
-    iiqq: Int16[np.ndarray, "... n"], complex: Literal[True] = True
-) -> Complex64[np.ndarray, "... n/2"]: ...
+    iiqq: Int16[Tensor, "... n"], complex: Literal[True] = True
+) -> Complex64[Tensor, "... n/2"]: ...
 
 @overload
 def iq_from_iiqq(
-    iiqq: Int16[np.ndarray, "... n"], complex: Literal[False] = False
-) -> Int16[np.ndarray, "... n/2 2"]: ...
+    iiqq: Int16[Tensor, "... n"], complex: Literal[False] = False
+) -> Int16[Tensor, "... n/2 2"]: ...
 
 def iq_from_iiqq(
-    iiqq: Int16[np.ndarray, "... n"], complex: bool = True
-) -> Complex64[np.ndarray, "... n/2"] | Int16[np.ndarray, "... n/2 2"]:
+    iiqq: Int16[Tensor, "... n"], complex: bool = True
+) -> Complex64[Tensor, "... n/2"] | Int16[Tensor, "... n/2 2"]:
     """Un-interleave IIQQ data.
 
     Args:
@@ -34,12 +36,12 @@ def iq_from_iiqq(
     shape = (*iiqq.shape[:-1], iiqq.shape[-1] // 2)
 
     if complex:
-        iq = np.zeros(shape, dtype=np.complex64)
+        iq = torch.zeros(shape, dtype=torch.complex64, device=iiqq.device)
         iq[..., 0::2] = 1j * iiqq[..., 0::4] + iiqq[..., 2::4]
         iq[..., 1::2] = 1j * iiqq[..., 1::4] + iiqq[..., 3::4]
         return iq
     else:
-        iq = np.zeros((*shape, 2), dtype=np.int16)
+        iq = torch.zeros((*shape, 2), dtype=torch.int16, device=iiqq.device)
         iq[..., 0::2, 1] = iiqq[..., 0::4]
         iq[..., 1::2, 1] = iiqq[..., 1::4]
         iq[..., 0::2, 0] = iiqq[..., 2::4]
@@ -75,8 +77,8 @@ class BaseRSP(ABC):
 
     @staticmethod
     def pad(
-        x: Shaped[np.ndarray, "..."], axis: int, size: int
-    ) -> Shaped[np.ndarray, "..."]:
+        x: Shaped[Tensor, "..."], axis: int, size: int
+    ) -> Shaped[Tensor, "..."]:
         """Pad the specified axis with zeros to reach the target size.
 
         Args:
@@ -94,14 +96,14 @@ class BaseRSP(ABC):
 
         shape = list(x.shape)
         shape[axis] = size - x.shape[axis]
-        zeros = np.zeros(shape, dtype=x.dtype)
+        zeros = torch.zeros(shape, dtype=x.dtype, device=x.device)
 
-        return np.concatenate([x, zeros], axis=axis)
+        return torch.concatenate([x, zeros], dim=axis)
 
     @staticmethod
     def hann(
-        iq: Complex64[np.ndarray, "..."], axis: int
-    ) -> Complex64[np.ndarray, "..."]:
+        iq: Complex64[Tensor, "..."], axis: int
+    ) -> Complex64[Tensor, "..."]:
         """Apply a Hann window to the specified axis of the IQ data.
 
         Args:
@@ -114,11 +116,13 @@ class BaseRSP(ABC):
         hann = np.hanning(iq.shape[axis])
         broadcast: list[None | slice] = [None] * iq.ndim
         broadcast[axis] = slice(None)
-        return iq * (hann / np.mean(hann))[tuple(broadcast)]
+        window = torch.from_numpy(
+            (hann / np.mean(hann))[tuple(broadcast)]).to(iq.device)
+        return iq * window
 
     def _pad_and_window(
-        self, rd: Complex64[np.ndarray, "#batch doppler tx rx range"]
-    ) -> Complex64[np.ndarray, "#batch doppler tx rx range"]:
+        self, rd: Complex64[Tensor, "#batch doppler tx rx range"]
+    ) -> Complex64[Tensor, "#batch doppler tx rx range"]:
         if self.window.get("elevation", self._default_window):
             rd = self.hann(rd, 2)
         if self.window.get("azimuth", self._default_window):
@@ -132,8 +136,8 @@ class BaseRSP(ABC):
         return rd
 
     def doppler_range(
-        self, iq: Complex64[np.ndarray, "#batch doppler tx rx range"]
-    ) -> Complex64[np.ndarray, "#batch doppler tx rx range"]:
+        self, iq: Complex64[Tensor, "#batch doppler tx rx range"]
+    ) -> Complex64[Tensor, "#batch doppler tx rx range"]:
         """Calculate range-doppler spectrum from IQ data.
 
         Args:
@@ -152,14 +156,14 @@ class BaseRSP(ABC):
         if self.size.get("doppler") is not None:
             iq = self.pad(iq, 1, self.size["doppler"])
 
-        iq = np.fft.fftn(iq, axes=(1, 4))
-        iq = np.fft.fftshift(iq, axes=(1,))
+        iq = torch.fft.fftn(iq, axes=(1, 4))
+        iq = torch.fft.fftshift(iq, axes=(1,))
         return iq
 
     @abstractmethod
     def mimo_virtual_array(
-        self, rd: Complex64[np.ndarray, "#batch doppler tx rx range"]
-    ) -> Complex64[np.ndarray, "#batch doppler elevation azimuth range"]:
+        self, rd: Complex64[Tensor, "#batch doppler tx rx range"]
+    ) -> Complex64[Tensor, "#batch doppler elevation azimuth range"]:
         """Set up MIMO virtual array from range-doppler spectrum.
 
         Args:
@@ -171,8 +175,8 @@ class BaseRSP(ABC):
         ...
 
     def elevation_azimuth(
-        self, rd: Complex64[np.ndarray, "#batch doppler tx rx range"]
-    ) -> Complex64[np.ndarray, "#batch doppler el az range"]:
+        self, rd: Complex64[Tensor, "#batch doppler tx rx range"]
+    ) -> Complex64[Tensor, "#batch doppler el az range"]:
         """Calculate elevation-azimuth spectrum from range-doppler spectrum.
 
         Args:
@@ -194,15 +198,15 @@ class BaseRSP(ABC):
         if self.size.get("azimuth") is not None:
             mimo = self.pad(mimo, 3, self.size["azimuth"])
 
-        aoa = np.fft.fftn(mimo, axes=(2, 3))
-        aoa = np.fft.fftshift(aoa, axes=(2, 3))
+        aoa = torch.fft.fftn(mimo, axes=(2, 3))
+        aoa = torch.fft.fftshift(aoa, axes=(2, 3))
         return aoa
 
     def process(
         self,
-        iq: Complex64[np.ndarray, "#batch doppler tx rx range"]
-        | Int16[np.ndarray, "#batch doppler tx rx range*2"]
-    ) -> Complex64[np.ndarray, "#batch doppler el az range"]:
+        iq: Complex64[Tensor, "#batch doppler tx rx range"]
+        | Int16[Tensor, "#batch doppler tx rx range*2"]
+    ) -> Complex64[Tensor, "#batch doppler el az range"]:
         """Process IQ data to compute elevation-azimuth spectrum.
 
         Args:

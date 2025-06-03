@@ -1,11 +1,14 @@
-site_name: XWR Radar SDK
+site_name: XWR
 repo_url: https://github.com/WiseLabCMU/xwr
 repo_name: WiseLabCMU/xwr
 nav:
   - Home: index.md
   - Setup: setup.md
   - High Level API: system.md
-  - Radar Processing: rsp.md
+  - Radar Processing:
+    - RSP: rsp/rsp.md
+    - Pytorch: rsp/torch.md
+    - Jax: rsp/jax.md
   - Capture Card:
     - API: dca/api.md
     - Defines: dca/defines.md
@@ -56,6 +59,8 @@ plugins:
         - https://docs.python.org/3/objects.inv
         - https://numpy.org/doc/stable/objects.inv
         - https://wiselabcmu.github.io/abstract-dataloader/objects.inv
+        - https://docs.pytorch.org/docs/stable/objects.inv
+        - https://docs.jax.dev/en/latest/objects.inv
 
 markdown_extensions:
   - pymdownx.highlight:

@@ -97,7 +97,7 @@ class RadarFrame:
     [^1]: [MMwave Radar Device ADC Raw Capture Data](
     https://www.ti.com/lit/an/swra581b/swra581b.pdf?ts=1609161628089)
 
-    !!! note
+    !!! warning
 
         Assuming the radar/capture card are configured for 16-bit capture and
         [`SampleSwap.MSB_LSB_IQ`][xwr.radar.defines.SampleSwap] order,
@@ -105,7 +105,7 @@ class RadarFrame:
         (I: in-phase) and complex (Q: quadrature) `i16` parts.
 
         Since the output is little-endian, `MSB_LSB_IQ` indicates that `I`
-        is in the MSB, i.e. comes last, and the `Q` in the LSB comes first.
+        is in the MSB, i.e., comes last, and the `Q` in the LSB comes first.
 
         For example, if there are two LVDS lanes (e.g., AWR1843, AWR2544), each
         lane takes the following structure:
@@ -121,7 +121,7 @@ class RadarFrame:
         Output  | Q[0] | Q[1] | I[0] | I[1] | Q[2] | Q[3] | I[2] | I[3] | ...
         ```
 
-    !!! example "Interpreting the `data`"
+    ??? example "Code snippet: interpreting the `data`"
 
         ```python
         shape = [64, 4, 2, 128]  # shape: (chirps, tx, rx, samples)

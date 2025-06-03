@@ -3,23 +3,23 @@
 from abc import ABC, abstractmethod
 from typing import Literal, overload
 
-import numpy as np
-from jaxtyping import Complex64, Int16, Shaped
+from jax import numpy as jnp
+from jaxtyping import Array, Complex64, Int16, Shaped
 
 
 @overload
 def iq_from_iiqq(
-    iiqq: Int16[np.ndarray, "... n"], complex: Literal[True] = True
-) -> Complex64[np.ndarray, "... n/2"]: ...
+    iiqq: Int16[Array, "... n"], complex: Literal[True] = True
+) -> Complex64[Array, "... n/2"]: ...
 
 @overload
 def iq_from_iiqq(
-    iiqq: Int16[np.ndarray, "... n"], complex: Literal[False] = False
-) -> Int16[np.ndarray, "... n/2 2"]: ...
+    iiqq: Int16[Array, "... n"], complex: Literal[False] = False
+) -> Int16[Array, "... n/2 2"]: ...
 
 def iq_from_iiqq(
-    iiqq: Int16[np.ndarray, "... n"], complex: bool = True
-) -> Complex64[np.ndarray, "... n/2"] | Int16[np.ndarray, "... n/2 2"]:
+    iiqq: Int16[Array, "... n"], complex: bool = True
+) -> Complex64[Array, "... n/2"] | Int16[Array, "... n/2 2"]:
     """Un-interleave IIQQ data.
 
     Args:
@@ -34,17 +34,17 @@ def iq_from_iiqq(
     shape = (*iiqq.shape[:-1], iiqq.shape[-1] // 2)
 
     if complex:
-        iq = np.zeros(shape, dtype=np.complex64)
-        iq[..., 0::2] = 1j * iiqq[..., 0::4] + iiqq[..., 2::4]
-        iq[..., 1::2] = 1j * iiqq[..., 1::4] + iiqq[..., 3::4]
-        return iq
+        return jnp.zeros(
+            shape, dtype=jnp.complex64
+        ).at[..., 0::2].set(1j * iiqq[..., 0::4] + iiqq[..., 2::4]
+        ).at[..., 1::2].set(1j * iiqq[..., 1::4] + iiqq[..., 3::4])
     else:
-        iq = np.zeros((*shape, 2), dtype=np.int16)
-        iq[..., 0::2, 1] = iiqq[..., 0::4]
-        iq[..., 1::2, 1] = iiqq[..., 1::4]
-        iq[..., 0::2, 0] = iiqq[..., 2::4]
-        iq[..., 1::2, 0] = iiqq[..., 3::4]
-        return iq
+        return jnp.zeros(
+            (*shape, 2), dtype=jnp.int16
+        ).at[..., 0::2, 1].set(iiqq[..., 0::4]
+        ).at[..., 1::2, 1].set(iiqq[..., 1::4]
+        ).at[..., 0::2, 0].set(iiqq[..., 2::4]
+        ).at[..., 1::2, 0].set(iiqq[..., 3::4])
 
 
 class BaseRSP(ABC):
@@ -75,8 +75,8 @@ class BaseRSP(ABC):
 
     @staticmethod
     def pad(
-        x: Shaped[np.ndarray, "..."], axis: int, size: int
-    ) -> Shaped[np.ndarray, "..."]:
+        x: Shaped[Array, "..."], axis: int, size: int
+    ) -> Shaped[Array, "..."]:
         """Pad the specified axis with zeros to reach the target size.
 
         Args:
@@ -94,14 +94,14 @@ class BaseRSP(ABC):
 
         shape = list(x.shape)
         shape[axis] = size - x.shape[axis]
-        zeros = np.zeros(shape, dtype=x.dtype)
+        zeros = jnp.zeros(shape, dtype=x.dtype)
 
-        return np.concatenate([x, zeros], axis=axis)
+        return jnp.concatenate([x, zeros], axis=axis)
 
     @staticmethod
     def hann(
-        iq: Complex64[np.ndarray, "..."], axis: int
-    ) -> Complex64[np.ndarray, "..."]:
+        iq: Complex64[Array, "..."], axis: int
+    ) -> Complex64[Array, "..."]:
         """Apply a Hann window to the specified axis of the IQ data.
 
         Args:
@@ -111,14 +111,14 @@ class BaseRSP(ABC):
         Returns:
             IQ data with the Hann window applied along the specified axis.
         """
-        hann = np.hanning(iq.shape[axis])
+        hann = jnp.hanning(iq.shape[axis])
         broadcast: list[None | slice] = [None] * iq.ndim
         broadcast[axis] = slice(None)
-        return iq * (hann / np.mean(hann))[tuple(broadcast)]
+        return iq * (hann / jnp.mean(hann))[tuple(broadcast)]
 
     def _pad_and_window(
-        self, rd: Complex64[np.ndarray, "#batch doppler tx rx range"]
-    ) -> Complex64[np.ndarray, "#batch doppler tx rx range"]:
+        self, rd: Complex64[Array, "#batch doppler tx rx range"]
+    ) -> Complex64[Array, "#batch doppler tx rx range"]:
         if self.window.get("elevation", self._default_window):
             rd = self.hann(rd, 2)
         if self.window.get("azimuth", self._default_window):
@@ -132,8 +132,8 @@ class BaseRSP(ABC):
         return rd
 
     def doppler_range(
-        self, iq: Complex64[np.ndarray, "#batch doppler tx rx range"]
-    ) -> Complex64[np.ndarray, "#batch doppler tx rx range"]:
+        self, iq: Complex64[Array, "#batch doppler tx rx range"]
+    ) -> Complex64[Array, "#batch doppler tx rx range"]:
         """Calculate range-doppler spectrum from IQ data.
 
         Args:
@@ -152,14 +152,14 @@ class BaseRSP(ABC):
         if self.size.get("doppler") is not None:
             iq = self.pad(iq, 1, self.size["doppler"])
 
-        iq = np.fft.fftn(iq, axes=(1, 4))
-        iq = np.fft.fftshift(iq, axes=(1,))
+        iq = jnp.fft.fftn(iq, axes=(1, 4))
+        iq = jnp.fft.fftshift(iq, axes=(1,))
         return iq
 
     @abstractmethod
     def mimo_virtual_array(
-        self, rd: Complex64[np.ndarray, "#batch doppler tx rx range"]
-    ) -> Complex64[np.ndarray, "#batch doppler elevation azimuth range"]:
+        self, rd: Complex64[Array, "#batch doppler tx rx range"]
+    ) -> Complex64[Array, "#batch doppler elevation azimuth range"]:
         """Set up MIMO virtual array from range-doppler spectrum.
 
         Args:
@@ -171,8 +171,8 @@ class BaseRSP(ABC):
         ...
 
     def elevation_azimuth(
-        self, rd: Complex64[np.ndarray, "#batch doppler tx rx range"]
-    ) -> Complex64[np.ndarray, "#batch doppler el az range"]:
+        self, rd: Complex64[Array, "#batch doppler tx rx range"]
+    ) -> Complex64[Array, "#batch doppler el az range"]:
         """Calculate elevation-azimuth spectrum from range-doppler spectrum.
 
         Args:
@@ -194,15 +194,15 @@ class BaseRSP(ABC):
         if self.size.get("azimuth") is not None:
             mimo = self.pad(mimo, 3, self.size["azimuth"])
 
-        aoa = np.fft.fftn(mimo, axes=(2, 3))
-        aoa = np.fft.fftshift(aoa, axes=(2, 3))
+        aoa = jnp.fft.fftn(mimo, axes=(2, 3))
+        aoa = jnp.fft.fftshift(aoa, axes=(2, 3))
         return aoa
 
     def process(
         self,
-        iq: Complex64[np.ndarray, "#batch doppler tx rx range"]
-        | Int16[np.ndarray, "#batch doppler tx rx range*2"]
-    ) -> Complex64[np.ndarray, "#batch doppler el az range"]:
+        iq: Complex64[Array, "#batch doppler tx rx range"]
+        | Int16[Array, "#batch doppler tx rx range*2"]
+    ) -> Complex64[Array, "#batch doppler el az range"]:
         """Process IQ data to compute elevation-azimuth spectrum.
 
         Args:
@@ -211,7 +211,7 @@ class BaseRSP(ABC):
         Returns:
             Computed doppler-elevation-azimuth-range spectrum.
         """
-        if iq.dtype == np.int16:
+        if iq.dtype == jnp.int16:
             iq = iq_from_iiqq(iq, complex=True)
 
         dr = self.doppler_range(iq)
