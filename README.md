@@ -9,7 +9,7 @@ The `xwr` library is currently only distributed via github:
 pip install git+ssh://github.com/WiseLabCMU/xwr.git
 ```
 
-You will also need to [configure the radar and capture card](setup.md) for raw data capture.
+You will also need to configure the radar and capture card for raw data capture.
 
 > [!IMPORTANT] 
 > Supported Devices:
@@ -38,7 +38,7 @@ for frame in awr.stream():
 awr.stop()
 ```
 
-See the [high level API documentation](system.md) for detailed documentation.
+See the high level API documentation for detailed documentation.
 
 
 ## Troubleshooting
