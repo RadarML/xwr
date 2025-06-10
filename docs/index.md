@@ -25,6 +25,16 @@ The `xwr` library is currently only distributed via github:
     cd xwr; uv sync --all-extras
     ```
 
+=== "Using `uv` and `pyproject.toml`"
+
+    ```toml
+    [project]
+    dependencies = ["xwr"]
+
+    [tool.uv.sources]
+    xwr = { git = "ssh://git@github.com/WiseLabCMU/xwr.git" }
+    ```
+
 You will also need to [configure the radar and capture card](setup.md) for raw data capture.
 
 !!! info "Supported Devices"
@@ -72,4 +82,24 @@ See the [high level API documentation](system.md) for detailed documentation.
 
 **Other Hardware Faults**: The [TI mmWave Demo Visualizer](https://dev.ti.com/gallery/view/mmwave/mmWave_Demo_Visualizer/ver/3.6.0/) is a good way to validate radar hardware functionality, and uses the same demo firmware.
 
-- If an error is returned on the console in the Demo Visualizer: there may be a hardware fault. It should be raised with a line number in `mss_main.c`; the error case (e.g. `RL_RF_AE_CPUFAULT_SB`) should reveal what general type of fault it is.
+!!! note
+
+    If an error is returned on the console in the Demo Visualizer: there may be a hardware fault. It should be raised with a line number in `mss_main.c`; the error case (e.g. `RL_RF_AE_CPUFAULT_SB`) should reveal what general type of fault it is.
+
+## See Also
+
+<div class="grid cards" markdown>
+
+- :material-golf-cart: [`red-rover`](https://wiselabcmu.github.io/red-rover/)
+
+    ---
+
+    a multimodal mmWave Radar spectrum ecosystem
+
+- :material-cube-outline: [`abstract_dataloader`](https://wiselabcmu.github.io/abstract-dataloader/)
+
+    ---
+
+    abstract interface for composable dataloaders and preprocessing pipelines
+
+</div>

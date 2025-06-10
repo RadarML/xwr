@@ -1781,7 +1781,7 @@ requires-dist = [
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = "==9.6.*" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = "==0.29.*" },
     { name = "mkdocstrings-python-xref", marker = "extra == 'docs'", specifier = "==1.16.*" },
-    { name = "numpy", specifier = ">=2.0" },
+    { name = "numpy", specifier = ">=1.19" },
     { name = "pyserial", specifier = ">=3.5" },
     { name = "ruff", marker = "extra == 'docs'", specifier = ">=0.11.0" },
     { name = "torch", marker = "extra == 'torch'", specifier = ">=2.0" },
