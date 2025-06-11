@@ -85,10 +85,90 @@ class AWR1843(XWRBase):
         self.frameCfg(
             numLoops=frame_length, chirpEndIdx=num_tx - 1,
             framePeriodicity=frame_period)
-        self.compRangeBiasAndRxChanPhase()
+        self.compRangeBiasAndRxChanPhase(rx_phase = [(0, 1)] * 4 * num_tx)
         self.lvdsStreamCfg()
 
         self.boilerplate_setup()
+
+
+class AWR1642(XWRBase):
+
+    """Interface implementation for the TI AWR1642 family.
+
+    !!! info "Supported devices"
+
+        - AWR1642Boost
+
+    Args:
+        port: radar control serial port; typically the lower numbered one.
+        baudrate: baudrate of control port.
+        name: human-readable name.
+    """
+
+    def __init__(
+        self, port: str | None = None, baudrate: int = 115200,
+        name: str = "AWR1642"
+    ) -> None:
+        super().__init__(port=port, baudrate=baudrate, name=name)
+
+    def setup(
+        self, num_tx: Literal[2] = 2,
+        frequency: float = 77.0, idle_time: float = 110.0,
+        adc_start_time: float = 4.0, ramp_end_time: float = 56.0,
+        tx_start_time: float = 1.0, freq_slope: float = 70.006,
+        adc_samples: int = 256, sample_rate: int = 5000,
+        frame_length: int = 64, frame_period: float = 100.0
+    ) -> None:
+        """Configure radar.
+
+        Args:
+            frequency: frequency band, in GHz; 77.0 or 76.0.
+            idle_time: see TI chirp timing documentation; in us.
+            adc_start_time: see TI chirp timing documentation; in us.
+            ramp_end_time: see TI chirp timing documentation; in us.
+            tx_start_time: see TI chirp timing documentation; in us.
+            freq_slope: chirp frequency slope; in MHz/us.
+            adc_samples: number of samples per chirp.
+            sample_rate: ADC sampling rate; in ksps.
+            frame_length: chirps per frame per TX antenna. Must be a power of 2.
+            frame_period: time between the start of each frame; in ms.
+        """
+        assert frame_length & (frame_length - 1) == 0
+
+        self.stop()
+        self.flushCfg()
+        self.dfeDataOutputMode(defines.DFEMode.LEGACY)
+        self.adcCfg(adcOutputFmt=defines.ADCFormat.COMPLEX_1X)
+        self.adcbufCfg(adcOutputFmt=defines.ADCFormat.COMPLEX_1X)
+        self.profileCfg(
+            startFreq=frequency, idleTime=idle_time,
+            adcStartTime=adc_start_time, rampEndTime=ramp_end_time,
+            txStartTime=tx_start_time, freqSlopeConst=freq_slope,
+            numAdcSamples=adc_samples, digOutSampleRate=sample_rate)
+
+        self.channelCfg(rxChannelEn=0b1111, txChannelEn=0b011)
+        self.chirpCfg(chirpIdx=0, txEnable=0)
+        self.chirpCfg(chirpIdx=1, txEnable=1)
+
+        self.frameCfg(
+            numLoops=frame_length, chirpEndIdx=num_tx - 1,
+            framePeriodicity=frame_period)
+        self.compRangeBiasAndRxChanPhase(rx_phase = [(0, 1)] * 4 * num_tx)
+        self.send("bpmCfg -1 0 0 1")
+        self.lvdsStreamCfg()
+
+        self.boilerplate_setup()
+
+    def lowPower(self, dontCare: int = 0, adcMode: int = 1) -> None:
+        """Low power mode config.
+
+        !!! warning
+
+            For some reason, the AWR1642 requires `adcMode=1`. Not sure what
+            this does.
+        """
+        cmd = "lowPower {} {}".format(dontCare, adcMode)
+        self.send(cmd)
 
 
 class AWR2544(XWRBase):

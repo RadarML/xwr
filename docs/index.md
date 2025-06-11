@@ -39,8 +39,15 @@ You will also need to [configure the radar and capture card](setup.md) for raw d
 
 !!! info "Supported Devices"
 
-    - AWR1843 Family: AWR1843Boost, AWR1843AOPEVM
-    - *WIP: AWR2544LOPEVM*
+    <div class="grid cards" markdown>
+
+    - [:material-arrow-right: DCA1000EVM Capture Card](https://www.ti.com/tool/DCA1000EVM)
+    - [:material-arrow-right: AWR1843Boost](https://www.ti.com/tool/AWR1843BOOST)
+    - [:material-arrow-right: AWR1843AOPEVM](https://www.ti.com/tool/AWR1843AOPEVM)
+    - [:material-arrow-right: AWR1642](https://www.ti.com/tool/AWR1642BOOST)
+    - :construction_site: WIP: AWR2544LOPEVM
+
+    </div>
 
 ## Usage
 

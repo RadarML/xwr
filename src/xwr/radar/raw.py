@@ -310,8 +310,7 @@ class BoilerplateMixins:
     ) -> None:
         """DC range calibration at radar start.
 
-        TI's note [R4]_:
-
+        !!! quote "TI's note"
             Antenna coupling signature dominates the range bins close to
             the radar. These are the bins in the range FFT output located
             around DC.
@@ -320,7 +319,9 @@ class BoilerplateMixins:
             the first N chirps, and then it is subtracted during the
             subsequent chirps
 
-        NOTE: Rover performs this step during offline data processing.
+        !!! info
+
+            Rover performs this step during offline data processing.
         """
         cmd = "calibDcRangeSig {} {} {} {} {}".format(
             subFrameIdx, enabled, negativeBinIdx, positiveBinIdx, numAvgFrames)

@@ -14,6 +14,7 @@ You will also need to configure the radar and capture card for raw data capture.
 > [!IMPORTANT] 
 > Supported Devices:
 >    - AWR1843 Family: AWR1843Boost, AWR1843AOPEVM
+>    - AWR1642
 > WIP:
 >    - AWR2544LOPEVM
 

@@ -40,8 +40,9 @@ A raw data collection system consists of two parts: a radar with a LVDS (Low Vol
 
     Setting the large power switch on the DCA1000EVM to `RADAR_5V_IN`, a single power supply connected to the radar is sufficient to power the entire system.
 
-1. Set the radar to flash mode.
+1. Prepare for flashing.
 
+    - Connect a micro-USB cable to the port on the radar, and power the radar on by connecting its power supply.
     - Find `SOP2:0` (DIP switches on the front of the radar). Set the switches to `SOP2:0=101`, where 1 corresponds to the "on" position labeled on the PCB.
     - Find switch `S2` in the middle of the radar, and set it to `SPI` (lower position).
 
@@ -88,8 +89,9 @@ A raw data collection system consists of two parts: a radar with a LVDS (Low Vol
     ```
     then select the folder containing the drivers you downloaded. You may need to do this twice: once for the "Enhanced Com Port", and once for the "Standard Com Port".
 
-1. Set the radar to flash mode.
+1. Prepare the radar for flashing.
 
+    - Connect a micro-USB cable to the port on the radar. The additional power supply is not needed for this step.
     - Find `SOP0`, `SOP`, `SOP2`. `SOP2` is all the way on the left, while `SOP0` and `SOP1` are on the right-most block of 4 switches.
     - Set `SOP2:0=001`. In both cases, on (1) is up.
 
@@ -123,6 +125,46 @@ A raw data collection system consists of two parts: a radar with a LVDS (Low Vol
         | S2 | OFF | ON  | any | any |
         | S3 | OFF |     |     |     |
 
+## AWR1642Boost
+
+!!! info "Firmware"
+
+    After installing the [mmWave SDK](https://www.ti.com/tool/MMWAVE-SDK), the firmware can be found at `demo/xwr16xx/mmwave/xwr16xx_mmw_demo.bin` in the install directory.
+
+!!! tip
+
+    Setting the large power switch on the DCA1000EVM to `RADAR_5V_IN`, a single power supply connected to the radar is sufficient to power the entire system.
+
+1. Prepare for flashing.
+
+    - Connect a micro-USB cable to the port on the radar, and power the radar on by connecting its power supply.
+    - Find `SOP2:0`, and short SOP0 and SOP2 (`SOP2:0=101`). These are physical jumpers, which must be shorted using jumper caps or wires.
+
+2. Flash using [TI UniFlash](https://www.ti.com/tool/UNIFLASH).
+
+    !!! note
+
+        UniFlash seems to work most reliably on windows.
+
+    - Uniflash should automatically discover the radar. If not, select the `AWR1642Boost` device.
+    - Select the `xwr16xx_mmw_demo.bin` image to flash.
+    - Choose the serial port corresponding to the radar; the serial port should have a name/description `XDS110 Class Application/User UART`.
+    - Flashing should take around 1 minute, and terminate with "Program Load completed successfully".
+
+    ??? failure "`Not able to connect to serial port. Recheck COM port selected and/or permissions.`"
+
+        If the SOP switches or `S2` are not in the correct position, flashing will fail with
+        ```
+        Not able to connect to serial port.
+        Recheck COM port selected and/or permissions.
+        ```
+
+3. Set the radar to functional mode: `SOP2:0=001`.
+
+    !!! note
+    
+        mmWave studio expects the radar to be in *debug* mode (`SOP2:0=011`), so switching between `xwr` and mmWave Studio requires the position of the SOP switches to be changed. This is also why mmWave studio requires the MSS firmware to be "re-flashed" whenever the radar is rebooted.
+
 ## AWR2544LOPEVM
 
 !!! failure "Not yet working"
@@ -130,6 +172,36 @@ A raw data collection system consists of two parts: a radar with a LVDS (Low Vol
 !!! warning
 
     Flashing the AWR2544LOPEVM requires two jumper caps or wires in order to physicall short the required pins. One of these jumpers must remain on the board to set it to functional mode.
+
+1. Prepare for flashing.
+
+    - Plug in a micro USB cable to the XDS port (on the right side).
+    - Find `SOP2:0`, and short SOP0 and SOP2 (`SOP2:0=101`). These are physical jumpers, which must be shorted using jumper caps or wires.
+
+2. Flash using [TI UniFlash](https://www.ti.com/tool/UNIFLASH).
+
+    !!! note
+
+        UniFlash seems to work most reliably on windows.
+
+    - Uniflash should automatically discover the radar. If not, select the `AWR1843Boost` device.
+    - Select the `xwr18xx_mmw_demo.bin` image to flash.
+    - Choose the serial port corresponding to the radar; the serial port should have a name/description `XDS110 Class Application/User UART`.
+    - Flashing should take around 1 minute, and terminate with "Program Load completed successfully".
+
+    ??? failure "`Not able to connect to serial port. Recheck COM port selected and/or permissions.`"
+
+        If the SOP switches or `S2` are not in the correct position, flashing will fail with
+        ```
+        Not able to connect to serial port.
+        Recheck COM port selected and/or permissions.
+        ```
+
+3. Set the radar to functional mode: `SOP2:0=001`.
+
+    !!! note
+    
+        mmWave studio expects the radar to be in *debug* mode (`SOP2:0=011`), so switching between `xwr` and mmWave Studio requires the position of the SOP switches to be changed. This is also why mmWave studio requires the MSS firmware to be "re-flashed" whenever the radar is rebooted.
 
 1. Prepare for flashing.
 

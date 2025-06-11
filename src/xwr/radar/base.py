@@ -124,8 +124,9 @@ class XWRBase(APIMixins, BoilerplateMixins):
                 raise TimeoutError()
 
         # Remove all the cruft
+        decoded = rx_buf.decode('utf-8', errors='replace')
         resp = (
-            rx_buf.decode('utf-8', errors='replace')
+            decoded
             .replace(self._CMD_PROMPT, '').replace(cmd, '')
             .rstrip(' ;\r\n\t').lstrip(' \n\t'))
         self.log.debug("Response: {}".format(resp))
@@ -141,6 +142,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
                 pass  # header
             else:
                 self.log.error(resp)
+                self.log.info(f"Raw buffer was: {decoded}")
                 raise XWRException(resp)
 
     def start(self, reconfigure: bool = True) -> None:

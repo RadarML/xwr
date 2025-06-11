@@ -36,6 +36,9 @@ docs = [
     "mkdocstrings[python] == 0.29.*",
     "ruff>=0.11.0"
 ]
+demo = [
+    "matplotlib", "PyQt6"
+]
 interactive = [
     "matplotlib",
     "ipykernel"
