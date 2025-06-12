@@ -8,6 +8,8 @@ A raw data collection system consists of two parts: a radar with a LVDS (Low Vol
 
     In our experience, the DCA1000EVM is particularly fragile; be careful with electrostatic discharge (ESD).
 
+![DCA1000EVM](images/dca1000evm.jpg){: style="width: 50%"}
+
 1. Ensure that the following DIP switches are set:
 
     - SW2.5: `SW_CONFIG`
@@ -39,6 +41,14 @@ A raw data collection system consists of two parts: a radar with a LVDS (Low Vol
 !!! tip
 
     Setting the large power switch on the DCA1000EVM to `RADAR_5V_IN`, a single power supply connected to the radar is sufficient to power the entire system.
+
+<div class="grid" markdown>
+
+![AWR1843Boost](images/awr1843boost.jpg)
+
+![AWR1843Boost Inset](images/awr1843boost-inset.jpg)
+
+</div>
 
 1. Prepare for flashing.
 
@@ -89,6 +99,14 @@ A raw data collection system consists of two parts: a radar with a LVDS (Low Vol
     ```
     then select the folder containing the drivers you downloaded. You may need to do this twice: once for the "Enhanced Com Port", and once for the "Standard Com Port".
 
+<div class="grid" markdown>
+
+![AWR1843AOPEVM](images/awr1843aopevm.jpg)
+
+![AWR1843AOPEVM Inset](images/awr1843aopevm-inset.jpg)
+
+</div>
+
 1. Prepare the radar for flashing.
 
     - Connect a micro-USB cable to the port on the radar. The additional power supply is not needed for this step.
@@ -134,6 +152,9 @@ A raw data collection system consists of two parts: a radar with a LVDS (Low Vol
 !!! tip
 
     Setting the large power switch on the DCA1000EVM to `RADAR_5V_IN`, a single power supply connected to the radar is sufficient to power the entire system.
+
+
+![AWR1642Boost](images/awr1642boost.jpg){: style="width: 50%"}
 
 1. Prepare for flashing.
 

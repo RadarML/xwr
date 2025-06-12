@@ -1,5 +1,9 @@
 # `xwr`: Linux-Based Real-Time Raw Data Capture for TI mmWave Radars
 
+![AWR1642Boost](images/awr1642boost.jpg){: style="width: 32%"}
+![DCA1000EVM](images/dca1000evm.jpg){: style="width: 32%"}
+![AWR1843Boost](images/awr1843aopevm-inset.jpg){: style="width: 32%"}
+
 ## Setup
 
 The `xwr` library is currently only distributed via github:
