@@ -64,6 +64,11 @@ class BaseRSP(ABC):
         size: dict[
             Literal["range", "doppler", "azimuth", "elevation"], int] = {}
     ) -> None:
+        self.window: dict[
+            Literal["range", "doppler", "azimuth", "elevation"], bool]
+        self._default_window: bool | dict[
+            Literal["range", "doppler", "azimuth", "elevation"], bool]
+
         if isinstance(window, bool):
             self.window = {}
             self._default_window = self.window
@@ -198,7 +203,7 @@ class BaseRSP(ABC):
         aoa = jnp.fft.fftshift(aoa, axes=(2, 3))
         return aoa
 
-    def process(
+    def __call__(
         self,
         iq: Complex64[Array, "#batch doppler tx rx range"]
         | Int16[Array, "#batch doppler tx rx range*2"]

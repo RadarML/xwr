@@ -5,6 +5,7 @@ from typing import Literal, overload
 
 import numpy as np
 from jaxtyping import Complex64, Int16, Shaped
+from pyfftw import FFTW
 
 
 @overload
@@ -64,6 +65,11 @@ class BaseRSP(ABC):
         size: dict[
             Literal["range", "doppler", "azimuth", "elevation"], int] = {}
     ) -> None:
+        self.window: dict[
+            Literal["range", "doppler", "azimuth", "elevation"], bool]
+        self._default_window: bool | dict[
+            Literal["range", "doppler", "azimuth", "elevation"], bool]
+
         if isinstance(window, bool):
             self.window = {}
             self._default_window = self.window
@@ -72,6 +78,8 @@ class BaseRSP(ABC):
             self._default_window = False
 
         self.size = size
+        self._fft_cache: dict[
+            tuple[tuple[int, ...], tuple[int, ...]], FFTW] = {}
 
     @staticmethod
     def pad(
@@ -152,7 +160,7 @@ class BaseRSP(ABC):
         if self.size.get("doppler") is not None:
             iq = self.pad(iq, 1, self.size["doppler"])
 
-        iq = np.fft.fftn(iq, axes=(1, 4))
+        iq = self.fft(iq, axes=(1, 4))
         iq = np.fft.fftshift(iq, axes=(1,))
         return iq
 
@@ -194,11 +202,11 @@ class BaseRSP(ABC):
         if self.size.get("azimuth") is not None:
             mimo = self.pad(mimo, 3, self.size["azimuth"])
 
-        aoa = np.fft.fftn(mimo, axes=(2, 3))
+        aoa = self.fft(mimo, axes=(2, 3))
         aoa = np.fft.fftshift(aoa, axes=(2, 3))
         return aoa
 
-    def process(
+    def __call__(
         self,
         iq: Complex64[np.ndarray, "#batch doppler tx rx range"]
         | Int16[np.ndarray, "#batch doppler tx rx range*2"]
@@ -217,3 +225,34 @@ class BaseRSP(ABC):
         dr = self.doppler_range(iq)
         drae = self.elevation_azimuth(dr)
         return drae
+
+    def fft(
+        self, array: Complex64[np.ndarray, "..."], axes: tuple[int, ...]
+    ) -> Complex64[np.ndarray, "..."]:
+        """Compute FFT on the specified axes of the array.
+
+        This method handles caching of FFTW plans for efficiency: the first
+        time a particular shape and axes are requested, a copy of the array
+        is provided to fftw to create a plan.
+
+        !!! info
+
+            We use [pyfftw](https://pyfftw.readthedocs.io/en/latest/index.html)
+            to perform FFTs, which wraps [FFTW](https://www.fftw.org/). In our
+            testing for computing `64x3x4x256` range-Doppler frames, this
+            provides a ~5x speedup over `np.fft.fftn` for single frames and a
+            ~10x speedup for batches of 8 frames.
+
+        Args:
+            array: Input array.
+            axes: Axes along which to compute the FFT.
+
+        Returns:
+            FFT of the input array along the specified axes.
+        """
+        key = (array.shape, axes)
+        if key not in self._fft_cache:
+            self._fft_cache[key] = FFTW(
+                np.copy(array), np.zeros_like(array), axes=axes)
+
+        return self._fft_cache[key](array)

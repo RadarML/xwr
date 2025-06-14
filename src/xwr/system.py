@@ -125,15 +125,10 @@ class XWRSystem:
         return self.dca.stream(self.config.raw_shape)
 
     @overload
-    def qstream(
-        self, numpy: Literal[True] = True
-    ) -> Queue[np.ndarray | None]:
-        ...
+    def qstream(self, numpy: Literal[True]) -> Queue[np.ndarray | None]: ...
 
     @overload
-    def qstream(
-        self, numpy: Literal[False] = False
-    ) -> Queue[types.RadarFrame | None]:
+    def qstream(self, numpy: Literal[False]) -> Queue[types.RadarFrame | None]:
         ...
 
     def qstream(
@@ -178,16 +173,10 @@ class XWRSystem:
         return out
 
     @overload
-    def dstream(
-        self, numpy: Literal[True] = True
-    ) -> Iterator[np.ndarray]:
-        ...
+    def dstream(self, numpy: Literal[True]) -> Iterator[np.ndarray]: ...
 
     @overload
-    def dstream(
-        self, numpy: Literal[False] = False
-    ) -> Iterator[types.RadarFrame]:
-        ...
+    def dstream(self, numpy: Literal[False]) -> Iterator[types.RadarFrame]: ...
 
     def dstream(
         self, numpy: bool = False
