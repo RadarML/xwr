@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "xwr"
-version = "0.3.0"
+version = "0.1.0"
 authors = [
   { name="Tianshu Huang", email="tianshu2@andrew.cmu.edu" },
 ]
@@ -36,13 +36,6 @@ docs = [
     "mkdocstrings-python-xref == 1.16.*",
     "mkdocstrings[python] == 0.29.*",
     "ruff>=0.11.0"
-]
-demo = [
-    "matplotlib", "PyQt6"
-]
-interactive = [
-    "matplotlib",
-    "ipykernel"
 ]
 
 [project.urls]
