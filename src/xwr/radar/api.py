@@ -153,7 +153,7 @@ class AWR1642(XWRBase):
         self.frameCfg(
             numLoops=frame_length, chirpEndIdx=num_tx - 1,
             framePeriodicity=frame_period)
-        self.compRangeBiasAndRxChanPhase(rx_phase = [(0, 1)] * 4 * num_tx)
+        self.compRangeBiasAndRxChanPhase(rx_phase = [(0, 1)] * 4 * 3)
         self.send("bpmCfg -1 0 0 1")
         self.lvdsStreamCfg()
 
