@@ -72,14 +72,14 @@ To use `xwr`, you will need to configure the following:
     ```sh
     RADAR_IF=eth0  # your radar interface name, e.g., eth0, enp0s25, etc.
     RADAR_SYS_IP=192.168.33.30
-    sudo ifconfig $(RADAR_IF) $(RADAR_SYS_IP) netmask 255.255.255.0
+    sudo ifconfig $RADAR_IF $RADAR_SYS_IP netmask 255.255.255.0
     ```
 
 2. To reduce dropped packets, the receive socket buffer size should also
     be increased to at least 2 frames of data (even larger is fine):
     ```sh
     RECV_BUF_SIZE=16777216  # 16 MiB = 21 frames (~1 sec) @ 786k each.
-    echo $(RECV_BUF_SIZE) | sudo tee /proc/sys/net/core/rmem_max
+    echo $RECV_BUF_SIZE | sudo tee /proc/sys/net/core/rmem_max
     ```
 
 3. Provide read/write permissions for the serial ports:

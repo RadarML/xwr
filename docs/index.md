@@ -39,7 +39,7 @@ The `xwr` library is currently only distributed via github:
     xwr = { git = "ssh://git@github.com/WiseLabCMU/xwr.git" }
     ```
 
-You will also need to [configure the radar and capture card](setup.md) for raw data capture.
+You will also need to [configure the radar and capture card](setup.md) for raw data capture, and [make a few configuration changes](system.md) to your system.
 
 !!! info "Supported Devices"
 
@@ -113,4 +113,47 @@ See the [high level API documentation](system.md) for detailed documentation.
 
     abstract interface for composable dataloaders and preprocessing pipelines
 
+- :dart: [`dart`](https://wiselabcmu.github.io/dart/)
+
+    ---
+
+    *our prior work, DART: Implicit Doppler Tomography for Radar Novel View Synthesis*
+
+- :material-video-wireless-outline: [`rover`](https://github.com/wiseLabCMU/rover)
+
+    ---
+
+    *our previous data collection platform for radar time signal*
+
 </div>
+
+## Development
+
+!!! info "`xwr` uses `uv`"
+
+    While `pyproject.toml` reflects known limitations on dependency versions, we use `uv` to manage a lock file used for development.
+
+    On a fresh linux install, you will need to [install `uv`](https://docs.astral.sh/uv/getting-started/installation/):
+    ```sh
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    source ~/.bashrc
+    ```
+
+- Build docs:
+
+    ```sh
+    uv run --extra docs mkdocs serve
+    ```
+
+- Deploy docs:
+
+    ```sh
+    uv run --extra docs mkdocs build
+    ./update_gh_pages.sh
+    ```
+
+- Run demo:
+
+    ```sh
+    uv run --extra demo demo/spectrum.py
+    ```
