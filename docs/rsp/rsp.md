@@ -1,4 +1,4 @@
 :::xwr.rsp
     options:
         inherited_members:
-        - process
+        - __call__

@@ -55,6 +55,9 @@ plugins:
           show_root_heading: true
           show_root_toc_entry: true
           heading_level: 1
+          check_crossrefs_exclude:
+          - "^torch\\.(.*)"
+          - "^numpy\\.(.*)"
         inventories:
         - https://docs.python.org/3/objects.inv
         - https://numpy.org/doc/stable/objects.inv

@@ -604,36 +604,31 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/98/14/22533a578bf8b187e05d67e2c1721ce10e3f526610eebaf7a149d557ea7a/mkdocstrings-0.29.1-py3-none-any.whl", hash = "sha256:37a9736134934eea89cbd055a513d40a020d87dfcae9e3052c2a6b8cd4af09b6", size = 1631075, upload_time = "2025-03-31T08:33:09.661Z" },
 ]
 
-[package.optional-dependencies]
-python = [
-    { name = "mkdocstrings-python" },
-]
-
 [[package]]
 name = "mkdocstrings-python"
-version = "1.16.10"
+version = "1.16.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "griffe" },
     { name = "mkdocs-autorefs" },
     { name = "mkdocstrings" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/44/c8/600c4201b6b9e72bab16802316d0c90ce04089f8e6bb5e064cd2a5abba7e/mkdocstrings_python-1.16.10.tar.gz", hash = "sha256:f9eedfd98effb612ab4d0ed6dd2b73aff6eba5215e0a65cea6d877717f75502e", size = 205771, upload_time = "2025-04-03T14:24:48.12Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8e/e7/0691e34e807a8f5c28f0988fcfeeb584f0b569ce433bf341944f14bdb3ff/mkdocstrings_python-1.16.6.tar.gz", hash = "sha256:cefe0f0e17ab4a4611f01b0a2af75e4298664e0ff54feb83c91a485bfed82dc9", size = 201565, upload_time = "2025-03-18T15:34:24.371Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/53/37/19549c5e0179785308cc988a68e16aa7550e4e270ec8a9878334e86070c6/mkdocstrings_python-1.16.10-py3-none-any.whl", hash = "sha256:63bb9f01f8848a644bdb6289e86dc38ceddeaa63ecc2e291e3b2ca52702a6643", size = 124112, upload_time = "2025-04-03T14:24:46.561Z" },
+    { url = "https://files.pythonhosted.org/packages/6a/42/ed682687ef5f248e104f82806d5d9893f6dd81d8cb4561692e190ba1a252/mkdocstrings_python-1.16.6-py3-none-any.whl", hash = "sha256:de877dd71f69878c973c4897a39683b7b6961bee7b058879095b69681488453f", size = 123207, upload_time = "2025-03-18T15:34:21.357Z" },
 ]
 
 [[package]]
 name = "mkdocstrings-python-xref"
-version = "1.16.2"
+version = "1.16.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "griffe" },
     { name = "mkdocstrings-python" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/20/01/880b2c191e80046b4addebae26230ae0109e79fea6310a2c8f64d8b32ed1/mkdocstrings_python_xref-1.16.2.tar.gz", hash = "sha256:e68888928d4555dcdee5277ae1ab87e96f383b969528780f02177443f3e70942", size = 12738, upload_time = "2025-03-30T17:54:01.095Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3c/6a/50b9ec7c74692835f47affd0ec1f370fdf63454e2a5e3958bd9f89b45409/mkdocstrings_python_xref-1.16.3.tar.gz", hash = "sha256:2a0363be26ff974f30b7cda90491a18f81854579689dd2110b7b25b75836d3d3", size = 13831, upload_time = "2025-06-15T15:19:44.9Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c3/f2/bbd3f6be74699b989f6160c5ad27812ae6fdb2f0828a9b36a36bf949ae68/mkdocstrings_python_xref-1.16.2-py3-none-any.whl", hash = "sha256:bd3bf6fc258e8bb61c6db2424a72af1fe1c4b3fae4f1542c977fb47263e87463", size = 14138, upload_time = "2025-03-30T17:54:04Z" },
+    { url = "https://files.pythonhosted.org/packages/2d/5f/dcbec0f4be84fb7781c637227e1353e89f83f8bca00f05a839542b3db0a5/mkdocstrings_python_xref-1.16.3-py3-none-any.whl", hash = "sha256:bb5d30bec9cda90b606c0411deca0edaded06462740641b92d866ddce8cc6dee", size = 14450, upload_time = "2025-06-15T15:19:48.909Z" },
 ]
 
 [[package]]
@@ -1390,7 +1385,7 @@ wheels = [
 
 [[package]]
 name = "xwr"
-version = "0.1.0"
+version = "0.1.1"
 source = { editable = "." }
 dependencies = [
     { name = "beartype" },
@@ -1410,7 +1405,7 @@ demo = [
 docs = [
     { name = "mkdocs" },
     { name = "mkdocs-material" },
-    { name = "mkdocstrings", extra = ["python"] },
+    { name = "mkdocstrings-python" },
     { name = "mkdocstrings-python-xref" },
     { name = "ruff" },
 ]
@@ -1429,8 +1424,8 @@ requires-dist = [
     { name = "matplotlib", marker = "extra == 'demo'", specifier = ">=3.0" },
     { name = "mkdocs", marker = "extra == 'docs'", specifier = "==1.6.*" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = "==9.6.*" },
-    { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = "==0.29.*" },
-    { name = "mkdocstrings-python-xref", marker = "extra == 'docs'", specifier = "==1.16.*" },
+    { name = "mkdocstrings-python", marker = "extra == 'docs'", specifier = "==1.16.6" },
+    { name = "mkdocstrings-python-xref", marker = "extra == 'docs'", specifier = "==1.16.3" },
     { name = "numpy", specifier = ">=1.19" },
     { name = "pyfftw", specifier = ">=0.15.0" },
     { name = "pyqt6", marker = "extra == 'demo'", specifier = ">=6.0.0" },
