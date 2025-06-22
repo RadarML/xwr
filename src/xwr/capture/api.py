@@ -5,7 +5,7 @@ import socket
 import struct
 import threading
 import time
-from typing import Iterator, Optional
+from collections.abc import Iterator
 
 import numpy as np
 
@@ -102,7 +102,7 @@ class DCA1000EVM:
         self.config_port = config_port
         self.data_port = data_port
         self.recording = False
-        self.thread: Optional[threading.Thread] = None
+        self.thread: threading.Thread | None = None
 
         self.config_socket = self._create_socket(
             (sys_ip, config_port), timeout)
@@ -145,7 +145,7 @@ class DCA1000EVM:
             format=defines.DataFormat.BIT16,
             capture=defines.DataCapture.ETH_STREAM)
 
-    def _recv(self) -> Optional[types.DataPacket]:
+    def _recv(self) -> types.DataPacket | None:
         """Receive data.
 
         !!! info
@@ -370,7 +370,7 @@ class DCA1000EVM:
         self._config_request(cmd, desc="Configure recording")
 
     def _config_request(
-        self, cmd: types.Request, desc: Optional[str] = None
+        self, cmd: types.Request, desc: str | None = None
     ) -> types.Response:
         """Send config command."""
         payload = cmd.to_bytes()

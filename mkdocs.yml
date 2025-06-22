@@ -7,6 +7,7 @@ nav:
   - High Level API: system.md
   - Radar Processing:
     - RSP: rsp/rsp.md
+    - Numpy: rsp/numpy.md
     - Pytorch: rsp/torch.md
     - Jax: rsp/jax.md
   - Capture Card:
@@ -32,8 +33,25 @@ theme:
     - navigation.instant
     - navigation.expand
   palette:
+  - media: "(prefers-color-scheme)"
+    toggle:
+      icon: material/brightness-auto
+      name: Switch to light mode
+  - media: "(prefers-color-scheme: light)"
+    scheme: default
     primary: blue
     accent: deep purple
+    toggle:
+      icon: material/weather-sunny
+      name: Switch to dark mode
+  - media: "(prefers-color-scheme: dark)"
+    scheme: slate
+    primary: blue
+    accent: deep purple
+    toggle:
+      icon: material/weather-night
+      name: Switch to system preference
+
 
 plugins:
 - search

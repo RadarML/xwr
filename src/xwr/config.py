@@ -26,7 +26,8 @@ class XWRConfig:
         freq_slope: chirp slope, in MHz/us.
         adc_samples: number of samples per chirp.
         sample_rate: ADC sampling rate, in KHz.
-        frame_length: number of chirps per TX antenna per frame.
+        frame_length: number of chirps per TX antenna per frame. Must be a
+            power of two.
         frame_period: periodicity of frames, in ms.
         num_tx: number of TX antenna; 3 for the AWR1843.
         num_rx: number of RX antenna; 4 for the AWR1843.
@@ -122,7 +123,7 @@ class XWRConfig:
         RADAR_PROPERTIES = [
             "frequency", "idle_time", "adc_start_time", "ramp_end_time",
             "tx_start_time", "freq_slope", "adc_samples", "sample_rate",
-            "frame_length", "frame_period", "num_tx"]
+            "frame_length", "frame_period", "num_tx", "num_rx"]
         return {k: getattr(self, k) for k in RADAR_PROPERTIES}
 
     def as_intrinsics(self) -> dict:

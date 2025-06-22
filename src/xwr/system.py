@@ -2,8 +2,9 @@
 
 import logging
 import threading
+from collections.abc import Iterator
 from queue import Empty, Queue
-from typing import Iterator, Literal, Type, cast, overload
+from typing import Generic, Literal, Type, TypeVar, cast, overload
 
 import numpy as np
 
@@ -11,9 +12,11 @@ from . import radar as xwr_radar
 from .capture import types
 from .config import DCAConfig, XWRConfig
 
+TRadar = TypeVar("TRadar", bound=xwr_radar.XWRBase)
 
-class XWRSystem:
-    """Radar capture system with a AWR1843Boost and DCA1000EVM.
+
+class XWRSystem(Generic[TRadar]):
+    """Radar capture system with a mmWave Radar and DCA1000EVM.
 
     !!! info "Known Constraints"
 
@@ -28,6 +31,9 @@ class XWRSystem:
             greater than 95%.
         - The ADC is still sampling when the ramp ends.
 
+    Type Parameters:
+        - `TRadar`: radar type (subclass of [`XWRBase`][xwr.radar.])
+
     Args:
         radar: radar configuration; if `dict`, the key/value pairs are passed
             to `XWRConfig`.
@@ -40,7 +46,7 @@ class XWRSystem:
 
     def __init__(
         self, *, radar: XWRConfig | dict, capture: DCAConfig | dict,
-        type: Type[xwr_radar.XWRBase] | str = "AWR1843",
+        type: Type[TRadar] | str = "AWR1843",
         name: str = "RadarCapture"
     ) -> None:
         if isinstance(radar, dict):
@@ -50,7 +56,7 @@ class XWRSystem:
 
         if isinstance(type, str):
             try:
-                RadarType = getattr(xwr_radar, type)
+                RadarType = cast(Type[TRadar], getattr(xwr_radar, type))
             except AttributeError:
                 raise ValueError(f"Unknown radar type: {type}")
         else:

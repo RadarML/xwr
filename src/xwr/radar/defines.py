@@ -5,7 +5,6 @@ https://dr-download.ti.com/software-development/software-development-kit-sdk/MD-
 Table 1 (Page 19).
 """
 
-
 from enum import Enum
 
 

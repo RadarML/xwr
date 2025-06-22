@@ -4,6 +4,7 @@
 # ruff: noqa: N802, N803
 
 import logging
+import re
 import time
 
 import serial
@@ -40,7 +41,8 @@ class XWRBase(APIMixins, BoilerplateMixins):
 
         If the radar serial port is not provided, we auto-detect the port by
         fetching the lowest-numbered one which contains "XDS110" in the USB
-        device description, which corresponds to the [TI XDS110 JTAG debugger](
+        device description (Or "CP2105 ... Enhanced" in the case of the
+        AWR1843AOPEVM), which corresponds to the [TI XDS110 JTAG debugger](
         https://www.ti.com/tool/TMDSEMU110-U) embedded in each radar dev board.
 
     Args:
@@ -51,6 +53,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
     """
 
     _CMD_PROMPT = "mmwDemo:/>"
+    _PORT_NAME = r"XDS110"
 
     def __init__(
         self, port: str | None = None, baudrate: int = 115200,
@@ -79,17 +82,14 @@ class XWRBase(APIMixins, BoilerplateMixins):
         sorted_ports = sorted(list_ports.comports(), key=lambda x: x.device)
         for port in sorted_ports:
             if port.description is not None:
-                # AWR1843Boost
-                if "XDS110" in port.description:
-                    return port.device
-                # AWR1843AOPEVM
-                if "CP2105" in port.description and "Enhanced" in port.description:
+                if re.match(self._PORT_NAME, port.description, re.IGNORECASE):
                     return port.device
 
         self.log.error("Failed to auto-detect radar port.")
         raise XWRException(
             "Auto-detecting the radar port (`port=None`) failed: none of the "
-            "available ports contain 'XDS110' in the USB description. "
+            f"available ports contain '{self._PORT_NAME}' in the "
+            "USB description. "
             f"Available ports: {[p.device for p in list_ports.comports()]}")
 
     def setup_from_config(self, path: str) -> None:
@@ -107,8 +107,10 @@ class XWRBase(APIMixins, BoilerplateMixins):
 
         Args:
             cmd: command to send.
-            timeout: raises `TimeoutError` if the expected response is not
-                received by this time.
+            timeout: timeout, in seconds.
+
+        Raises:
+            TimeoutError: if no response is received by the timeout.
         """
         self.log.info("Send: {}".format(cmd))
         self.port.write((cmd + '\n').encode('ascii'))
@@ -165,3 +167,20 @@ class XWRBase(APIMixins, BoilerplateMixins):
             example if the specified timings are fairly tight (or invalid).
         """
         self.send("sensorStop")
+
+    def _configure_channels(self, rx: int = 0b1111, tx: int = 0b111) -> None:
+        """Configure RX and TX channels with sequential chirps.
+
+        Args:
+            rx: RX channel mask, e.g. `0b1111` for 4 RX antennas.
+            tx: TX channel mask, e.g. `0b111` for 3 TX antennas.
+        """
+        self.channelCfg(rxChannelEn=rx, txChannelEn=tx)
+        chirp = 0
+        i_tx = 0
+        while tx > 0:
+            if tx & 1:
+                self.chirpCfg(chirp, i_tx)
+                chirp += 1
+            tx = tx >> 1
+            i_tx += 1
