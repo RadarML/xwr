@@ -2,7 +2,7 @@
 
 !!! info
 
-    This module mirrors the functionality of [`xwr.rsp`][xwr.rsp].
+    This module mirrors the functionality of [`xwr.rsp.numpy`][xwr.rsp.numpy].
 
 !!! warning
 
@@ -21,14 +21,12 @@
 from jaxtyping import install_import_hook
 
 with install_import_hook("xwr.rsp.torch", "beartype.beartype"):
-    from .common import BaseRSP, iq_from_iiqq
-    from .rsp import AWR1843AOP, AWR1642Boost, AWR1843Boost
+    from .rsp import AWR1843AOP, AWR1642Boost, AWR1843Boost, RSPTorch
 
 
 __all__ = [
     "AWR1642Boost",
     "AWR1843AOP",
     "AWR1843Boost",
-    "BaseRSP",
-    "iq_from_iiqq",
+    "RSPTorch",
 ]

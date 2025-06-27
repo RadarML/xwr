@@ -3,10 +3,13 @@ repo_url: https://github.com/WiseLabCMU/xwr
 repo_name: WiseLabCMU/xwr
 nav:
   - Home: index.md
-  - Setup: setup.md
-  - High Level API: system.md
+  - Usage:
+    - Setup: setup.md
+    - High Level API: system.md
+    - Development: develop.md
   - Radar Processing:
     - RSP: rsp/rsp.md
+    - Numpy: rsp/numpy.md
     - Pytorch: rsp/torch.md
     - Jax: rsp/jax.md
   - Capture Card:
@@ -32,8 +35,25 @@ theme:
     - navigation.instant
     - navigation.expand
   palette:
+  - media: "(prefers-color-scheme)"
+    toggle:
+      icon: material/brightness-auto
+      name: Switch to light mode
+  - media: "(prefers-color-scheme: light)"
+    scheme: default
     primary: blue
     accent: deep purple
+    toggle:
+      icon: material/weather-sunny
+      name: Switch to dark mode
+  - media: "(prefers-color-scheme: dark)"
+    scheme: slate
+    primary: indigo
+    accent: deep purple
+    toggle:
+      icon: material/weather-night
+      name: Switch to system preference
+
 
 plugins:
 - search
@@ -55,6 +75,9 @@ plugins:
           show_root_heading: true
           show_root_toc_entry: true
           heading_level: 1
+          check_crossrefs_exclude:
+          - "^torch\\.(.*)"
+          - "^numpy\\.(.*)"
         inventories:
         - https://docs.python.org/3/objects.inv
         - https://numpy.org/doc/stable/objects.inv

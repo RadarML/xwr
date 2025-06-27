@@ -26,7 +26,7 @@ The `xwr` library is currently only distributed via github:
 
     ```sh
     git clone git@github.com:WiseLabCMU/xwr.git
-    cd xwr; uv sync --all-extras
+    cd xwr; uv sync --all-extras --frozen
     ```
 
 === "Using `uv` and `pyproject.toml`"
@@ -48,7 +48,7 @@ You will also need to [configure the radar and capture card](setup.md) for raw d
     - [:material-arrow-right: DCA1000EVM Capture Card](https://www.ti.com/tool/DCA1000EVM)
     - [:material-arrow-right: AWR1843Boost](https://www.ti.com/tool/AWR1843BOOST)
     - [:material-arrow-right: AWR1843AOPEVM](https://www.ti.com/tool/AWR1843AOPEVM)
-    - [:material-arrow-right: AWR1642](https://www.ti.com/tool/AWR1642BOOST)
+    - [:material-arrow-right: AWR1642Boost](https://www.ti.com/tool/AWR1642BOOST)
     - :construction_site: WIP: AWR2544LOPEVM
 
     </div>
@@ -67,7 +67,7 @@ logging.basicConfig(level=logging.DEBUG)
 with open("config.yaml") as f:
     cfg = yaml.safe_load(f)
 
-awr = xwr.XWRSystem(**cfg, type="AWR1843")
+awr = xwr.XWRSystem(**cfg, device="AWR1843")
 for frame in awr.stream():
     break
 
@@ -127,33 +127,3 @@ See the [high level API documentation](system.md) for detailed documentation.
 
 </div>
 
-## Development
-
-!!! info "`xwr` uses `uv`"
-
-    While `pyproject.toml` reflects known limitations on dependency versions, we use `uv` to manage a lock file used for development.
-
-    On a fresh linux install, you will need to [install `uv`](https://docs.astral.sh/uv/getting-started/installation/):
-    ```sh
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    source ~/.bashrc
-    ```
-
-- Build docs:
-
-    ```sh
-    uv run --extra docs mkdocs serve
-    ```
-
-- Deploy docs:
-
-    ```sh
-    uv run --extra docs mkdocs build
-    ./update_gh_pages.sh
-    ```
-
-- Run demo:
-
-    ```sh
-    uv run --extra demo demo/spectrum.py
-    ```

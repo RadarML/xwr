@@ -29,6 +29,8 @@ class AWR1843(XWRBase):
         name: human-readable name.
     """
 
+    _PORT_NAME = r'(?=.*CP2105)(?=.*Enhanced)|XDS110'
+
     def __init__(
         self, port: str | None = None, baudrate: int = 115200,
         name: str = "AWR1843"
@@ -36,7 +38,7 @@ class AWR1843(XWRBase):
         super().__init__(port=port, baudrate=baudrate, name=name)
 
     def setup(
-        self, num_tx: int = 2,
+        self, num_tx: Literal[2, 3] = 2, num_rx: Literal[4] = 4,
         frequency: float = 77.0, idle_time: float = 110.0,
         adc_start_time: float = 4.0, ramp_end_time: float = 56.0,
         tx_start_time: float = 1.0, freq_slope: float = 70.006,
@@ -60,6 +62,7 @@ class AWR1843(XWRBase):
         """
         assert frame_length & (frame_length - 1) == 0
         assert num_tx in {2, 3}
+        assert num_rx == 4
 
         self.stop()
         self.flushCfg()
@@ -72,27 +75,17 @@ class AWR1843(XWRBase):
             txStartTime=tx_start_time, freqSlopeConst=freq_slope,
             numAdcSamples=adc_samples, digOutSampleRate=sample_rate)
 
-        if num_tx == 2:
-            self.channelCfg(rxChannelEn=0b1111, txChannelEn=0b101)
-            self.chirpCfg(chirpIdx=0, txEnable=0)
-            self.chirpCfg(chirpIdx=1, txEnable=2)
-        else:
-            self.channelCfg(rxChannelEn=0b1111, txChannelEn=0b111)
-            self.chirpCfg(chirpIdx=0, txEnable=0)
-            self.chirpCfg(chirpIdx=1, txEnable=1)
-            self.chirpCfg(chirpIdx=2, txEnable=2)
-
+        self._configure_channels(rx=0b1111, tx=0b101 if num_tx == 2 else 0b111)
         self.frameCfg(
             numLoops=frame_length, chirpEndIdx=num_tx - 1,
             framePeriodicity=frame_period)
-        self.compRangeBiasAndRxChanPhase(rx_phase = [(0, 1)] * 4 * num_tx)
+        self.compRangeBiasAndRxChanPhase(rx_phase = [(0, 1)] * 4 * 3)
         self.lvdsStreamCfg()
 
         self.boilerplate_setup()
 
 
 class AWR1642(XWRBase):
-
     """Interface implementation for the TI AWR1642 family.
 
     !!! info "Supported devices"
@@ -105,6 +98,8 @@ class AWR1642(XWRBase):
         name: human-readable name.
     """
 
+    _PORT_NAME = r'XDS110'
+
     def __init__(
         self, port: str | None = None, baudrate: int = 115200,
         name: str = "AWR1642"
@@ -112,7 +107,7 @@ class AWR1642(XWRBase):
         super().__init__(port=port, baudrate=baudrate, name=name)
 
     def setup(
-        self, num_tx: Literal[2] = 2,
+        self, num_tx: Literal[2] = 2, num_rx: Literal[4] = 4,
         frequency: float = 77.0, idle_time: float = 110.0,
         adc_start_time: float = 4.0, ramp_end_time: float = 56.0,
         tx_start_time: float = 1.0, freq_slope: float = 70.006,
@@ -134,6 +129,8 @@ class AWR1642(XWRBase):
             frame_period: time between the start of each frame; in ms.
         """
         assert frame_length & (frame_length - 1) == 0
+        assert num_tx == 2
+        assert num_rx == 4
 
         self.stop()
         self.flushCfg()
@@ -146,14 +143,11 @@ class AWR1642(XWRBase):
             txStartTime=tx_start_time, freqSlopeConst=freq_slope,
             numAdcSamples=adc_samples, digOutSampleRate=sample_rate)
 
-        self.channelCfg(rxChannelEn=0b1111, txChannelEn=0b011)
-        self.chirpCfg(chirpIdx=0, txEnable=0)
-        self.chirpCfg(chirpIdx=1, txEnable=1)
-
+        self._configure_channels(rx=0b1111, tx=0b011)
         self.frameCfg(
             numLoops=frame_length, chirpEndIdx=num_tx - 1,
             framePeriodicity=frame_period)
-        self.compRangeBiasAndRxChanPhase(rx_phase = [(0, 1)] * 4 * 3)
+        self.compRangeBiasAndRxChanPhase(rx_phase = [(0, 1)] * 4 * 2)
         self.send("bpmCfg -1 0 0 1")
         self.lvdsStreamCfg()
 
@@ -184,6 +178,8 @@ class AWR2544(XWRBase):
         name: human-readable name.
     """
 
+    _PORT_NAME = r'XDS110'
+
     def __init__(
         self, port: str | None = None, baudrate: int = 115200,
         name: str = "AWR1843"
@@ -191,7 +187,7 @@ class AWR2544(XWRBase):
         super().__init__(port=port, baudrate=baudrate, name=name)
 
     def setup(
-        self, num_tx: Literal[4] = 4,
+        self, num_tx: Literal[4] = 4, num_rx: Literal[4] = 4,
         frequency: float = 77.0, idle_time: float = 110.0,
         adc_start_time: float = 4.0, ramp_end_time: float = 56.0,
         tx_start_time: float = 1.0, freq_slope: float = 70.006,
@@ -213,6 +209,8 @@ class AWR2544(XWRBase):
             frame_period: time between the start of each frame; in ms.
         """
         assert frame_length & (frame_length - 1) == 0
+        assert num_tx == 4
+        assert num_rx == 4
 
         return self.setup_from_config("test.cfg")
 
@@ -227,12 +225,7 @@ class AWR2544(XWRBase):
             txStartTime=tx_start_time, freqSlopeConst=freq_slope,
             numAdcSamples=adc_samples, digOutSampleRate=sample_rate)
 
-        self.channelCfg(rxChannelEn=0b1111, txChannelEn=0b1111)
-        self.chirpCfg(chirpIdx=0, txEnable=0)
-        self.chirpCfg(chirpIdx=1, txEnable=1)
-        self.chirpCfg(chirpIdx=2, txEnable=2)
-        self.chirpCfg(chirpIdx=3, txEnable=3)
-
+        self._configure_channels(rx=0b1111, tx=0b1111)
         self.frameCfg(
             numLoops=frame_length, chirpEndIdx=3,
             framePeriodicity=frame_period, numAdcSamples=adc_samples)
@@ -264,7 +257,7 @@ class AWR2544(XWRBase):
             rxChannelEn, txChannelEn, cascading, ethOscClkEn, driveStrength)
         self.send(cmd)
 
-    def frameCfg(
+    def frameCfg(  # type: ignore
         self, chirpStartIdx: int = 0, chirpEndIdx: int = 1, numLoops: int = 16,
         numFrames: int = 0, numAdcSamples: int = 256,
         framePeriodicity: float = 100.0,

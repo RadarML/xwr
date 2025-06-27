@@ -1,13 +1,64 @@
 """Radar Signal Processing implementations."""
 
+from abc import ABC
+
+import numpy as np
 import torch
-from jaxtyping import Complex64
+from jaxtyping import Complex64, Shaped
 from torch import Tensor
 
-from .common import BaseRSP
+from xwr.rsp import RSP
 
 
-class AWR1843AOP(BaseRSP):
+class RSPTorch(RSP[Tensor], ABC):
+    """Base Radar Signal Processing with common functionality.
+
+    Args:
+        window: whether to apply a hanning window. If `bool`, the same option
+            is applied to all axes. If `dict`, specify per axis with keys
+            "range", "doppler", "azimuth", and "elevation".
+        size: target size for each axis after zero-padding, specified by axis.
+            If an axis is not spacified, it is not padded.
+    """
+
+    def fft(
+        self, array: Complex64[Tensor, "..."], axes: tuple[int, ...],
+        shift: tuple[int, ...] | None = None
+    ) -> Complex64[Tensor, "..."]:
+        fftd = torch.fft.fftn(array, dim=axes)
+        if shift is None:
+            return fftd
+        else:
+            return torch.fft.fftshift(fftd, dim=shift)
+
+    @staticmethod
+    def pad(
+        x: Shaped[Tensor, "..."], axis: int, size: int
+    ) -> Shaped[Tensor, "..."]:
+        if size <= x.shape[axis]:
+            raise ValueError(
+                f"Cannot zero-pad axis {axis} to target size {size}, which is "
+                f"less than or equal the current size {x.shape[axis]}.")
+
+        shape = list(x.shape)
+        shape[axis] = size - x.shape[axis]
+        zeros = torch.zeros(shape, dtype=x.dtype, device=x.device)
+
+        return torch.concatenate([x, zeros], dim=axis)
+
+    @staticmethod
+    def hann(
+        iq: Complex64[Tensor, "..."], axis: int
+    ) -> Complex64[Tensor, "..."]:
+        hann = np.hanning(iq.shape[axis] + 2).astype(np.float32)[1:-1]
+        broadcast: list[None | slice] = [None] * iq.ndim
+        broadcast[axis] = slice(None)
+        window = torch.from_numpy(
+            (hann / np.mean(hann))[tuple(broadcast)]).to(iq.device)
+        return iq * window
+
+
+class AWR1843AOP(RSPTorch):
     """Radar Signal Processing for AWR1843AOP.
 
     !!! info "Antenna Array"
@@ -39,7 +90,7 @@ class AWR1843AOP(BaseRSP):
         return torch.swapaxes(rd, 2, 3)
 
 
-class AWR1843Boost(BaseRSP):
+class AWR1843Boost(RSPTorch):
     """Radar Signal Processing for AWR1843Boost.
 
     !!! info "Antenna Array"
@@ -77,7 +128,7 @@ class AWR1843Boost(BaseRSP):
 
 
 
-class AWR1642Boost(BaseRSP):
+class AWR1642Boost(RSPTorch):
     """Radar Signal Processing for the AWR1642 or AWR1843 with TX2 disabled.
 
     !!! info "Antenna Array"
@@ -103,4 +154,4 @@ class AWR1642Boost(BaseRSP):
         if tx != 2 or rx != 4:
             raise ValueError(
                 f"Expected (tx, rx)=2x4, got tx={tx} and rx={rx}.")
-        return rd.reshape(batch, doppler, -1, range)
+        return rd.reshape(batch, doppler, 1, -1, range)

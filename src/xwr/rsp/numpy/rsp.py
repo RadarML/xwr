@@ -1,12 +1,74 @@
 """Radar Signal Processing implementations."""
 
+from abc import ABC
+from typing import Literal
+
 import numpy as np
-from jaxtyping import Complex64
+from jaxtyping import Complex64, Shaped
+from pyfftw import FFTW
 
-from .common import BaseRSP
+from xwr.rsp import RSP
 
 
-class AWR1843AOP(BaseRSP):
+class RSPNumpy(RSP[np.ndarray], ABC):
+    """Numpy Radar Signal Processing base class.
+
+    Args:
+        window: whether to apply a hanning window. If `bool`, the same option
+            is applied to all axes. If `dict`, specify per axis with keys
+            "range", "doppler", "azimuth", and "elevation".
+        size: target size for each axis after zero-padding, specified by axis.
+            If an axis is not spacified, it is not padded.
+    """
+
+    def __init__(
+        self, window: bool | dict[
+            Literal["range", "doppler", "azimuth", "elevation"], bool] = False,
+        size: dict[
+            Literal["range", "doppler", "azimuth", "elevation"], int] = {}
+    ) -> None:
+        super().__init__(window=window, size=size)
+        self._fft_cache: dict[
+            tuple[tuple[int, ...], tuple[int, ...]], FFTW] = {}
+
+    def fft(
+        self, array: Complex64[np.ndarray, "..."], axes: tuple[int, ...],
+        shift: tuple[int, ...] | None = None
+    ) -> Complex64[np.ndarray, "..."]:
+        key = (array.shape, axes)
+        if key not in self._fft_cache:
+            self._fft_cache[key] = FFTW(
+                np.copy(array), np.zeros_like(array), axes=axes)
+
+        fftd = self._fft_cache[key](array)
+        return np.fft.fftshift(fftd, axes=shift) if shift else fftd
+
+    @staticmethod
+    def pad(
+        x: Shaped[np.ndarray, "..."], axis: int, size: int
+    ) -> Shaped[np.ndarray, "..."]:
+        if size <= x.shape[axis]:
+            raise ValueError(
+                f"Cannot zero-pad axis {axis} to target size {size}, which is "
+                f"less than or equal the current size {x.shape[axis]}.")
+
+        shape = list(x.shape)
+        shape[axis] = size - x.shape[axis]
+        zeros = np.zeros(shape, dtype=x.dtype)
+
+        return np.concatenate([x, zeros], axis=axis)
+
+    @staticmethod
+    def hann(
+        iq: Complex64[np.ndarray, "..."], axis: int
+    ) -> Complex64[np.ndarray, "..."]:
+        hann = np.hanning(iq.shape[axis] + 2).astype(np.float32)[1:-1]
+        broadcast: list[None | slice] = [None] * iq.ndim
+        broadcast[axis] = slice(None)
+        return iq * (hann / np.mean(hann))[tuple(broadcast)]
+
+
+class AWR1843AOP(RSPNumpy):
     """Radar Signal Processing for AWR1843AOP.
 
     !!! info "Antenna Array"
@@ -38,7 +100,7 @@ class AWR1843AOP(BaseRSP):
         return np.swapaxes(rd, 2, 3)
 
 
-class AWR1843Boost(BaseRSP):
+class AWR1843Boost(RSPNumpy):
     """Radar Signal Processing for AWR1843Boost.
 
     !!! info "Antenna Array"
@@ -73,8 +135,7 @@ class AWR1843Boost(BaseRSP):
         return mimo
 
 
-
-class AWR1642Boost(BaseRSP):
+class AWR1642Boost(RSPNumpy):
     """Radar Signal Processing for the AWR1642 or AWR1843 with TX2 disabled.
 
     !!! info "Antenna Array"
@@ -100,4 +161,4 @@ class AWR1642Boost(BaseRSP):
         if tx != 2 or rx != 4:
             raise ValueError(
                 f"Expected (tx, rx)=2x4, got tx={tx} and rx={rx}.")
-        return rd.reshape(batch, doppler, -1, range)
+        return rd.reshape(batch, doppler, 1, -1, range)

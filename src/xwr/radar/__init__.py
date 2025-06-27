@@ -12,7 +12,7 @@
     3. Start the radar with `.start()`.
     4. Stop the radar with `.stop()`.
 
-!!! note
+!!! info
 
     You may need to provide read/write permissions to access the serial port:
     ```sh
@@ -27,9 +27,9 @@
 """
 
 from . import defines
-from .api import AWR1642, AWR1843, AWR2544
+from .api import AWR1642, AWR1843  # , AWR2544
 from .base import XWRBase, XWRException
 
 __all__ = [
-    "defines", "AWR1642", "AWR1843", "AWR2544",
+    "defines", "AWR1642", "AWR1843",   # "AWR2544",
     "XWRException", "XWRBase"]

@@ -1,8 +1,8 @@
-"""Radar Signal Processing in jax.
+"""Radar Signal Processing in Jax.
 
 !!! info
 
-    This module mirrors the functionality of [`xwr.rsp`][xwr.rsp].
+    This module mirrors the functionality of [`xwr.rsp.numpy`][xwr.rsp.numpy].
 
 !!! warning
 
@@ -10,7 +10,7 @@
     import it:
 
     ```python
-    from xwr.rsp import jax as xwr_jax
+    from xwr.rsp import jax as rsp
     ```
 
     Since jax is not declared as a required dependency, you will also need
@@ -21,14 +21,15 @@
 from jaxtyping import install_import_hook
 
 with install_import_hook("xwr.rsp.jax", "beartype.beartype"):
-    from .common import BaseRSP, iq_from_iiqq
-    from .rsp import AWR1843AOP, AWR1642Boost, AWR1843Boost
+    from .rsp import AWR1843AOP, AWR1642Boost, AWR1843Boost, RSPJax
+    from .spectrum import CFAR, CalibratedSpectrum
 
 
 __all__ = [
     "AWR1642Boost",
     "AWR1843AOP",
     "AWR1843Boost",
-    "BaseRSP",
-    "iq_from_iiqq",
+    "RSPJax",
+    "CFAR",
+    "CalibratedSpectrum",
 ]

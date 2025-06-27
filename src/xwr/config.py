@@ -26,7 +26,8 @@ class XWRConfig:
         freq_slope: chirp slope, in MHz/us.
         adc_samples: number of samples per chirp.
         sample_rate: ADC sampling rate, in KHz.
-        frame_length: number of chirps per TX antenna per frame.
+        frame_length: number of chirps per TX antenna per frame. Must be a
+            power of two.
         frame_period: periodicity of frames, in ms.
         num_tx: number of TX antenna; 3 for the AWR1843.
         num_rx: number of RX antenna; 4 for the AWR1843.
@@ -47,16 +48,16 @@ class XWRConfig:
     num_rx: int = 4
 
     @property
-    def shape(self) -> list[int]:
+    def shape(self) -> tuple[int, int, int, int]:
         """Radar data cube shape."""
-        return [
-            self.frame_length, self.num_tx, self.num_rx, self.adc_samples]
+        return (
+            self.frame_length, self.num_tx, self.num_rx, self.adc_samples)
 
     @property
-    def raw_shape(self) -> list[int]:
+    def raw_shape(self) -> tuple[int, int, int, int]:
         """Radar IIQQ data shape."""
-        return [
-            self.frame_length, self.num_tx, self.num_rx, self.adc_samples * 2]
+        return (
+            self.frame_length, self.num_tx, self.num_rx, self.adc_samples * 2)
 
     @property
     def frame_size(self) -> int:
@@ -122,7 +123,7 @@ class XWRConfig:
         RADAR_PROPERTIES = [
             "frequency", "idle_time", "adc_start_time", "ramp_end_time",
             "tx_start_time", "freq_slope", "adc_samples", "sample_rate",
-            "frame_length", "frame_period", "num_tx"]
+            "frame_length", "frame_period", "num_tx", "num_rx"]
         return {k: getattr(self, k) for k in RADAR_PROPERTIES}
 
     def as_intrinsics(self) -> dict:

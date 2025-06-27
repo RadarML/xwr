@@ -1,6 +1,13 @@
 # Radar Setup Guide
 
-A raw data collection system consists of two parts: a radar with a LVDS (Low Voltage Differential Signaling) debug port which dumps out raw data, and a capture card which translates these LVDS signals into ethernet packets. In order to use these components with our [`radar`][xwr.radar] and [`capture`][xwr.capture] interfaces, the radar development boards need to be flashed with firmware with LVDS streaming enabled, while the capture cards need to be configured to read the output signals.
+!!! abstract "TL;DR"
+
+    A mmWave radar I/Q data collection system consists of two parts:
+
+    1. A radar with a Low Voltage Differential Signaling (LVDS) debug port which dumps out raw data, and
+    2. A capture card which translates these LVDS signals into ethernet packets.
+
+    To use these components with our [`radar`][xwr.radar] and [`capture`][xwr.capture] interfaces, the radar needs to be flashed with firmware with LVDS streaming enabled, while the capture cards need to be configured to read the output signals.
 
 ## DCA1000EVM Capture Card
 

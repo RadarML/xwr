@@ -2,8 +2,9 @@
 
 import logging
 import threading
+from collections.abc import Iterator
 from queue import Empty, Queue
-from typing import Iterator, Literal, Type, cast, overload
+from typing import Generic, Literal, TypeVar, cast, overload
 
 import numpy as np
 
@@ -11,9 +12,11 @@ from . import radar as xwr_radar
 from .capture import types
 from .config import DCAConfig, XWRConfig
 
+TRadar = TypeVar("TRadar", bound=xwr_radar.XWRBase)
 
-class XWRSystem:
-    """Radar capture system with a AWR1843Boost and DCA1000EVM.
+
+class XWRSystem(Generic[TRadar]):
+    """Radar capture system with a mmWave Radar and DCA1000EVM.
 
     !!! info "Known Constraints"
 
@@ -28,19 +31,22 @@ class XWRSystem:
             greater than 95%.
         - The ADC is still sampling when the ramp ends.
 
+    Type Parameters:
+        - `TRadar`: radar type (subclass of [`XWRBase`][xwr.radar.])
+
     Args:
         radar: radar configuration; if `dict`, the key/value pairs are passed
             to `XWRConfig`.
         capture: capture card configuration; if `dict`, the key/value pairs are
             passed to `DCAConfig`.
-        type: radar type; if `str`, the class in [`xwr.radar`][xwr.radar] with
-            the corresponding name is used.
+        device: radar type; if `str`, the class in [`xwr.radar`][xwr.radar]
+            with the corresponding name is used.
         name: friendly name for logging; can be default.
     """
 
     def __init__(
         self, *, radar: XWRConfig | dict, capture: DCAConfig | dict,
-        type: Type[xwr_radar.XWRBase] | str = "AWR1843",
+        device: type[TRadar] | str = "AWR1843",
         name: str = "RadarCapture"
     ) -> None:
         if isinstance(radar, dict):
@@ -48,13 +54,13 @@ class XWRSystem:
         if isinstance(capture, dict):
             capture = DCAConfig(**capture)
 
-        if isinstance(type, str):
+        if isinstance(device, str):
             try:
-                RadarType = getattr(xwr_radar, type)
+                RadarType = cast(type[TRadar], getattr(xwr_radar, device))
             except AttributeError:
-                raise ValueError(f"Unknown radar type: {type}")
+                raise ValueError(f"Unknown radar module: {device}")
         else:
-            RadarType = type
+            RadarType = device
 
         self.log = logging.getLogger(name)
         self._statistics(radar, capture)
@@ -128,8 +134,9 @@ class XWRSystem:
     def qstream(self, numpy: Literal[True]) -> Queue[np.ndarray | None]: ...
 
     @overload
-    def qstream(self, numpy: Literal[False]) -> Queue[types.RadarFrame | None]:
-        ...
+    def qstream(
+        self, numpy: Literal[False] = False
+    ) -> Queue[types.RadarFrame | None]: ...
 
     def qstream(
         self, numpy: bool = False

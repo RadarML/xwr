@@ -26,23 +26,42 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-torch = [ "torch>=2.0" ]
-jax = [ "jax>=0.4.0" ]
+torch = [
+    "torch>=2.0"
+]
+jax = [
+    "jax>=0.4.0",
+]
 demo = [
     "matplotlib>=3.0",
     "pyyaml>=6.0",
     "PyQt6>=6.0.0"
+]
+testing = [
+    "pytest>=8.0.0",
+    "coverage",
+    "pytest-cov",
+    "pyright",
 ]
 docs = [
     # Most recent as of 16.04.2025; exact versions shouldn't matter unless the
     # API is changed, so we pin here just in case.
     "mkdocs == 1.6.*",
     "mkdocs-material == 9.6.*",
-    "mkdocstrings-python-xref == 1.16.*",
-    "mkdocstrings[python] == 0.29.*",
+    "mkdocstrings-python-xref == 1.16.3",
+    "mkdocstrings-python == 1.16.6",
     "ruff>=0.11.0"
 ]
 
 [project.urls]
 Homepage = "https://github.com/WiseLabCMU/xwr"
 Issues = "https://github.com/WiseLabCMU/xwr/issues"
+
+[tool.coverage.report]
+exclude_also = [
+    '^\s*\.\.\.\s*$',
+    'def __repr__',
+    'if __name__ == .__main__.:',
+    'class .*\bProtocol\):',
+    'raise NotImplementedError',
+]
