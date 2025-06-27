@@ -48,7 +48,7 @@ You will also need to [configure the radar and capture card](setup.md) for raw d
     - [:material-arrow-right: DCA1000EVM Capture Card](https://www.ti.com/tool/DCA1000EVM)
     - [:material-arrow-right: AWR1843Boost](https://www.ti.com/tool/AWR1843BOOST)
     - [:material-arrow-right: AWR1843AOPEVM](https://www.ti.com/tool/AWR1843AOPEVM)
-    - [:material-arrow-right: AWR1642](https://www.ti.com/tool/AWR1642BOOST)
+    - [:material-arrow-right: AWR1642Boost](https://www.ti.com/tool/AWR1642BOOST)
     - :construction_site: WIP: AWR2544LOPEVM
 
     </div>
@@ -67,7 +67,7 @@ logging.basicConfig(level=logging.DEBUG)
 with open("config.yaml") as f:
     cfg = yaml.safe_load(f)
 
-awr = xwr.XWRSystem(**cfg, type="AWR1843")
+awr = xwr.XWRSystem(**cfg, device="AWR1843")
 for frame in awr.stream():
     break
 
@@ -127,58 +127,3 @@ See the [high level API documentation](system.md) for detailed documentation.
 
 </div>
 
-## Development
-
-!!! info "`xwr` uses `uv`"
-
-    While `pyproject.toml` reflects known limitations on dependency versions, we use `uv` to manage a lock file used for development.
-
-    On a fresh linux install, you will need to [install `uv`](https://docs.astral.sh/uv/getting-started/installation/):
-    ```sh
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    source ~/.bashrc
-    ```
-
-- Set up fresh development machine:
-    ```sh
-    sudo apt-get install -y openssh-server git curl
-    curl -LsSf https://astral.sh/uv/install.sh | sh
-    source ~/.bashrc
-
-    ssh-keygen
-    # (add ssh key or add deploy key to xwr)
-    git clone git@github.com:WiseLabCMU/xwr.git
-    ```
-
-- Set up development environment:
-    ```sh
-    uv run --all-extras --frozen
-    ```
-
-    !!! warning
-
-        This will install all backends (numpy, pytorch, and jax), which is necessary for static type checking and backend-specific tests. If you are only working on the interface, you can skip `--all-extras`.
-
-- Run tests:
-    ```sh
-    uv run --all-extras pytest -ra --cov --cov-report=html --cov-report=term -- tests
-    ```
-
-- Build docs:
-
-    ```sh
-    uv run --extra docs mkdocs serve
-    ```
-
-- Deploy docs:
-
-    ```sh
-    uv run --extra docs mkdocs build
-    ./update_gh_pages.sh
-    ```
-
-- Run demo:
-
-    ```sh
-    uv run --extra demo demo/spectrum.py
-    ```

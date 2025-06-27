@@ -180,7 +180,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
         i_tx = 0
         while tx > 0:
             if tx & 1:
-                self.chirpCfg(chirp, i_tx)
+                self.chirpCfg(chirpIdx=chirp, txEnable=i_tx)
                 chirp += 1
             tx = tx >> 1
             i_tx += 1

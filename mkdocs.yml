@@ -3,8 +3,10 @@ repo_url: https://github.com/WiseLabCMU/xwr
 repo_name: WiseLabCMU/xwr
 nav:
   - Home: index.md
-  - Setup: setup.md
-  - High Level API: system.md
+  - Usage:
+    - Setup: setup.md
+    - High Level API: system.md
+    - Development: develop.md
   - Radar Processing:
     - RSP: rsp/rsp.md
     - Numpy: rsp/numpy.md

@@ -59,6 +59,7 @@ Issues = "https://github.com/WiseLabCMU/xwr/issues"
 
 [tool.coverage.report]
 exclude_also = [
+    '^\s*\.\.\.\s*$',
     'def __repr__',
     'if __name__ == .__main__.:',
     'class .*\bProtocol\):',

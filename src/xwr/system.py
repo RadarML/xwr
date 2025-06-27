@@ -39,14 +39,14 @@ class XWRSystem(Generic[TRadar]):
             to `XWRConfig`.
         capture: capture card configuration; if `dict`, the key/value pairs are
             passed to `DCAConfig`.
-        module: radar module; if `str`, the class in [`xwr.radar`][xwr.radar]
+        device: radar type; if `str`, the class in [`xwr.radar`][xwr.radar]
             with the corresponding name is used.
         name: friendly name for logging; can be default.
     """
 
     def __init__(
         self, *, radar: XWRConfig | dict, capture: DCAConfig | dict,
-        module: type[TRadar] | str = "AWR1843",
+        device: type[TRadar] | str = "AWR1843",
         name: str = "RadarCapture"
     ) -> None:
         if isinstance(radar, dict):
@@ -54,13 +54,13 @@ class XWRSystem(Generic[TRadar]):
         if isinstance(capture, dict):
             capture = DCAConfig(**capture)
 
-        if isinstance(module, str):
+        if isinstance(device, str):
             try:
-                RadarType = cast(type[TRadar], getattr(xwr_radar, module))
+                RadarType = cast(type[TRadar], getattr(xwr_radar, device))
             except AttributeError:
-                raise ValueError(f"Unknown radar module: {module}")
+                raise ValueError(f"Unknown radar module: {device}")
         else:
-            RadarType = module
+            RadarType = device
 
         self.log = logging.getLogger(name)
         self._statistics(radar, capture)
@@ -134,8 +134,9 @@ class XWRSystem(Generic[TRadar]):
     def qstream(self, numpy: Literal[True]) -> Queue[np.ndarray | None]: ...
 
     @overload
-    def qstream(self, numpy: Literal[False]) -> Queue[types.RadarFrame | None]:
-        ...
+    def qstream(
+        self, numpy: Literal[False] = False
+    ) -> Queue[types.RadarFrame | None]: ...
 
     def qstream(
         self, numpy: bool = False

@@ -214,7 +214,8 @@ class DCA1000EVM:
                 self._warn_ooo(missing)
             else:
                 if missing > 0:
-                    self.log.warn("Dropped packets: {} bytes".format(missing))
+                    self.log.warning(
+                        "Dropped packets: {} bytes".format(missing))
                     buf.extend(b'\x00' * missing)
                     offset = packet.byte_count
                     complete = False
