@@ -7,14 +7,15 @@ import yaml
 from matplotlib import pyplot as plt
 
 import xwr
+from xwr.rsp import numpy as xwr_rsp
 
 logging.basicConfig(level=logging.INFO)
 
 with open("config.yaml") as f:
     cfg = yaml.safe_load(f)
 
-awr = xwr.XWRSystem(**cfg, type="AWR1843")
-rsp = xwr.rsp.AWR1843AOP(window=False)
+awr = xwr.XWRSystem(**cfg, module="AWR1843")
+rsp = xwr_rsp.AWR1843AOP(window=False)
 
 # Create a figure
 plt.ion()  # Enable interactive mode

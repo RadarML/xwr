@@ -159,6 +159,10 @@ See the [high level API documentation](system.md) for detailed documentation.
 
         This will install all backends (numpy, pytorch, and jax), which is necessary for static type checking and backend-specific tests. If you are only working on the interface, you can skip `--all-extras`.
 
+- Run tests:
+    ```sh
+    uv run --all-extras pytest -ra --cov --cov-report=html --cov-report=term -- tests
+    ```
 
 - Build docs:
 
