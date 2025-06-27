@@ -3,7 +3,7 @@
 from abc import ABC
 
 from jax import numpy as jnp
-from jaxtyping import Array, Complex64, Float32, Int16, Shaped
+from jaxtyping import Array, Complex64, Float32, Int, Int16, Shaped
 
 from xwr.rsp import RSP, iq_from_iiqq
 
@@ -48,15 +48,15 @@ class RSPJax(RSP[Array], ABC):
     def hann(
         iq: Complex64[Array, "..."], axis: int
     ) -> Complex64[Array, "..."]:
-        hann = jnp.hanning(iq.shape[axis])
+        hann = jnp.hanning(iq.shape[axis] + 2)[1:-1]
         broadcast: list[None | slice] = [None] * iq.ndim
         broadcast[axis] = slice(None)
         return iq * (hann / jnp.mean(hann))[tuple(broadcast)]
 
-    def aoa_estimation(
+    def azimuth_aoa(
         self, iq: Complex64[Array, "batch slow tx rx fast"]
         | Int16[Array, "batch slow tx rx fast*2"]
-    ) -> Float32[Array, "batch doppler range"]:
+    ) -> Int[Array, "batch doppler range"]:
         """Estimate angle of arrival (AoA).
 
         !!! note
@@ -192,4 +192,4 @@ class AWR1642Boost(RSPJax):
         if tx != 2 or rx != 4:
             raise ValueError(
                 f"Expected (tx, rx)=2x4, got tx={tx} and rx={rx}.")
-        return rd.reshape(batch, doppler, -1, range)
+        return rd.reshape(batch, doppler, 1, -1, range)

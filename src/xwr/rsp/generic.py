@@ -112,7 +112,7 @@ def iqiq_from_iiqq(
 
 def iq_from_iiqq(
     iiqq: Int16[TArray, "... n"] | Complex64[TArray, "... _n"],
-) -> Complex64[TArray, "... n/2"]:
+) -> Complex64[TArray, "... n2"]:
     """Un-interleave IIQQ data.
 
     Type Parameters:
@@ -196,7 +196,7 @@ class RSP(ABC, Generic[TArray]):
 
         if isinstance(window, bool):
             self.window = {}
-            self._default_window = self.window
+            self._default_window = window
         else:
             self.window = window
             self._default_window = False
@@ -220,8 +220,8 @@ class RSP(ABC, Generic[TArray]):
         """
         ...
 
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     def pad(
         x: Shaped[TArray, "..."], axis: int, size: int
     ) -> Shaped[TArray, "..."]:
@@ -237,8 +237,8 @@ class RSP(ABC, Generic[TArray]):
         """
         ...
 
-    @abstractmethod
     @staticmethod
+    @abstractmethod
     def hann(
         iq: Complex64[TArray, "..."], axis: int
     ) -> Complex64[TArray, "..."]:
@@ -255,7 +255,7 @@ class RSP(ABC, Generic[TArray]):
 
     def doppler_range(
         self, iq: Complex64[TArray, "#batch doppler tx rx range"]
-    ) -> Complex64[TArray, "#batch doppler tx rx range"]:
+    ) -> Complex64[TArray, "#batch doppler2 tx rx range2"]:
         """Calculate range-doppler spectrum from IQ data.
 
         Args:
@@ -319,7 +319,7 @@ class RSP(ABC, Generic[TArray]):
     def __call__(
         self, iq: Complex64[TArray, "#batch doppler tx rx range"]
             | Int16[TArray, "#batch doppler tx rx range*2"]
-    ) -> Complex64[TArray, "#batch doppler el az range"]:
+    ) -> Complex64[TArray, "#batch doppler2 el az range2"]:
         """Process IQ data to compute elevation-azimuth spectrum.
 
         Args:

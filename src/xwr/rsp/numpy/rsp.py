@@ -62,7 +62,7 @@ class RSPNumpy(RSP[np.ndarray], ABC):
     def hann(
         iq: Complex64[np.ndarray, "..."], axis: int
     ) -> Complex64[np.ndarray, "..."]:
-        hann = np.hanning(iq.shape[axis])
+        hann = np.hanning(iq.shape[axis] + 2).astype(np.float32)[1:-1]
         broadcast: list[None | slice] = [None] * iq.ndim
         broadcast[axis] = slice(None)
         return iq * (hann / np.mean(hann))[tuple(broadcast)]
@@ -161,4 +161,4 @@ class AWR1642Boost(RSPNumpy):
         if tx != 2 or rx != 4:
             raise ValueError(
                 f"Expected (tx, rx)=2x4, got tx={tx} and rx={rx}.")
-        return rd.reshape(batch, doppler, -1, range)
+        return rd.reshape(batch, doppler, 1, -1, range)

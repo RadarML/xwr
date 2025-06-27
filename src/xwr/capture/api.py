@@ -5,7 +5,7 @@ import socket
 import struct
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 
 import numpy as np
 
@@ -174,7 +174,7 @@ class DCA1000EVM:
             self.log.error("Suppressing 'out of order' on the 10th trigger.")
 
     def stream(
-        self, shape: list[int] = []
+        self, shape: Sequence[int] = []
     ) -> Iterator[types.RadarFrame]:
         """Get a python iterator corresponding to the data stream.
 

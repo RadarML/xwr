@@ -37,6 +37,12 @@ demo = [
     "pyyaml>=6.0",
     "PyQt6>=6.0.0"
 ]
+testing = [
+    "pytest>=8.0.0",
+    "coverage",
+    "pytest-cov",
+    "pyright",
+]
 docs = [
     # Most recent as of 16.04.2025; exact versions shouldn't matter unless the
     # API is changed, so we pin here just in case.
@@ -50,3 +56,11 @@ docs = [
 [project.urls]
 Homepage = "https://github.com/WiseLabCMU/xwr"
 Issues = "https://github.com/WiseLabCMU/xwr/issues"
+
+[tool.coverage.report]
+exclude_also = [
+    'def __repr__',
+    'if __name__ == .__main__.:',
+    'class .*\bProtocol\):',
+    'raise NotImplementedError',
+]

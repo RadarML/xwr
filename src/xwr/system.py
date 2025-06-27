@@ -4,7 +4,7 @@ import logging
 import threading
 from collections.abc import Iterator
 from queue import Empty, Queue
-from typing import Generic, Literal, Type, TypeVar, cast, overload
+from typing import Generic, Literal, TypeVar, cast, overload
 
 import numpy as np
 
@@ -39,14 +39,14 @@ class XWRSystem(Generic[TRadar]):
             to `XWRConfig`.
         capture: capture card configuration; if `dict`, the key/value pairs are
             passed to `DCAConfig`.
-        type: radar type; if `str`, the class in [`xwr.radar`][xwr.radar] with
-            the corresponding name is used.
+        module: radar module; if `str`, the class in [`xwr.radar`][xwr.radar]
+            with the corresponding name is used.
         name: friendly name for logging; can be default.
     """
 
     def __init__(
         self, *, radar: XWRConfig | dict, capture: DCAConfig | dict,
-        type: Type[TRadar] | str = "AWR1843",
+        module: type[TRadar] | str = "AWR1843",
         name: str = "RadarCapture"
     ) -> None:
         if isinstance(radar, dict):
@@ -54,13 +54,13 @@ class XWRSystem(Generic[TRadar]):
         if isinstance(capture, dict):
             capture = DCAConfig(**capture)
 
-        if isinstance(type, str):
+        if isinstance(module, str):
             try:
-                RadarType = cast(Type[TRadar], getattr(xwr_radar, type))
+                RadarType = cast(type[TRadar], getattr(xwr_radar, module))
             except AttributeError:
-                raise ValueError(f"Unknown radar type: {type}")
+                raise ValueError(f"Unknown radar module: {module}")
         else:
-            RadarType = type
+            RadarType = module
 
         self.log = logging.getLogger(name)
         self._statistics(radar, capture)

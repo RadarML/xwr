@@ -22,7 +22,7 @@ from jaxtyping import install_import_hook
 
 with install_import_hook("xwr.rsp.jax", "beartype.beartype"):
     from .rsp import AWR1843AOP, AWR1642Boost, AWR1843Boost, RSPJax
-    from .spectrum import CFAR, AOAEstimation, CalibratedSpectrum
+    from .spectrum import CFAR, CalibratedSpectrum
 
 
 __all__ = [
@@ -32,5 +32,4 @@ __all__ = [
     "RSPJax",
     "CFAR",
     "CalibratedSpectrum",
-    "AOAEstimation",
 ]

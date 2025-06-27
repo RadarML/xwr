@@ -6,7 +6,7 @@ import jax
 import numpy as np
 from jax import numpy as jnp
 from jax.scipy.signal import convolve2d
-from jaxtyping import Array, Complex64, Float, Float32, Int, Int16
+from jaxtyping import Array, Complex64, Float, Float32, Int16
 
 from xwr.rsp import iq_from_iiqq
 
@@ -114,7 +114,7 @@ class CalibratedSpectrum(Generic[TRSP]):
 
     def calibration_patch(
         self, sample: Complex64[Array, "n slow tx rx fast"]
-            | Int16[Array, "n slow tx rx fast*2"], batch: int = 1
+            | Int16[Array, "n slow tx rx fast2"], batch: int = 1
     ) -> Float32[Array, "doppler el az range"]:
         """Create a calibration patch for zero-doppler correction.
 
@@ -149,7 +149,7 @@ class CalibratedSpectrum(Generic[TRSP]):
 
     def __call__(
         self, iq: Complex64[Array, "#batch doppler tx rx range"]
-            | Int16[Array, "#batch doppler tx rx range*2"],
+            | Int16[Array, "#batch doppler tx rx range2"],
         calib: Float32[Array, "doppler el az range"]
     ) -> Float32[Array, "batch doppler el az range"]:
         """Run radar spectrum processing pipeline.

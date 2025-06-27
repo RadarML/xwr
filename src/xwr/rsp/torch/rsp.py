@@ -25,11 +25,11 @@ class RSPTorch(RSP[Tensor], ABC):
         self, array: Complex64[Tensor, "..."], axes: tuple[int, ...],
         shift: tuple[int, ...] | None = None
     ) -> Complex64[Tensor, "..."]:
-        fftd = torch.fft.fftn(array, axes=axes)
+        fftd = torch.fft.fftn(array, dim=axes)
         if shift is None:
             return fftd
         else:
-            return torch.fft.fftshift(fftd, axes=shift)
+            return torch.fft.fftshift(fftd, dim=shift)
 
     @staticmethod
     def pad(
@@ -50,7 +50,7 @@ class RSPTorch(RSP[Tensor], ABC):
     def hann(
         iq: Complex64[Tensor, "..."], axis: int
     ) -> Complex64[Tensor, "..."]:
-        hann = np.hanning(iq.shape[axis])
+        hann = np.hanning(iq.shape[axis] + 2).astype(np.float32)[1:-1]
         broadcast: list[None | slice] = [None] * iq.ndim
         broadcast[axis] = slice(None)
         window = torch.from_numpy(
@@ -154,4 +154,4 @@ class AWR1642Boost(RSPTorch):
         if tx != 2 or rx != 4:
             raise ValueError(
                 f"Expected (tx, rx)=2x4, got tx={tx} and rx={rx}.")
-        return rd.reshape(batch, doppler, -1, range)
+        return rd.reshape(batch, doppler, 1, -1, range)

@@ -48,16 +48,16 @@ class XWRConfig:
     num_rx: int = 4
 
     @property
-    def shape(self) -> list[int]:
+    def shape(self) -> tuple[int, int, int, int]:
         """Radar data cube shape."""
-        return [
-            self.frame_length, self.num_tx, self.num_rx, self.adc_samples]
+        return (
+            self.frame_length, self.num_tx, self.num_rx, self.adc_samples)
 
     @property
-    def raw_shape(self) -> list[int]:
+    def raw_shape(self) -> tuple[int, int, int, int]:
         """Radar IIQQ data shape."""
-        return [
-            self.frame_length, self.num_tx, self.num_rx, self.adc_samples * 2]
+        return (
+            self.frame_length, self.num_tx, self.num_rx, self.adc_samples * 2)
 
     @property
     def frame_size(self) -> int:
