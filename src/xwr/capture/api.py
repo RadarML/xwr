@@ -22,6 +22,16 @@ class DCAException(Exception):
 class DCA1000EVM:
     """DCA1000EVM Interface.
 
+    !!! abstract "usage"
+
+        1. Initialization parameters can be defaults.
+        2. Setup with `.setup(...)` with the appropriate `LVDS.TWO_LANE`
+            (2544, 2944, 1843, 1642) or `LVDS.FOUR_LANE` (1243, 1443).
+        3. Start recording with `.start(...)`.
+        4. Start the radar.
+        5. Stop recording with `.stop()`.
+        6. Stop the radar.
+
     Documented by the [*DCA1000EVM Data Capture Card User's Guide (Rev A)*](
     https://www.ti.com/lit/ug/spruij4a/spruij4a.pdf?ts=1709104212742); based on
     a (little-endian) UDP protocol (Sec 5). Included C++ source code exerpts
@@ -34,27 +44,8 @@ class DCA1000EVM:
         - The network interface connected to the DCA1000EVM should be
             configured with a static IP address matching the provided `sys_ip`,
             e.g., `192.168.33.30` with a subnet mask of `255.255.255.0`.
-            ```sh
-            RADAR_IF=eth0  # your radar interface name, e.g., eth0, enp0s25, etc.
-            RADAR_SYS_IP=192.168.33.30
-            sudo ifconfig $(RADAR_IF) $(RADAR_SYS_IP) netmask 255.255.255.0
-            ```
         - To reduce dropped packets, the receive socket buffer size should also
-            be increased to at least 2 frames of data (even larger is fine):
-            ```sh
-            RECV_BUF_SIZE=16777216  # 16 MiB = 21 frames (~1 sec) @ 786k each.
-            echo $(RECV_BUF_SIZE) | sudo tee /proc/sys/net/core/rmem_max
-            ```
-
-    !!! usage
-
-        1. Initialization parameters can be defaults.
-        2. Setup with `.setup(...)` with the appropriate `LVDS.TWO_LANE`
-            (2544, 2944, 1843, 1642) or `LVDS.FOUR_LANE` (1243, 1443).
-        3. Start recording with `.start(...)`.
-        4. Start the radar.
-        5. Stop recording with `.stop()`.
-        6. Stop the radar.
+            be increased to at least 2 frames of data (even larger is fine).
 
     !!! warning
 
@@ -107,8 +98,9 @@ class DCA1000EVM:
         self.config_socket = self._create_socket(
             (sys_ip, config_port), timeout)
         self.data_socket = self._create_socket((sys_ip, data_port), 0.0)
+
         self.data_socket.setsockopt(
-            socket.SOL_SOCKET, socket.SO_SNDBUF, socket_buffer)
+            socket.SOL_SOCKET, socket.SO_RCVBUF, socket_buffer)
 
         self.timeout = timeout
 
@@ -150,7 +142,7 @@ class DCA1000EVM:
 
         !!! info
 
-            Due to high packet rates (up to 200KHz), we only busy-wait, and
+            Due to high packet rates (~10k packets/sec), we only busy-wait, and
             manually track the timeout using `perf_counter`.
 
         Returns:
@@ -172,6 +164,15 @@ class DCA1000EVM:
             self.log.error("Out of order packet: {} bytes".format(missing))
         if self._warn_ooo_counter == 10:
             self.log.error("Suppressing 'out of order' on the 10th trigger.")
+
+    def _check_bufsize(self, size: int) -> None:
+        """Check if the receive buffer size is sufficient."""
+        bufsize = self.data_socket.getsockopt(
+            socket.SOL_SOCKET, socket.SO_RCVBUF)
+        if bufsize < size * 2:
+            self.log.warning(
+                f"Receive buffer size {bufsize} is smaller than 2 frames "
+                f"({2 * size}); is net.core.rmem_max set?")
 
     def stream(
         self, shape: Sequence[int] = []
@@ -195,6 +196,7 @@ class DCA1000EVM:
             shape: shape of the data to be received.
         """
         size = int(np.prod(shape)) * np.dtype(np.uint16).itemsize
+        self._check_bufsize(size)
 
         offset = 0
         timestamp = 0.0
