@@ -1,4 +1,4 @@
-# Radar Setup Guide
+# Hardware Setup
 
 !!! abstract "TL;DR"
 
@@ -17,27 +17,23 @@
 
 ![DCA1000EVM](images/dca1000evm.jpg){: style="width: 50%"}
 
-1. Ensure that the following DIP switches are set:
+Ensure that the following DIP switches are set:
 
-    - SW2.5: `SW_CONFIG`
-    - SW2.6: `USER_SW1` (the marked right side), unless the EEPROM is messed up from a misconfigured [`configure_eeprom`][xwr.capture.DCA1000EVM.configure_eeprom] call.
+- SW2.5: `SW_CONFIG`
+- SW2.6: `USER_SW1` (the marked right side), unless the EEPROM is messed up from a misconfigured [`configure_eeprom`][xwr.capture.DCA1000EVM.configure_eeprom] call.
 
-    The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending on whether the FPGA will be powered via the DC jack or via the radar.
+The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending on whether the FPGA will be powered via the DC jack or via the radar.
 
-    ??? info "Hardware Configuration Switches (Optional)"
+??? info "Hardware Configuration Switches (Optional)"
 
-        The following are configured by [`configure_fpga`][xwr.capture.DCA1000EVM.configure_fpga] under normal operation, but can be manually set in case that isn't working:
+    The following are configured by [`configure_fpga`][xwr.capture.DCA1000EVM.configure_fpga] under normal operation, but can be manually set in case that isn't working:
 
-        - SW1: 16-bit mode (`16BIT_ON`, `14BIT_OFF`, `12BIT_OFF`).
-        - SW2.1: `LVDS_CAPTURE`
-        - SW2.2: `ETH_STREAM`
-        - SW2.3: `AR1642_MODE` (2-lane LVDS)
-        - SW2.4: `RAW_MODE`
-        - SW2.5: `HW_CONFIG`
-
-2. Configure a static IP address for the ethernet interface assigned to the capture card.
-
-    - Unless this IP has been changed (see [`configure_eeprom`][xwr.capture.DCA1000EVM.configure_eeprom]), it should be set to an address of `192.168.33.30` with a subnet mask of `255.255.255.0`.
+    - SW1: 16-bit mode (`16BIT_ON`, `14BIT_OFF`, `12BIT_OFF`).
+    - SW2.1: `LVDS_CAPTURE`
+    - SW2.2: `ETH_STREAM`
+    - SW2.3: `AR1642_MODE` (2-lane LVDS)
+    - SW2.4: `RAW_MODE`
+    - SW2.5: `HW_CONFIG`
 
 ## AWR1843Boost
 
@@ -193,7 +189,7 @@
     
         mmWave studio expects the radar to be in *debug* mode (`SOP2:0=011`), so switching between `xwr` and mmWave Studio requires the position of the SOP switches to be changed. This is also why mmWave studio requires the MSS firmware to be "re-flashed" whenever the radar is rebooted.
 
-## AWR2544LOPEVM
+## :construction_site: AWR2544LOPEVM
 
 !!! failure "Not yet working"
 

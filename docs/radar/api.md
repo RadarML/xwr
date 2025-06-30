@@ -3,3 +3,4 @@
         inherited_members:
         - start
         - stop
+        - setup

@@ -17,12 +17,6 @@ class AWR1843(XWRBase):
         - AWR1843Boost
         - AWR1843AOPEVM
 
-    !!! note
-
-        Provides a 2-TX mode, which supports the use case of skipping the
-        middle TX antenna on the AWR1843Boost, which is 1/2-wavelength above
-        the other two.
-
     Args:
         port: radar control serial port; typically the lower numbered one.
         baudrate: baudrate of control port.
@@ -30,6 +24,9 @@ class AWR1843(XWRBase):
     """
 
     _PORT_NAME = r'(?=.*CP2105)(?=.*Enhanced)|XDS110'
+    _TX_MASK = 0b111
+    NUM_TX = 3
+    NUM_RX = 4
 
     def __init__(
         self, port: str | None = None, baudrate: int = 115200,
@@ -38,8 +35,7 @@ class AWR1843(XWRBase):
         super().__init__(port=port, baudrate=baudrate, name=name)
 
     def setup(
-        self, num_tx: Literal[2, 3] = 2, num_rx: Literal[4] = 4,
-        frequency: float = 77.0, idle_time: float = 110.0,
+        self, frequency: float = 77.0, idle_time: float = 110.0,
         adc_start_time: float = 4.0, ramp_end_time: float = 56.0,
         tx_start_time: float = 1.0, freq_slope: float = 70.006,
         adc_samples: int = 256, sample_rate: int = 5000,
@@ -48,7 +44,6 @@ class AWR1843(XWRBase):
         """Configure radar.
 
         Args:
-            num_tx: TX antenna config (2 or 3).
             frequency: frequency band, in GHz; 77.0 or 76.0.
             idle_time: see TI chirp timing documentation; in us.
             adc_start_time: see TI chirp timing documentation; in us.
@@ -61,8 +56,6 @@ class AWR1843(XWRBase):
             frame_period: time between the start of each frame; in ms.
         """
         assert frame_length & (frame_length - 1) == 0
-        assert num_tx in {2, 3}
-        assert num_rx == 4
 
         self.stop()
         self.flushCfg()
@@ -75,14 +68,34 @@ class AWR1843(XWRBase):
             txStartTime=tx_start_time, freqSlopeConst=freq_slope,
             numAdcSamples=adc_samples, digOutSampleRate=sample_rate)
 
-        self._configure_channels(rx=0b1111, tx=0b101 if num_tx == 2 else 0b111)
+        self._configure_channels(rx=0b1111, tx=self._TX_MASK)
         self.frameCfg(
-            numLoops=frame_length, chirpEndIdx=num_tx - 1,
+            numLoops=frame_length, chirpEndIdx=self.NUM_TX - 1,
             framePeriodicity=frame_period)
         self.compRangeBiasAndRxChanPhase(rx_phase = [(0, 1)] * 4 * 3)
         self.lvdsStreamCfg()
 
         self.boilerplate_setup()
+        self.log.info("Radar setup complete.")
+
+
+class AWR1843L(AWR1843):
+    """TI AWR1843Boost with its middle antenna disabled.
+
+    !!! info "Supported devices"
+
+        - AWR1843Boost, with the middle TX antenna which is 1/2-wavelength
+          above the other two disabled.
+
+    Args:
+        port: radar control serial port; typically the lower numbered one.
+        baudrate: baudrate of control port.
+        name: human-readable name.
+    """
+
+    _TX_MASK = 0b101
+    NUM_TX = 2
+    NUM_RX = 4
 
 
 class AWR1642(XWRBase):
@@ -99,6 +112,8 @@ class AWR1642(XWRBase):
     """
 
     _PORT_NAME = r'XDS110'
+    NUM_TX = 2
+    NUM_RX = 4
 
     def __init__(
         self, port: str | None = None, baudrate: int = 115200,
@@ -107,8 +122,7 @@ class AWR1642(XWRBase):
         super().__init__(port=port, baudrate=baudrate, name=name)
 
     def setup(
-        self, num_tx: Literal[2] = 2, num_rx: Literal[4] = 4,
-        frequency: float = 77.0, idle_time: float = 110.0,
+        self, frequency: float = 77.0, idle_time: float = 110.0,
         adc_start_time: float = 4.0, ramp_end_time: float = 56.0,
         tx_start_time: float = 1.0, freq_slope: float = 70.006,
         adc_samples: int = 256, sample_rate: int = 5000,
@@ -129,8 +143,6 @@ class AWR1642(XWRBase):
             frame_period: time between the start of each frame; in ms.
         """
         assert frame_length & (frame_length - 1) == 0
-        assert num_tx == 2
-        assert num_rx == 4
 
         self.stop()
         self.flushCfg()
@@ -145,13 +157,14 @@ class AWR1642(XWRBase):
 
         self._configure_channels(rx=0b1111, tx=0b011)
         self.frameCfg(
-            numLoops=frame_length, chirpEndIdx=num_tx - 1,
+            numLoops=frame_length, chirpEndIdx=self.NUM_TX - 1,
             framePeriodicity=frame_period)
         self.compRangeBiasAndRxChanPhase(rx_phase = [(0, 1)] * 4 * 2)
         self.send("bpmCfg -1 0 0 1")
         self.lvdsStreamCfg()
 
         self.boilerplate_setup()
+        self.log.info("Radar setup complete.")
 
     def lowPower(self, dontCare: int = 0, adcMode: int = 1) -> None:
         """Low power mode config.
@@ -179,6 +192,8 @@ class AWR2544(XWRBase):
     """
 
     _PORT_NAME = r'XDS110'
+    NUM_TX = 4
+    NUM_RX = 4
 
     def __init__(
         self, port: str | None = None, baudrate: int = 115200,
@@ -187,8 +202,7 @@ class AWR2544(XWRBase):
         super().__init__(port=port, baudrate=baudrate, name=name)
 
     def setup(
-        self, num_tx: Literal[4] = 4, num_rx: Literal[4] = 4,
-        frequency: float = 77.0, idle_time: float = 110.0,
+        self, frequency: float = 77.0, idle_time: float = 110.0,
         adc_start_time: float = 4.0, ramp_end_time: float = 56.0,
         tx_start_time: float = 1.0, freq_slope: float = 70.006,
         adc_samples: int = 256, sample_rate: int = 5000,
@@ -209,8 +223,6 @@ class AWR2544(XWRBase):
             frame_period: time between the start of each frame; in ms.
         """
         assert frame_length & (frame_length - 1) == 0
-        assert num_tx == 4
-        assert num_rx == 4
 
         return self.setup_from_config("test.cfg")
 

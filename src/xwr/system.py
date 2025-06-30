@@ -8,11 +8,11 @@ from typing import Generic, Literal, TypeVar, cast, overload
 
 import numpy as np
 
-from . import radar as xwr_radar
-from .capture import types
+from .capture import DCA1000EVM, types
 from .config import DCAConfig, XWRConfig
+from .radar import XWRBase
 
-TRadar = TypeVar("TRadar", bound=xwr_radar.XWRBase)
+TRadar = TypeVar("TRadar", bound=XWRBase)
 
 
 class XWRSystem(Generic[TRadar]):
@@ -39,14 +39,11 @@ class XWRSystem(Generic[TRadar]):
             to `XWRConfig`.
         capture: capture card configuration; if `dict`, the key/value pairs are
             passed to `DCAConfig`.
-        device: radar type; if `str`, the class in [`xwr.radar`][xwr.radar]
-            with the corresponding name is used.
         name: friendly name for logging; can be default.
     """
 
     def __init__(
         self, *, radar: XWRConfig | dict, capture: DCAConfig | dict,
-        device: type[TRadar] | str = "AWR1843",
         name: str = "RadarCapture"
     ) -> None:
         if isinstance(radar, dict):
@@ -54,22 +51,15 @@ class XWRSystem(Generic[TRadar]):
         if isinstance(capture, dict):
             capture = DCAConfig(**capture)
 
-        if isinstance(device, str):
-            try:
-                RadarType = cast(type[TRadar], getattr(xwr_radar, device))
-            except AttributeError:
-                raise ValueError(f"Unknown radar module: {device}")
-        else:
-            RadarType = device
-
-        self.log = logging.getLogger(name)
+        self.log: logging.Logger = logging.getLogger(name)
         self._statistics(radar, capture)
 
-        self.dca = capture.create()
-        self.xwr = RadarType(port=radar.port)
+        self.dca: DCA1000EVM = capture.create()
+        self.xwr: TRadar = cast(
+            type[TRadar], radar.device_type)(port=radar.port)
 
         self.config = radar
-        self.fps = 1000.0 / radar.frame_period
+        self.fps: float = 1000.0 / radar.frame_period
 
     def _statistics(self, radar: XWRConfig, capture: DCAConfig) -> None:
         """Compute (and log) statistics, and warn if potentially invalid."""
@@ -218,7 +208,7 @@ class XWRSystem(Generic[TRadar]):
             else:
                 yield frame
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop by halting the capture card and reboot the radar.
 
         In testing, we found that the radar may ignore commands if the frame

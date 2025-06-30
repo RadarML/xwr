@@ -2,24 +2,27 @@ site_name: XWR
 repo_url: https://github.com/WiseLabCMU/xwr
 repo_name: WiseLabCMU/xwr
 nav:
-  - Home: index.md
-  - Usage:
-    - Setup: setup.md
+  - XWR:
+    - Home: index.md
+    - Usage:
+      - User Guide: usage.md
+      - Hardware Setup: setup.md
+      - Development: develop.md
     - High Level API: system.md
-    - Development: develop.md
   - Radar Processing:
     - RSP: rsp/rsp.md
     - Numpy: rsp/numpy.md
     - Pytorch: rsp/torch.md
     - Jax: rsp/jax.md
-  - Capture Card:
-    - API: dca/api.md
-    - Defines: dca/defines.md
-    - Types: dca/types.md
-  - Radar:
-    - API: radar/api.md
-    - Defines: radar/defines.md
-    - Commands: radar/raw.md
+  - Low Level API:
+    - Capture Card:
+      - API: dca/api.md
+      - Defines: dca/defines.md
+      - Types: dca/types.md
+    - Radar:
+      - API: radar/api.md
+      - Defines: radar/defines.md
+      - Commands: radar/raw.md
 
 extra_css:
   - stylesheets/extra.css
@@ -34,6 +37,7 @@ theme:
   features:
     - navigation.instant
     - navigation.expand
+    - navigation.tabs
   palette:
   - media: "(prefers-color-scheme)"
     toggle:

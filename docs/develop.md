@@ -39,6 +39,10 @@ Run tests:
 uv run --all-extras pytest -ra --cov --cov-report=html --cov-report=term -- tests
 ```
 
+!!! tip
+
+    HTML-format code coverage is saved to `./htmlcov`; view these with `cd htmlcov; python -m http.server 8001`.
+
 Run tests (including data capture):
 ```sh
 export XWR_DEVICE=AWR1843

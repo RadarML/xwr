@@ -50,22 +50,29 @@ class XWRBase(APIMixins, BoilerplateMixins):
             not provided (`None`), we attempt to auto-detect the port.
         baudrate: baudrate of control port.
         name: human-readable name.
+
+    Attributes:
+        NUM_TX: number of TX antennas.
+        NUM_RX: number of RX antennas.
     """
 
     _CMD_PROMPT = "mmwDemo:/>"
     _PORT_NAME = r"XDS110"
 
+    NUM_TX: int = 3
+    NUM_RX: int = 4
+
     def __init__(
         self, port: str | None = None, baudrate: int = 115200,
         name: str = "AWR1843"
     ) -> None:
-        self.log = logging.getLogger(name=name)
+        self.log: logging.Logger = logging.getLogger(name=name)
 
         if port is None:
             port = self.__detect_port()
             self.log.info(f"Auto-detected port: {port}")
 
-        self.port = serial.Serial(port, baudrate, timeout=None)
+        self.port: serial.Serial = serial.Serial(port, baudrate, timeout=None)
 
         # Only linux supports low latency mode.
         if hasattr(self.port, 'set_low_latency_mode'):
@@ -112,7 +119,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
         Raises:
             TimeoutError: if no response is received by the timeout.
         """
-        self.log.info("Send: {}".format(cmd))
+        self.log.debug("Send: {}".format(cmd))
         self.port.write((cmd + '\n').encode('ascii'))
 
         # Read until we get "...\rmmwDemo:/>"
@@ -131,7 +138,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
             decoded
             .replace(self._CMD_PROMPT, '').replace(cmd, '')
             .rstrip(' ;\r\n\t').lstrip(' \n\t'))
-        self.log.debug("Response: {}".format(resp))
+        self.log.log(5, "Response: {}".format(resp))
 
         # Check for non-normal response
         if resp != 'Done':
@@ -144,7 +151,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
                 pass  # header
             else:
                 self.log.error(resp)
-                self.log.info(f"Raw buffer was: {decoded}")
+                self.log.info(f"Raw buffer for this error was: {decoded}")
                 raise XWRException(resp)
 
     def start(self, reconfigure: bool = True) -> None:
@@ -158,6 +165,8 @@ class XWRBase(APIMixins, BoilerplateMixins):
         else:
             self.send("sensorStart 0")
 
+        self.log.info("Radar Started.")
+
     def stop(self) -> None:
         """Stop radar.
 
@@ -167,6 +176,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
             example if the specified timings are fairly tight (or invalid).
         """
         self.send("sensorStop")
+        self.log.info("Radar Stopped.")
 
     def _configure_channels(self, rx: int = 0b1111, tx: int = 0b111) -> None:
         """Configure RX and TX channels with sequential chirps.
