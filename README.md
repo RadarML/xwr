@@ -1,15 +1,21 @@
 # `xwr`: Linux-Compatible Real-Time Raw Data Capture for TI mmWave Radars
 
-## Setup
+![License - MIT](https://img.shields.io/badge/license-MIT-green)
+![Typed](https://img.shields.io/badge/types-typed-brightgreen)
+[![bear-ified](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg)](https://beartype.readthedocs.io)
 
-The `xwr` library is currently only distributed via github:
+`xwr` is a pure-python, linux-based real time raw data capture system for TI mmWave radars, and includes four key components:
 
-```sh
-# Install directly from github
-pip install git+ssh://github.com/WiseLabCMU/xwr.git
-```
+- [`xwr`](https://wiselabcmu.github.io/xwr/system/): a high-level data capture interface
+- [`xwr.rsp`](https://wiselabcmu.github.io/xwr/rsp/rsp/): a radar signal processing library with Numpy, Pytorch, and Jax support
+- [`xwr.radar`](https://wiselabcmu.github.io/xwr/radar/api/): a parameterized python interface for the default radar firmware
+- [`xwr.capture`](https://wiselabcmu.github.io/xwr/dca/api/): a pure-python, real-time interface for the DCA1000EVM
 
-You will also need to configure the radar and capture card for raw data capture.
+See our [documentation site](https://wiselabcmu.github.io/xwr/) for more details, setup guides, the included demo, and more!
+
+## Requirements
+
+`xwr` assumes a linux-based system and radar hardware which consists of the DCA1000EVM and a supported TI mmWave Radar (XWR) development board.
 
 > [!IMPORTANT] 
 > Supported Devices:
@@ -18,43 +24,11 @@ You will also need to configure the radar and capture card for raw data capture.
 > WIP:
 >    - AWR2544LOPEVM
 
-## Usage
+## Install
 
-The high-level API is mostly stable:
+The `xwr` library is currently only distributed via github:
 
-```python
-import logging
-import yaml
-import xwr
-
-logging.basicConfig(level=logging.DEBUG)
-
-with open("config.yaml") as f:
-    cfg = yaml.safe_load(f)
-
-awr = xwr.XWRSystem(**cfg, type="AWR1843")
-for frame in awr.stream():
-    break
-
-awr.stop()
+```sh
+# Install directly from github
+pip install git+ssh://github.com/WiseLabCMU/xwr.git
 ```
-
-See the high level API documentation for detailed documentation.
-
-
-## Troubleshooting
-
-> [!NOTE]
-> While the radar is booting, you will not be able to open the serial port.
-> ```
-> [Errno 16] Device or resource busy: '/dev/ttyACM0'
-> ```
-> This is normal, and should go away after ~10-30 seconds.
-
-**Dead FPGA**: When powered on, the capture card error lights should all come on for ~1sec, then turn off again. If this does not occur, the FPGA may be dead.
-
-**Device Times Out**: This can also be caused by a loose LVDS cable (the blue ribbon cable between the radar and capture card), if the pins corresponding to commands are loose.
-
-**Other Hardware Faults**: The [TI mmWave Demo Visualizer](https://dev.ti.com/gallery/view/mmwave/mmWave_Demo_Visualizer/ver/3.6.0/) is a good way to validate radar hardware functionality, and uses the same demo firmware.
-
-- If an error is returned on the console in the Demo Visualizer: there may be a hardware fault. It should be raised with a line number in `mss_main.c`; the error case (e.g. `RL_RF_AE_CPUFAULT_SB`) should reveal what general type of fault it is.

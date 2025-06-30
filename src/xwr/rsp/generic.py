@@ -317,9 +317,9 @@ class RSP(ABC, Generic[TArray]):
         return self.fft(mimo, axes=(2, 3), shift=(2, 3))
 
     def __call__(
-        self, iq: Complex64[TArray, "#batch doppler tx rx range"]
-            | Int16[TArray, "#batch doppler tx rx range*2"]
-    ) -> Complex64[TArray, "#batch doppler2 el az range2"]:
+        self, iq: Complex64[TArray, "#batch doppler tx rx _range"]
+            | Int16[TArray, "#batch doppler tx rx _range"]
+    ) -> Complex64[TArray, "#batch doppler2 el az _range"]:
         """Process IQ data to compute elevation-azimuth spectrum.
 
         Args:

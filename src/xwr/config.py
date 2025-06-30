@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+from . import radar
 from .capture import DCA1000EVM, defines
 
 SPEED_OF_LIGHT = 299792458
@@ -16,8 +17,8 @@ class XWRConfig:
     may be helpful for creating a configuration.
 
     Attributes:
-        port: Control serial port (usually `/dev/ttyACM0`). Use `None` to
-            auto-detect; see [`XWRBase`][xwr.radar.XWRBase].
+        device: radar device type, or the name of a radar device class in
+            [`xwr.radar`][xwr.radar].
         frequency: base frequency, in GHz.
         idle_time: radar timing parameters; in microseconds.
         adc_start_time: radar timing parameters; in microseconds.
@@ -29,10 +30,11 @@ class XWRConfig:
         frame_length: number of chirps per TX antenna per frame. Must be a
             power of two.
         frame_period: periodicity of frames, in ms.
-        num_tx: number of TX antenna; 3 for the AWR1843.
-        num_rx: number of RX antenna; 4 for the AWR1843.
+        port: Control serial port (usually `/dev/ttyACM0`). Use `None` to
+            auto-detect; see [`XWRBase`][xwr.radar.XWRBase].
     """
 
+    device: type[radar.XWRBase] | str
     frequency: float
     idle_time: float
     adc_start_time: float
@@ -44,9 +46,27 @@ class XWRConfig:
     frame_length: int
     frame_period: float
     port: str | None = None
-    num_tx: int = 2
-    num_rx: int = 4
 
+    @property
+    def device_type(self) -> type[radar.XWRBase]:
+        """Radar device type."""
+        if isinstance(self.device, str):
+            try:
+                return getattr(radar, self.device)
+            except AttributeError:
+                raise ValueError(f"Unknown radar device: {self.device}")
+        else:
+            return self.device
+
+    @property
+    def num_tx(self) -> int:
+        """Number of TX antennas."""
+        return self.device_type.NUM_TX
+
+    @property
+    def num_rx(self) -> int:
+        """Number of RX antennas."""
+        return self.device_type.NUM_RX
     @property
     def shape(self) -> tuple[int, int, int, int]:
         """Radar data cube shape."""
@@ -118,12 +138,12 @@ class XWRConfig:
         """Average throughput, in bits/sec."""
         return self.frame_size * 8 / self.frame_period * 1e3
 
-    def as_dict(self) -> dict:
+    def as_dict(self) -> dict[str, float | int]:
         """Export as dictionary."""
         RADAR_PROPERTIES = [
             "frequency", "idle_time", "adc_start_time", "ramp_end_time",
             "tx_start_time", "freq_slope", "adc_samples", "sample_rate",
-            "frame_length", "frame_period", "num_tx", "num_rx"]
+            "frame_length", "frame_period"]
         return {k: getattr(self, k) for k in RADAR_PROPERTIES}
 
     def as_intrinsics(self) -> dict:
@@ -166,11 +186,11 @@ class DCAConfig:
     data_port: int = 4098
     config_port: int = 4096
     timeout: float = 1.0
-    socket_buffer: int = 2048000
+    socket_buffer: int = 6291456
     delay: float = 5.0
 
     @property
-    def throughput(self):
+    def throughput(self) -> float:
         """Theoretical maximum data rate, in bits/sec."""
         packet_time = (
             defines.DCAConstants.DCA_PACKET_SIZE

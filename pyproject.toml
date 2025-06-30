@@ -11,10 +11,9 @@ authors = [
 description = "Linux-Compatible Real-Time Raw Data Capture for TI mmWave Radars."
 readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent"
 ]
 dependencies = [
     "numpy>=1.19",
@@ -35,7 +34,9 @@ jax = [
 demo = [
     "matplotlib>=3.0",
     "pyyaml>=6.0",
-    "PyQt6>=6.0.0"
+    "PyQt6>=6.0.0",
+    "tyro>=0.8.0",
+    "rich>=13.0.0",
 ]
 testing = [
     "pytest>=8.0.0",

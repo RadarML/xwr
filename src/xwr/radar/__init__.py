@@ -1,6 +1,6 @@
 """Interface implementation for generic TI demo MSS firmware.
 
-!!! usage
+!!! abstract "Usage"
 
     After selecting the appropriate `XWRXXXX` interface:
 
@@ -27,9 +27,9 @@
 """
 
 from . import defines
-from .api import AWR1642, AWR1843  # , AWR2544
+from .api import AWR1642, AWR1843, AWR1843L  # , AWR2544
 from .base import XWRBase, XWRException
 
 __all__ = [
-    "defines", "AWR1642", "AWR1843",   # "AWR2544",
+    "defines", "AWR1642", "AWR1843", "AWR1843L",   # "AWR2544",
     "XWRException", "XWRBase"]

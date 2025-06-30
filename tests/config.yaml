@@ -12,8 +12,6 @@ radar:  # -> AWRConfig
   sample_rate: 2500
   frame_length: 128
   frame_period: 125.0
-  num_tx: 3
-  num_rx: 4
 capture:  # -> DCAConfig
   sys_ip: 192.168.33.30
   fpga_ip: 192.168.33.180

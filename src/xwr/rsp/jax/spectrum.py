@@ -57,7 +57,7 @@ class CFAR:
 
         mask = np.ones((2 * w0 + 1, 2 * w1 + 1), dtype=np.float32)
         mask[w0 - g0: w0 + g0 + 1, w1 - g1: w1 + g1 + 1] = 0.0
-        self.mask = jnp.array(mask)
+        self.mask: Array = jnp.array(mask)
 
     def __call__(self, x: Float[Array, "d r ..."]) -> Float[Array, "d r"]:
         """Get CFAR thresholds.
