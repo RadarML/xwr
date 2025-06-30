@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "xwr"
-version = "0.2.0"
+version = "0.3.0"
 authors = [
   { name="Tianshu Huang", email="tianshu2@andrew.cmu.edu" },
 ]
