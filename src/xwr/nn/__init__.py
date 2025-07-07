@@ -8,7 +8,7 @@ abstract_dataloader.ext.augment] conventions are:
 - `azimuth_flip`: flip along azimuth axis.
 - `doppler_flip`: flip along doppler axis.
 - `range_scale`: apply random range scale.
-- `vel_scale`: apply random speed scale.
+- `speed_scale`: apply random speed scale.
 - `radar_scale`: radar magnitude scale factor.
 - `radar_phase`: phase shift across the frame.
 """

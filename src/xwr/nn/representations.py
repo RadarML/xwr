@@ -20,7 +20,7 @@ class Representation(ABC):
     """
 
     def __init__(
-        self, scale: float = 1e-3,
+        self, scale: float = 1e-6,
         transform: Literal["log", "sqrt", "linear"] = "sqrt",
         eps: float = 1e-6
     ) -> None:
@@ -56,6 +56,11 @@ class Representation(ABC):
                 axis.
         """
         ...
+
+    def __repr__(self) -> str:  # noqa: D105
+        return (
+            f"{self.__class__.__name__}({self._magnitude_transform} * "
+            f"{self.scale})")
 
 
 class Magnitude(Representation):
@@ -97,7 +102,7 @@ class Magnitude(Representation):
 
         resized = resize(
             magnitude, range_scale=aug.get("range_scale", 1.0),
-            vel_scale=aug.get("vel_scale", 1.0))
+            speed_scale=aug.get("speed_scale", 1.0))
 
         return resized[..., None]
 
@@ -141,10 +146,10 @@ class PhaseAngle(Representation):
         magnitude = self._scale(magnitude)
 
         range_scale = aug.get("range_scale", 1.0)
-        vel_scale = aug.get("vel_scale", 1.0)
+        speed_scale = aug.get("speed_scale", 1.0)
         return np.stack([
-            resize(magnitude, range_scale=range_scale, vel_scale=vel_scale),
-            resize(phase, range_scale, vel_scale) % (2 * np.pi)
+            resize(magnitude, range_scale=range_scale, speed_scale=speed_scale),
+            resize(phase, range_scale, speed_scale) % (2 * np.pi)
         ], axis=-1)
 
 
@@ -189,9 +194,9 @@ class PhaseVec(Representation):
         magnitude = self._scale(magnitude)
 
         range_scale = aug.get("range_scale", 1.0)
-        vel_scale = aug.get("vel_scale", 1.0)
+        speed_scale = aug.get("speed_scale", 1.0)
         return np.stack([
-            resize(magnitude, range_scale=range_scale, vel_scale=vel_scale),
-            resize(re, range_scale=range_scale, vel_scale=vel_scale),
-            resize(im, range_scale=range_scale, vel_scale=vel_scale)
+            resize(magnitude, range_scale=range_scale, speed_scale=speed_scale),
+            resize(re, range_scale=range_scale, speed_scale=speed_scale),
+            resize(im, range_scale=range_scale, speed_scale=speed_scale)
         ], axis=-1)

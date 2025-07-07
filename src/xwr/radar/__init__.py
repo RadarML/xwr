@@ -28,8 +28,8 @@
 
 from . import defines
 from .api import AWR1642, AWR1843, AWR1843L  # , AWR2544
-from .base import XWRBase, XWRException
+from .base import XWRBase, XWRError
 
 __all__ = [
     "defines", "AWR1642", "AWR1843", "AWR1843L",   # "AWR2544",
-    "XWRException", "XWRBase"]
+    "XWRError", "XWRBase"]

@@ -13,7 +13,7 @@ from . import defines, types
 from .defines import DCAConstants
 
 
-class DCAException(Exception):
+class DCAError(Exception):
     """Error raised by the FPGA (via non-0 status)."""
 
     pass
@@ -391,5 +391,5 @@ class DCA1000EVM:
             else:
                 msg = "Failure: {} (status={})".format(desc, response.status)
                 self.log.error(msg)
-                raise DCAException(msg)
+                raise DCAError(msg)
         return response

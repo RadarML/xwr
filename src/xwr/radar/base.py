@@ -13,7 +13,7 @@ from serial.tools import list_ports
 from .raw import APIMixins, BoilerplateMixins
 
 
-class XWRException(Exception):
+class XWRError(Exception):
     """Error raised by the Radar (via non-normal return message)."""
 
     pass
@@ -93,7 +93,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
                     return port.device
 
         self.log.error("Failed to auto-detect radar port.")
-        raise XWRException(
+        raise XWRError(
             "Auto-detecting the radar port (`port=None`) failed: none of the "
             f"available ports contain '{self._PORT_NAME}' in the "
             "USB description. "
@@ -152,7 +152,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
             else:
                 self.log.error(resp)
                 self.log.info(f"Raw buffer for this error was: {decoded}")
-                raise XWRException(resp)
+                raise XWRError(resp)
 
     def start(self, reconfigure: bool = True) -> None:
         """Start radar.

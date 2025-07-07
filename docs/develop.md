@@ -26,6 +26,7 @@ git clone git@github.com:WiseLabCMU/xwr.git
 Set up development environment:
 ```sh
 uv sync --all-extras --frozen
+uv run pre-commit install
 ```
 
 !!! warning
@@ -52,6 +53,10 @@ uv run --all-extras pytest -ra --cov --cov-report=html --cov-report=term -- test
 - A radar and capture card should be configured and connected to the test computer.
 - Set `XWR_DEVICE` to the name of the radar (i.e., a class name in [`xwr.radar`][xwr.radar]).
 - If `XWR_DEVICE` is not set, all capture-related tests will be skipped.
+
+!!! info
+    
+    The tests are also run by our [pre-commit](https://pre-commit.com/) hooks, which you can manually trigger with `uv run pre-commit run`; these hooks (`ruff + pyright + pytest`) mirror the CI.
 
 ## Docs
 

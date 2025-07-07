@@ -51,7 +51,7 @@ def _resize(
 
 def resize(
     spectrum: Float32[np.ndarray, "T D *A R"],
-    range_scale: float = 1.0, vel_scale: float = 1.0,
+    range_scale: float = 1.0, speed_scale: float = 1.0,
 ) -> Float32[np.ndarray, "T D *A R"]:
     """Resize range-Doppler spectrum.
 
@@ -68,12 +68,12 @@ def resize(
             the [`xwr.rsp.numpy`][xwr.rsp.numpy] classes.
         range_scale: scale factor for the range dimension; crops if greater
             than 1.0, and zero-pads if less than 1.0.
-        vel_scale: scale factor for the Doppler dimension; wraps if greater
+        speed_scale: scale factor for the Doppler dimension; wraps if greater
             than 1.0, and zero-pads if less than 1.0.
     """
     T, Nd, *A, Nr = spectrum.shape
     range_out_dim = int(range_scale * Nr)
-    speed_out_dim = 2 * (int(vel_scale * Nd) // 2)
+    speed_out_dim = 2 * (int(speed_scale * Nd) // 2)
 
     if range_out_dim != Nr or speed_out_dim != Nd:
         resized = _resize(spectrum, nd=speed_out_dim, nr=range_out_dim)

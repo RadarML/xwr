@@ -16,30 +16,31 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "numpy>=1.19",
-    "beartype>=0.20",
-    "pyserial>=3.5",
-    "types-pyserial>=3.5",
-    "jaxtyping>=0.3.2",
-    "pyFFTW>=0.15.0"
+    "numpy >= 1.19",
+    "beartype >= 0.20",
+    "pyserial >= 3.5",
+    "types-pyserial >= 3.5",
+    "jaxtyping >= 0.3.2",
+    "pyFFTW >= 0.15.0"
 ]
 
 [project.optional-dependencies]
-torch = [ "torch>=2.0" ]
+torch = [ "torch >= 2.0" ]
 nn = [ "torchvision >= 0.15.0" ]
-jax = [ "jax>=0.4.0" ]
+jax = [ "jax >= 0.4.0" ]
 demo = [
-    "matplotlib>=3.0",
-    "pyyaml>=6.0",
-    "PyQt6>=6.0.0",
-    "tyro>=0.8.0",
-    "rich>=13.0.0",
+    "matplotlib >= 3.0",
+    "pyyaml >= 6.0",
+    "PyQt6 >= 6.0.0",
+    "tyro >= 0.8.0",
+    "rich >= 13.0.0",
 ]
-testing = [
-    "pytest>=8.0.0",
+dev = [
+    "pre-commit >= 4.0.0",
+    "pytest >= 8.0.0",
     "coverage",
     "pytest-cov",
-    "pyright",
+    "pyright >= 1.0.0",
 ]
 docs = [
     # Most recent as of 16.04.2025; exact versions shouldn't matter unless the
@@ -48,12 +49,32 @@ docs = [
     "mkdocs-material == 9.6.*",
     "mkdocstrings-python-xref == 1.16.3",
     "mkdocstrings-python == 1.16.6",
-    "ruff>=0.11.0"
+    "ruff >= 0.11.0"
 ]
 
 [project.urls]
 Homepage = "https://github.com/WiseLabCMU/xwr"
 Issues = "https://github.com/WiseLabCMU/xwr/issues"
+
+[tool.ruff]
+line-length = 80
+indent-width = 4
+
+[tool.ruff.lint]
+select = [
+    "W", "N", "I", "D", "NPY"
+]
+ignore = [
+    "D102",  # Inheriting docstrings is allowed
+    "D107",  # Initializer goes in the class docstring
+    "D401",  # "Imperative mood" NLP doesn't always make sense
+    "D413",  # No blank lines after section is preferred by mkdocstrings
+    "N806",  # We do math, so capitalization should be allowed
+
+    # Must pick one...
+    "D213",  # Pick 'multi-line-summary-first-line'.
+    "D203",  # Pick `no-blank-line-before-class`.
+]
 
 [tool.coverage.report]
 exclude_also = [
