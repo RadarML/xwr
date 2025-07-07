@@ -151,7 +151,17 @@ class AWR1642Boost(RSPTorch):
         self, rd: Complex64[Tensor, "#batch doppler tx rx range"]
     ) -> Complex64[Tensor, "#batch doppler el az range"]:
         batch, doppler, tx, rx, range = rd.shape
-        if tx != 2 or rx != 4:
-            raise ValueError(
-                f"Expected (tx, rx)=2x4, got tx={tx} and rx={rx}.")
+
+        # 1843Boost cast as 1642Boost
+        if tx == 3:
+            if rx != 4:
+                raise ValueError(
+                    f"Expected (tx, rx)=3x4 in 1843Boost -> 1642Boost "
+                    f"emulation, got tx={tx} and rx={rx}.")
+            rd = rd[:, :, [0, 2], :, :]
+        else:
+            if tx != 2 or rx != 4:
+                raise ValueError(
+                    f"Expected (tx, rx)=2x4, got tx={tx} and rx={rx}.")
+
         return rd.reshape(batch, doppler, 1, -1, range)

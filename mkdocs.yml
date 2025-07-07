@@ -14,6 +14,7 @@ nav:
     - Numpy: rsp/numpy.md
     - Pytorch: rsp/torch.md
     - Jax: rsp/jax.md
+    - NN Extensions: rsp/nn.md
   - Low Level API:
     - Capture Card:
       - API: dca/api.md

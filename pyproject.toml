@@ -25,12 +25,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-torch = [
-    "torch>=2.0"
-]
-jax = [
-    "jax>=0.4.0",
-]
+torch = [ "torch>=2.0" ]
+nn = [ "torchvision >= 0.15.0" ]
+jax = [ "jax>=0.4.0" ]
 demo = [
     "matplotlib>=3.0",
     "pyyaml>=6.0",
