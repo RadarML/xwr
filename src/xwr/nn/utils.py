@@ -34,7 +34,8 @@ def _resize(
     # Note that we also have to do this reshape dance since Resize
     # only allows a maximum of 2 leading dimensions for some reason.
     spec_t: Float32[torch.Tensor, "T ... R D"]
-    spec_t = torch.Tensor(np.ascontiguousarray(np.moveaxis(spectrum, 1, -1)))
+    spec_t = torch.from_numpy(
+        np.ascontiguousarray(np.moveaxis(spectrum, 1, -1)))
     spec_flat_t: Float32[torch.Tensor, "X R D"]
     spec_flat_t = spec_t.reshape(-1, *spec_t.shape[-2:])
 

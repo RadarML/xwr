@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "xwr"
-version = "0.3.0"
+version = "0.3.1"
 authors = [
   { name="Tianshu Huang", email="tianshu2@andrew.cmu.edu" },
 ]
@@ -41,6 +41,7 @@ dev = [
     "coverage",
     "pytest-cov",
     "pyright >= 1.0.0",
+    "ruff >= 0.11.0"
 ]
 docs = [
     # Most recent as of 16.04.2025; exact versions shouldn't matter unless the

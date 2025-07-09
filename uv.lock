@@ -1719,7 +1719,7 @@ wheels = [
 
 [[package]]
 name = "xwr"
-version = "0.3.0"
+version = "0.3.1"
 source = { editable = "." }
 dependencies = [
     { name = "beartype" },
@@ -1744,6 +1744,7 @@ dev = [
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "ruff" },
 ]
 docs = [
     { name = "mkdocs" },
@@ -1783,6 +1784,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "pyyaml", marker = "extra == 'demo'", specifier = ">=6.0" },
     { name = "rich", marker = "extra == 'demo'", specifier = ">=13.0.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11.0" },
     { name = "ruff", marker = "extra == 'docs'", specifier = ">=0.11.0" },
     { name = "torch", marker = "extra == 'torch'", specifier = ">=2.0" },
     { name = "torchvision", marker = "extra == 'nn'", specifier = ">=0.15.0" },
