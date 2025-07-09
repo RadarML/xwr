@@ -12,13 +12,15 @@ from xwr.rsp import torch as rspt
 
 
 def _iq_complex(shape):
+    rng = np.random.default_rng()
     return (
-        np.random.randn(*shape) + 1j * np.random.randn(*shape)
+        rng.random(size=shape) + 1j * rng.random(size=shape)
     ).astype(np.complex64)
 
 
 def _iiqq_int16(shape):
-    return np.random.randint(-32768, 32767, shape).astype(np.int16)
+    rng = np.random.default_rng()
+    return rng.integers(-32768, 32767, shape, dtype=np.int16)
 
 
 SHAPE = {

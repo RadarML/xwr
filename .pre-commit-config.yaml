@@ -1,0 +1,20 @@
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: Lint with ruff
+        entry: uv run --extra dev --extra torch --extra jax --extra nn ruff check
+        language: system
+        types: [python]
+
+      - id: pyright
+        name: Type check with pyright
+        entry: uv run --extra dev --extra torch --extra jax --extra nn pyright
+        language: system
+        types: [python]
+
+      - id: pytest
+        name: Run pytest with coverage
+        entry: uv run --extra dev --extra torch --extra jax --extra nn pytest -- tests
+        language: system
+        pass_filenames: false
