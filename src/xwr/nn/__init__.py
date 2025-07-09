@@ -2,8 +2,9 @@
 
 When converting complex spectrum to real-valued representations, we can apply
 a range of different data augmentations. The supported data augmentations
-according to the [`abstract_dataloader.ext.augment`][
-abstract_dataloader.ext.augment] conventions are:
+according to the
+[`abstract_dataloader.ext.augment`][abstract_dataloader.ext.augment]
+conventions are:
 
 - `azimuth_flip`: flip along azimuth axis.
 - `doppler_flip`: flip along doppler axis.

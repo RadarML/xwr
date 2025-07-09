@@ -53,20 +53,20 @@ The `xwr` library is currently only distributed via github:
 
     ```sh
     # Install directly from github
-    pip install git+ssh://github.com/WiseLabCMU/xwr.git
+    pip install git+ssh://github.com/RadarML/xwr.git
     ```
 
 === "Integrated Development"
 
     ```sh
-    git clone git@github.com:WiseLabCMU/xwr.git
+    git clone git@github.com:RadarML/xwr.git
     pip install -e ./xwr
     ```
 
 === "Standalone Development"
 
     ```sh
-    git clone git@github.com:WiseLabCMU/xwr.git
+    git clone git@github.com:RadarML/xwr.git
     cd xwr; uv sync --all-extras --frozen
     ```
 
@@ -77,7 +77,7 @@ The `xwr` library is currently only distributed via github:
     dependencies = ["xwr"]
 
     [tool.uv.sources]
-    xwr = { git = "ssh://git@github.com/WiseLabCMU/xwr.git" }
+    xwr = { git = "ssh://git@github.com/RadarML/xwr.git" }
     ```
 
 See the [user guide](usage.md) and [hardware setup](setup.md) for instructions on how to configure and use `xwr`.
@@ -86,7 +86,7 @@ See the [user guide](usage.md) and [hardware setup](setup.md) for instructions o
 
 <div class="grid cards" markdown>
 
-- :material-golf-cart: [`red-rover`](https://wiselabcmu.github.io/red-rover/)
+- :material-golf-cart: [`red-rover`](https://radarml.github.io/red-rover/)
 
     ---
 
@@ -104,7 +104,7 @@ See the [user guide](usage.md) and [hardware setup](setup.md) for instructions o
 
     *our prior work, DART: Implicit Doppler Tomography for Radar Novel View Synthesis*
 
-- :material-video-wireless-outline: [`rover`](https://github.com/wiseLabCMU/rover)
+- :material-video-wireless-outline: [`rover`](https://github.com/wiselabcmu/rover)
 
     ---
 

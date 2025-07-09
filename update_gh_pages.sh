@@ -7,7 +7,7 @@ rm -rf build;
 mkdir build;
 cd build;
 git init -b gh-pages;
-git remote add origin git@github.com:WiseLabCMU/xwr.git;
+git remote add origin git@github.com:RadarML/xwr.git;
 cd ..;
 cp -r site/* build/;
 cd build;

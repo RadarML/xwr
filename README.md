@@ -6,12 +6,12 @@
 
 `xwr` is a pure-python, linux-based real time raw data capture system for TI mmWave radars, and includes four key components:
 
-- [`xwr`](https://wiselabcmu.github.io/xwr/system/): a high-level data capture interface
-- [`xwr.rsp`](https://wiselabcmu.github.io/xwr/rsp/rsp/): a radar signal processing library with Numpy, Pytorch, and Jax support
-- [`xwr.radar`](https://wiselabcmu.github.io/xwr/radar/api/): a parameterized python interface for the default radar firmware
-- [`xwr.capture`](https://wiselabcmu.github.io/xwr/dca/api/): a pure-python, real-time interface for the DCA1000EVM
+- [`xwr`](https://radarml.github.io/xwr/system/): a high-level data capture interface
+- [`xwr.rsp`](https://radarml.github.io/xwr/rsp/rsp/): a radar signal processing library with Numpy, Pytorch, and Jax support
+- [`xwr.radar`](https://radarml.github.io/xwr/radar/api/): a parameterized python interface for the default radar firmware
+- [`xwr.capture`](https://radarml.github.io/xwr/dca/api/): a pure-python, real-time interface for the DCA1000EVM
 
-See our [documentation site](https://wiselabcmu.github.io/xwr/) for more details, setup guides, the included demo, and more!
+See our [documentation site](https://radarml.github.io/xwr/) for more details, setup guides, the included demo, and more!
 
 ## Requirements
 
@@ -21,6 +21,7 @@ See our [documentation site](https://wiselabcmu.github.io/xwr/) for more details
 > Supported Devices:
 >    - AWR1843 Family: AWR1843Boost, AWR1843AOPEVM
 >    - AWR1642
+>
 > WIP:
 >    - AWR2544LOPEVM
 
@@ -30,5 +31,5 @@ The `xwr` library is currently only distributed via github:
 
 ```sh
 # Install directly from github
-pip install git+ssh://github.com/WiseLabCMU/xwr.git
+pip install git+ssh://github.com/RadarML/xwr.git
 ```

@@ -54,8 +54,8 @@ docs = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/WiseLabCMU/xwr"
-Issues = "https://github.com/WiseLabCMU/xwr/issues"
+Homepage = "https://github.com/RadarML/xwr"
+Issues = "https://github.com/RadarML/xwr/issues"
 
 [tool.ruff]
 line-length = 80
