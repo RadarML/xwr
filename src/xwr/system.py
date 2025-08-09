@@ -30,6 +30,9 @@ class XWRSystem(Generic[TRadar]):
         - The duty cycle (active frame time / frame period) of the radar is
             greater than 95%.
         - The ADC is still sampling when the ramp ends.
+        - The range-Doppler frame size is greater than 2^14.
+        - The number of samples per chirp (i.e., range resolution) or chirps
+            per frame (i.e., doppler resolution) is not a power of 2.
 
     Type Parameters:
         - `TRadar`: radar type (subclass of [`XWRBase`][xwr.radar.])
@@ -40,11 +43,13 @@ class XWRSystem(Generic[TRadar]):
         capture: capture card configuration; if `dict`, the key/value pairs are
             passed to `DCAConfig`.
         name: friendly name for logging; can be default.
+        strict: if `True`, raise an error instead of logging a warning if the
+            radar configuration contains potentially invalid values.
     """
 
     def __init__(
         self, *, radar: XWRConfig | dict, capture: DCAConfig | dict,
-        name: str = "RadarCapture"
+        name: str = "RadarCapture", strict: bool = False
     ) -> None:
         if isinstance(radar, dict):
             radar = XWRConfig(**radar)
@@ -52,7 +57,7 @@ class XWRSystem(Generic[TRadar]):
             capture = DCAConfig(**capture)
 
         self.log: logging.Logger = logging.getLogger(name)
-        self._statistics(radar, capture)
+        self._check_config(radar, capture)
 
         self.dca: DCA1000EVM = capture.create()
         self.xwr: TRadar = cast(
@@ -60,38 +65,49 @@ class XWRSystem(Generic[TRadar]):
 
         self.config = radar
         self.fps: float = 1000.0 / radar.frame_period
+        self.strict = strict
 
-    def _statistics(self, radar: XWRConfig, capture: DCAConfig) -> None:
-        """Compute (and log) statistics, and warn if potentially invalid."""
-        # Network utilization
-        util = radar.throughput / capture.throughput
-        self.log.info("Radar/Capture card: {} Mbps / {} Mbps ({:.1f}%)".format(
-            int(radar.throughput / 1e6), int(capture.throughput / 1e6),
-            util * 100))
-        if radar.throughput > capture.throughput * 0.8:
-            self.log.warning(
-                "Network utilization > 80%: {:.1f}%".format(util * 100))
+    def _assert(self, cond: bool, desc: str) -> None:
+        """Check a condition and log (or raise) a warning if it is not met."""
+        if not cond:
+            if self.strict:
+                raise ValueError(f"Potentially invalid configuration: {desc}")
+            self.log.warning(f"Invalid radar configuration: {desc}")
+        else:
+            self.log.debug(f"Passed check: {desc}")
 
-        # Buffer size
+    def _check_config(self, radar: XWRConfig, capture: DCAConfig) -> None:
+        """Check config, and warn if potentially invalid."""
+        util = 100 * radar.throughput / capture.throughput
+        self.log.info(
+            f"Radar/Capture card throughput: {int(radar.throughput / 1e6)} "
+            f"Mbps / {int(capture.throughput / 1e6)} Mbps ({util:.1f}%)")
+        self._assert(util < 80, f"Network utilization > 80%: {util:.1f}%")
+
         ratio = capture.socket_buffer / radar.frame_size
         self.log.info("Recv buffer size: {:.2f} frames".format(ratio))
-        if ratio < 2.0:
-            self.log.warning("Recv buffer < 2 frames: {} (1 frame = {})".format(
-                capture.socket_buffer, radar.frame_size))
+        self._assert(ratio > 2.0,
+            f"Recv buffer < 2 frames: {capture.socket_buffer} "
+            f"(1 frame = {radar.frame_size})")
 
-        # Radar duty cycle
-        duty_cycle = radar.frame_time / radar.frame_period
-        self.log.info("Radar duty cycle: {:.1f}%".format(duty_cycle * 100))
-        if duty_cycle > 0.95:
-            self.log.warning(
-                "Radar duty cycle > 95%: {:.1f}%".format(duty_cycle * 100))
+        duty_cycle = 100 * radar.frame_time / radar.frame_period
+        self.log.info(f"Radar duty cycle: {duty_cycle:.1f}%")
+        self._assert(duty_cycle < 99, f"Duty cycle > 99%: {duty_cycle:.1f}%")
 
-        # Ramp timing
-        excess = (
-            radar.ramp_end_time - radar.adc_start_time - radar.sample_time)
-        self.log.info("Excess ramp time: {:.1f}us".format(excess))
-        if excess < 0:
-            self.log.warning("Excess ramp time < 0: {:.1f}us".format(excess))
+        excess = radar.ramp_end_time - radar.adc_start_time - radar.sample_time
+        self.log.info(f"Excess ramp time: {excess:.1f}us")
+        self._assert(excess >= 0, f"Excess ramp time < 0: {excess:.1f}us")
+
+        frame_size = radar.frame_length * radar.adc_samples
+        self.log.info(
+            f"Range-Doppler size: {radar.frame_length} x "
+            f"{radar.adc_samples} = {frame_size}")
+        self._assert(frame_size <= 2**14,
+            f"Range-doppler frame size > 2^14: {frame_size}")
+        self._assert(radar.frame_length & (radar.frame_length - 1) == 0,
+            f"Frame length not a power of 2: {radar.frame_length}")
+        self._assert(radar.adc_samples & (radar.adc_samples - 1) == 0,
+            f"ADC samples not a power of 2: {radar.adc_samples}")
 
     def stream(self) -> Iterator[types.RadarFrame]:
         """Iterator which yields successive frames.
