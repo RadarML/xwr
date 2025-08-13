@@ -8,6 +8,21 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "abstract-dataloader"
+version = "0.3.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "jaxtyping" },
+    { name = "numpy" },
+    { name = "typing-extensions" },
+    { name = "wadler-lindig" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/79/6d/1226ffec26e412fca4f2ab3b025b797cea125615383e2cd23f57abfb8c34/abstract_dataloader-0.3.6.tar.gz", hash = "sha256:a59f0da790debc83887fe2753cc4ed674c672634115ee8c20ff76ec5b8a59c9d", size = 1705037, upload-time = "2025-08-13T14:48:27.545Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/f2/68a81ac46a45f51fcccfde6279f6b6ab271185268ee97f0ec27a5fcd116e/abstract_dataloader-0.3.6-py3-none-any.whl", hash = "sha256:1cc43e9b49c80b6608a80892d99dbae401e49245f76af661df5314916f4af538", size = 40734, upload-time = "2025-08-13T14:48:25.962Z" },
+]
+
+[[package]]
 name = "babel"
 version = "2.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1747,6 +1762,7 @@ dev = [
     { name = "ruff" },
 ]
 docs = [
+    { name = "abstract-dataloader" },
     { name = "mkdocs" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings-python" },
@@ -1765,6 +1781,7 @@ torch = [
 
 [package.metadata]
 requires-dist = [
+    { name = "abstract-dataloader", marker = "extra == 'docs'", specifier = ">=0.3.5" },
     { name = "beartype", specifier = ">=0.20" },
     { name = "coverage", marker = "extra == 'dev'" },
     { name = "jax", marker = "extra == 'jax'", specifier = ">=0.4.0" },

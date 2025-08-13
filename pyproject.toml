@@ -44,8 +44,7 @@ dev = [
     "ruff >= 0.11.0"
 ]
 docs = [
-    # Most recent as of 16.04.2025; exact versions shouldn't matter unless the
-    # API is changed, so we pin here just in case.
+    "abstract_dataloader >= 0.3.5",
     "mkdocs == 1.6.*",
     "mkdocs-material == 9.6.*",
     "mkdocstrings-python-xref == 1.16.3",

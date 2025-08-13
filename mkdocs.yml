@@ -1,6 +1,6 @@
 site_name: XWR
-repo_url: https://github.com/WiseLabCMU/xwr
-repo_name: WiseLabCMU/xwr
+repo_url: https://github.com/RadarML/xwr
+repo_name: RadarML/xwr
 nav:
   - XWR:
     - Home: index.md
