@@ -25,7 +25,7 @@ class XWRConfig:
         ramp_end_time: radar timing parameters; in microseconds.
         tx_start_time: radar timing parameters; in microseconds.
         freq_slope: chirp slope, in MHz/us.
-        adc_samples: number of samples per chirp.
+        adc_samples: number of samples per chirp. Must be a power of two.
         sample_rate: ADC sampling rate, in KHz.
         frame_length: number of chirps per TX antenna per frame. Must be a
             power of two.
@@ -151,18 +151,6 @@ class XWRConfig:
         RADAR_INTRINSICS = [
             "shape", "range_resolution", "doppler_resolution"]
         return {k: getattr(self, k) for k in RADAR_INTRINSICS}
-
-    def check(self) -> None:
-        """Check validity.
-
-        - Duty cycle `< 1.`
-        - Excess ramp time `> 0.`
-        """
-        duty_cycle = self.frame_time / self.frame_period
-        print("Duty cycle (<1):", duty_cycle)
-
-        excess = self.ramp_end_time - self.adc_start_time - self.sample_time
-        print("Excess ramping time (>0):", excess)
 
 
 @dataclass

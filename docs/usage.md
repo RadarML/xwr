@@ -188,6 +188,8 @@ See the [high level API documentation](system.md) for additional details.
     ```
     This is normal, and should go away after ~10-30 seconds.
 
+**Radar start times out**: If the radar does not respond after issuing `Send: sensorStart`, this usually indicates an invalid radar configuration; the TI firmware does not provide any error messages or indications.
+
 **Dead FPGA**: When powered on, the capture card error lights should all come on for ~1sec, then turn off again. If this does not occur, the FPGA may be dead.
 
 **Device Times Out**: This can also be caused by a loose LVDS cable (the blue ribbon cable between the radar and capture card), if the pins corresponding to commands are loose.
