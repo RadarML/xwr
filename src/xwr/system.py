@@ -28,7 +28,7 @@ class XWRSystem(Generic[TRadar]):
         - Receive buffer size (in the linux networking stack) can hold less
             than 2 full frames.
         - The duty cycle (active frame time / frame period) of the radar is
-            greater than 95%.
+            greater than 99%.
         - The ADC is still sampling when the ramp ends.
         - The range-Doppler frame size is greater than 2^14.
         - The number of samples per chirp (i.e., range resolution) or chirps
