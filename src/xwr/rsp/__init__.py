@@ -12,8 +12,8 @@ To use the RSP:
     !!! note
 
         Each RSP backend is not imported by default; you must explicitly import
-        the backend you want to use, and make sure its dependencies are installed
-        (pytorch, jax, etc).
+        the backend you want to use, and make sure its dependencies are
+        installed (pytorch, jax, etc).
         ```python
         from xwr.rsp import numpy as rsp
         # or

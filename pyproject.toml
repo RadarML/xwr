@@ -62,7 +62,7 @@ indent-width = 4
 
 [tool.ruff.lint]
 select = [
-    "W", "N", "I", "D", "NPY"
+    "E", "F", "W", "N", "I", "D", "NPY"
 ]
 ignore = [
     "D102",  # Inheriting docstrings is allowed
@@ -70,6 +70,9 @@ ignore = [
     "D401",  # "Imperative mood" NLP doesn't always make sense
     "D413",  # No blank lines after section is preferred by mkdocstrings
     "N806",  # We do math, so capitalization should be allowed
+    "E402",  # Module level imports sometimes need to occur after configuration
+    "F722",  # Jaxtyping annotations confuse ruff
+    "F821",
 
     # Must pick one...
     "D213",  # Pick 'multi-line-summary-first-line'.
