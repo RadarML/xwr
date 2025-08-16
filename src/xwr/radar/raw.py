@@ -207,7 +207,8 @@ class APIMixins:
         """Configure LVDS stream (to the DCA1000EVM); `LvdsStreamCfg`.
 
         Args:
-            subFrameIdx: subframe to apply to. If `-1`, applies to all subframes.
+            subFrameIdx: subframe to apply to. If `-1`, applies to all
+                subframes.
             enableHeader: HSI (High speed interface; refers to LVDS) Header
                 enabled/disabled flag; disabled for raw mode.
             dataFmt: LVDS format; we assume `LVDSFormat.ADC`.
