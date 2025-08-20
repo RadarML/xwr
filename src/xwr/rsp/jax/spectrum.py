@@ -6,7 +6,7 @@ import jax
 import numpy as np
 from jax import numpy as jnp
 from jax.scipy.signal import convolve2d
-from jaxtyping import Array, Complex64, Float, Float32, Int16
+from jaxtyping import Array, Complex64, Float, Float32, Int16, Bool
 
 from xwr.rsp import iq_from_iiqq
 
@@ -85,6 +85,136 @@ class CFAR:
         sigma = jnp.sqrt(second_moment - mu**2)
 
         return (x - mu) / sigma
+
+
+class CFAR_CASO:
+    def __init__(
+        self,
+        train_range: int = 8,
+        guard_range: int = 8,
+        train_doppler: int = 4,
+        guard_doppler: int = 0,
+        K0_range: float = 5.0,
+        K0_doppler: float = 3.0,
+        discard_range_close: int = 10,
+        discard_range_far: int = 20,
+    ):
+        """
+        CASO_CFAR: Cell Averaging Smallest of CFAR
+
+        Args:
+            train_range: train window size for range dimension.
+            guard_range: guard window size for range dimension.
+            train_doppler: train window size for doppler dimension.
+            guard_doppler: guard window size for doppler dimension.
+            K0_range: signal to noise ratio threshold on range dimension.
+            K0_doppler: signal to noise ratio threshold on doppler dimension.
+            dicard_range_close: discard low frequency noise bin
+            discard_range_far: discard high frequency noise bin
+        """
+        self.pad_r = train_range + guard_range
+        self.pad_d = train_doppler + guard_doppler
+
+        # discard detect object around DC
+        self.discard_close, self.discard_far = discard_range_close, discard_range_far
+
+        # caso
+        r_ker = np.zeros((2 * self.pad_r + 1), dtype=np.float32)
+        self.r_ker_a, self.r_ker_b = r_ker.copy(), r_ker.copy()
+        self.r_ker_a[:train_range], self.r_ker_b[-train_range:] = 1, 1
+        self.r_ker_a /= self.r_ker_a.sum()
+        self.r_ker_b /= self.r_ker_b.sum()
+        self.r_ker_a, self.r_ker_b = jnp.asarray(self.r_ker_a), jnp.asarray(
+            self.r_ker_b
+        )
+
+        d_ker = np.zeros((2 * self.pad_d + 1), dtype=np.float32)
+        self.d_ker_a, self.d_ker_b = d_ker.copy(), d_ker.copy()
+        self.d_ker_a[:train_doppler], self.d_ker_b[-train_doppler:] = 1, 1
+        self.d_ker_a /= self.d_ker_a.sum()
+        self.d_ker_b /= self.d_ker_b.sum()
+        self.d_ker_a, self.d_ker_b = jnp.asarray(self.d_ker_a), jnp.asarray(
+            self.d_ker_b
+        )
+
+        self.k0_r, self.k0_d = K0_range, K0_doppler
+
+    def caso(
+        self,
+        signal: Float32[Array, "n"],
+        ker_a: Float32[Array, "w"],
+        ker_b: Float32[Array, "w"],
+        k0: float,
+        pad: int,
+    ) -> tuple[Bool[Array, "m"], Float32[Array, "m"]]:
+        """
+        1D CFAR CASO
+
+        Args:
+            signal: 1D frequency spectrum.
+            ker_a: one side cfar kernel.
+            ker_b: one side cfar kernel.
+            k0: signal to noise ratio threshold.
+            pad: padding number of the input signal.
+
+        Returns:
+            tuple:
+                - detect: detection mask
+                - noise: and noise level.
+
+        """
+        cor_a = jnp.correlate(signal, ker_a, mode="valid")
+        cor_b = jnp.correlate(signal, ker_b, mode="valid")
+        noise = jnp.minimum(cor_a, cor_b)
+        detect = signal[pad:-pad] > k0 * noise
+        return detect, noise
+
+    def __call__(self, signal_cube: Float32[Array, "doppler Rx Tx range"]) -> tuple[
+        Bool[Array, "range doppler"],
+        Float32[Array, "range doppler"],
+        Float32[Array, "range doppler"],
+    ]:
+        """
+        Args:
+            signal_cube: post range doppler FFT radar cube in amplitude.
+
+        Returns:
+            tuple:
+                - obj_mask: cfar detected object mask.
+                - signal: range doppler spectrum for detection.
+                - snr: signal to noise ratio.
+
+        """
+
+        signal_cube = signal_cube.transpose(3, 0, 1, 2)
+        s_r, s_d, _, _ = signal_cube.shape
+        range_dopp = signal_cube.reshape(s_r, s_d, -1)
+
+        # non-coherent signal combination along the antenna array
+        signal = jnp.sum(range_dopp**2, axis=-1) + 1
+        sig_discard = signal[self.discard_close : -self.discard_far]
+        sig_pad_r = jnp.concat(
+            (sig_discard[: self.pad_r], sig_discard, sig_discard[-self.pad_r :]), axis=0
+        )
+        sig_pad_d = jnp.pad(signal, ((0, 0), (self.pad_d, self.pad_d)), mode="wrap")
+
+        # detection
+        detect_r, noise = jax.vmap(self.caso, in_axes=(1, None, None, None, None))(
+            sig_pad_r, self.r_ker_a, self.r_ker_b, self.k0_r, self.pad_r  # type: ignore
+        )
+        detect_r, noise = detect_r.swapaxes(0, 1), noise.swapaxes(0, 1)
+        detect_r = jnp.pad(detect_r, ((self.discard_close, self.discard_far), (0, 0)))
+        noise = jnp.pad(
+            noise, ((self.discard_close, self.discard_far), (0, 0)), constant_values=1
+        )
+        detect_d, _ = jax.vmap(self.caso, in_axes=(0, None, None, None, None))(
+            sig_pad_d, self.d_ker_a, self.d_ker_b, self.k0_d, self.pad_d  # type: ignore
+        )
+
+        snr = signal / noise
+        obj_mask = jnp.logical_and(detect_r, detect_d)
+
+        return obj_mask, signal, snr
 
 
 class CalibratedSpectrum(Generic[TRSP]):
