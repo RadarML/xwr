@@ -35,6 +35,13 @@ demo = [
     "tyro >= 0.8.0",
     "rich >= 13.0.0",
 ]
+rerun-demo = [
+    "rerun-sdk >= 0.24.1",
+    "tqdm >= 4.67.1",
+    "abstract-dataloader >= 0.4.0",
+    "jax[cuda12] >= 0.4.0",
+    # "roverd[video]@git+ssh://git@github.com/RadarML/red-rover.git#subdirectory=format"
+]
 dev = [
     "pre-commit >= 4.0.0",
     "pytest >= 8.0.0",

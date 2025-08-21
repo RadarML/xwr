@@ -1,10 +1,26 @@
-import numpy as np
+"""Angle of Arrival Estimation and Point Cloud Module using JAX."""
+
 import jax
+import numpy as np
 from jax import numpy as jnp
-from jaxtyping import Array, Float32, Bool, Int
+from jaxtyping import Array, Bool, Float32, Int
 
 
 class PointCloud:
+    """Get radar point cloud from post FFT cube.
+
+    !!! note
+        The angle bin distribution is in arcsin space.
+        ```
+        jnp.arcsin(jnp.linspace(-jnp.pi, jnp.pi, bin_size) / (2 * jnp.pi))
+        ```
+
+    Args:
+        range_resolution: range fft resolution
+        doppler_resolution: doppler fft resolution
+        elevation_fov: elevation threshold in degree
+        azimuth_fov: azimuth threshold in degree
+    """
 
     def __init__(
         self,
@@ -15,16 +31,6 @@ class PointCloud:
         ele_size: int = 128,
         azi_size: int = 128,
     ) -> None:
-        """
-        Get radar point cloud from post FFT cube.
-
-        Args:
-            range_resolution: range fft resolution
-            doppler_resolution: doppler fft resolution
-            elevation_fov: elevation threshold in degree
-            azimuth_fov: azimuth threshold in degree
-        """
-
         self.range_res = range_resolution
         self.doppler_res = doppler_resolution
         self.ele_fov = jnp.deg2rad(elevation_fov)
@@ -36,13 +42,16 @@ class PointCloud:
             jnp.linspace(-jnp.pi, jnp.pi, azi_size) / (2 * jnp.pi)
         )
 
-    def argmax_aoa(self, ang_sptr: Float32[Array, "ele azi"]) -> tuple[Array, ...]:
-        """
+    def argmax_aoa(
+        self, ang_sptr: Float32[Array, "ele azi"]
+    ) -> tuple[Array, ...]:
+        """Argmax for angle of arrival estimation.
+
         Args:
             ang_sptr: post fft angle spectrum amplitude in 2D.
 
         Returns:
-            idx2d: detected angle index (elevation, azimuth).
+            detected angle index (elevation, azimuth).
         """
         idx = jnp.argmax(ang_sptr)
         idx2d = jnp.unravel_index(idx, ang_sptr.shape)
@@ -51,13 +60,13 @@ class PointCloud:
     def aoa(
         self, cube: Float32[Array, "range doppler ele azi"]
     ) -> Int[Array, "range doppler 2"]:
-        """
+        """Angle of arrival estimation.
+
         Args:
             cube: post fft spectrum amplitude.
 
         Returns:
             ang: detect angle index for every range doppler bin.
-
         """
         idxs = jax.vmap(jax.vmap(self.argmax_aoa))(cube)
         ang = jnp.stack((idxs), axis=-1)
@@ -67,16 +76,16 @@ class PointCloud:
         self,
         cube: Float32[Array, "doppler ele azi range"],
         range_doppler_mask: Bool[Array, "range doppler"],
-    ):
-        """
+    ) -> tuple[Bool[Array, "range doppler"], Float32[Array, "range doppler 4"]]:
+        """Get point cloud from radar cube and detection mask.
+
         Args:
             cube: post fft spectrum amplitude.
             range_doppler_mask: CFAR detection mask.
-        
+
         Returns:
-            tuple:
-                - pc_mask valid point mask
-                - pc all possible radar points
+            pc_mask valid point mask
+            pc all possible radar points
         """
         r_size, d_size = range_doppler_mask.shape
         range_v = jnp.arange(r_size) * self.range_res

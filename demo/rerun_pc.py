@@ -1,27 +1,27 @@
-import os
-import tyro
-import numpy as np
-import rerun as rr
-import matplotlib.pyplot as plt
+"""Visualize Point Cloud from Dataset using Rerun."""
 
-from PIL import Image
-from tqdm.auto import tqdm, trange
+import os
 from functools import partial
 from typing import Sequence
 
-from roverd import Dataset, sensors
-from roverd.sensors.radar import RadarMetadata
-from abstract_dataloader import generic
-
-from xwr.rsp.jax import AWR1843Boost, CFAR_CASO, PointCloud
-from xwr.rsp import RSP, iq_from_iiqq
-
 import jax
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
+import numpy as np
+import rerun as rr
+import tyro
+from abstract_dataloader import generic
+from PIL import Image
+from roverd import Dataset, sensors
+from roverd.sensors.radar import RadarMetadata
+from tqdm import tqdm
+
+from xwr.rsp import RSP, iq_from_iiqq
+from xwr.rsp.jax import CFARCASO, AWR1843Boost, PointCloud
 
 
 def main(
-    base_dir: str = "/scratch/shared/datasets/bosch_datasets/CMU_radar/data/deepradar",
+    path: str = "/scratch/shared/datasets/bosch_datasets/CMU_radar/data/deepradar",
     trace: str = "bike/bloomfield.back",
     gain: float = 5e-6,
     azimuth_size: int = 128,
@@ -29,11 +29,10 @@ def main(
     grpc_port: int = 4195,
     save: str | None = None,
 ):
-    """
-    Visualize Point Cloud from Dataset
+    """Visualize Point Cloud from Dataset.
 
     Args:
-        base_dir: base folder of the dataset.
+        path: base folder of the dataset.
         trace: trace name to visualize.
         gain: a fixed value to normalize radar spectrum for visualization
         azimuth_size: azimuth fft size.
@@ -42,7 +41,7 @@ def main(
         save: rerun log file name.
 
     """
-    traces = [os.path.join(base_dir, trace)]
+    traces = [os.path.join(path, trace)]
     dataset = Dataset.from_config(
         traces,
         sync=generic.Nearest("radar"),
@@ -54,7 +53,7 @@ def main(
         size={"azimuth": azimuth_size, "elevation": elevation_size},
         window={"range": True, "doppler": True},
     )
-    cfar = CFAR_CASO()
+    cfar = CFARCASO()
     radar_pc = PointCloud(
         radar_cfg.range_resolution[0].item(), radar_cfg.doppler_resolution[0].item()
     )

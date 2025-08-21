@@ -6,7 +6,7 @@ import jax
 import numpy as np
 from jax import numpy as jnp
 from jax.scipy.signal import convolve2d
-from jaxtyping import Array, Complex64, Float, Float32, Int16, Bool
+from jaxtyping import Array, Bool, Complex64, Float, Float32, Int16
 
 from xwr.rsp import iq_from_iiqq
 
@@ -87,31 +87,31 @@ class CFAR:
         return (x - mu) / sigma
 
 
-class CFAR_CASO:
+class CFARCASO:
+    """CASO_CFAR: Cell Averaging Smallest of CFAR.
+
+    Args:
+        train_range: train window size for range dimension.
+        guard_range: guard window size for range dimension.
+        train_doppler: train window size for doppler dimension.
+        guard_doppler: guard window size for doppler dimension.
+        snr_range: signal to noise ratio threshold on range dimension.
+        snr_doppler: signal to noise ratio threshold on doppler dimension.
+        discard_range_close: discard low frequency noise bin.
+        discard_range_far: discard high frequency noise bin.
+    """
+
     def __init__(
         self,
         train_range: int = 8,
         guard_range: int = 8,
         train_doppler: int = 4,
         guard_doppler: int = 0,
-        K0_range: float = 5.0,
-        K0_doppler: float = 3.0,
+        snr_range: float = 5.0,
+        snr_doppler: float = 3.0,
         discard_range_close: int = 10,
         discard_range_far: int = 20,
     ):
-        """
-        CASO_CFAR: Cell Averaging Smallest of CFAR
-
-        Args:
-            train_range: train window size for range dimension.
-            guard_range: guard window size for range dimension.
-            train_doppler: train window size for doppler dimension.
-            guard_doppler: guard window size for doppler dimension.
-            K0_range: signal to noise ratio threshold on range dimension.
-            K0_doppler: signal to noise ratio threshold on doppler dimension.
-            dicard_range_close: discard low frequency noise bin
-            discard_range_far: discard high frequency noise bin
-        """
         self.pad_r = train_range + guard_range
         self.pad_d = train_doppler + guard_doppler
 
@@ -137,36 +137,33 @@ class CFAR_CASO:
             self.d_ker_b
         )
 
-        self.k0_r, self.k0_d = K0_range, K0_doppler
+        self.snr_r, self.snr_d = snr_range, snr_doppler
 
     def caso(
         self,
         signal: Float32[Array, "n"],
         ker_a: Float32[Array, "w"],
         ker_b: Float32[Array, "w"],
-        k0: float,
+        snr: float,
         pad: int,
     ) -> tuple[Bool[Array, "m"], Float32[Array, "m"]]:
-        """
-        1D CFAR CASO
+        """1D CFAR CASO.
 
         Args:
             signal: 1D frequency spectrum.
             ker_a: one side cfar kernel.
             ker_b: one side cfar kernel.
-            k0: signal to noise ratio threshold.
+            snr: signal to noise ratio threshold.
             pad: padding number of the input signal.
 
         Returns:
-            tuple:
-                - detect: detection mask
-                - noise: and noise level.
-
+            detection mask.
+            noise level.
         """
         cor_a = jnp.correlate(signal, ker_a, mode="valid")
         cor_b = jnp.correlate(signal, ker_b, mode="valid")
         noise = jnp.minimum(cor_a, cor_b)
-        detect = signal[pad:-pad] > k0 * noise
+        detect = signal[pad:-pad] > snr * noise
         return detect, noise
 
     def __call__(self, signal_cube: Float32[Array, "doppler Rx Tx range"]) -> tuple[
@@ -174,18 +171,16 @@ class CFAR_CASO:
         Float32[Array, "range doppler"],
         Float32[Array, "range doppler"],
     ]:
-        """
+        """Run 2D CFAR CASO.
+
         Args:
             signal_cube: post range doppler FFT radar cube in amplitude.
 
         Returns:
-            tuple:
-                - obj_mask: cfar detected object mask.
-                - signal: range doppler spectrum for detection.
-                - snr: signal to noise ratio.
-
+            cfar detected object mask.
+            range doppler spectrum for detection.
+            signal to noise ratio.
         """
-
         signal_cube = signal_cube.transpose(3, 0, 1, 2)
         s_r, s_d, _, _ = signal_cube.shape
         range_dopp = signal_cube.reshape(s_r, s_d, -1)
@@ -200,7 +195,7 @@ class CFAR_CASO:
 
         # detection
         detect_r, noise = jax.vmap(self.caso, in_axes=(1, None, None, None, None))(
-            sig_pad_r, self.r_ker_a, self.r_ker_b, self.k0_r, self.pad_r  # type: ignore
+            sig_pad_r, self.r_ker_a, self.r_ker_b, self.snr_r, self.pad_r  # type: ignore
         )
         detect_r, noise = detect_r.swapaxes(0, 1), noise.swapaxes(0, 1)
         detect_r = jnp.pad(detect_r, ((self.discard_close, self.discard_far), (0, 0)))
@@ -208,7 +203,7 @@ class CFAR_CASO:
             noise, ((self.discard_close, self.discard_far), (0, 0)), constant_values=1
         )
         detect_d, _ = jax.vmap(self.caso, in_axes=(0, None, None, None, None))(
-            sig_pad_d, self.d_ker_a, self.d_ker_b, self.k0_d, self.pad_d  # type: ignore
+            sig_pad_d, self.d_ker_a, self.d_ker_b, self.snr_d, self.pad_d  # type: ignore
         )
 
         snr = signal / noise
