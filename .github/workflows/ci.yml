@@ -1,4 +1,4 @@
-name: CI
+name: Run CI
 
 on:
   push:
@@ -20,12 +20,12 @@ jobs:
 
     - name: Lint with ruff
       run: |
-        uv run --extra dev ruff check
+        uv run --extra dev --extra torch --extra nn --extra jax ruff check
 
     - name: Type check with pyright
       run: |
-        uv run --extra dev pyright
+        uv run --extra dev --extra torch --extra nn --extra jax pyright
 
     - name: Run tests
       run: |
-        uv run --extra dev pytest -ra -- tests
+        uv run --extra dev --extra torch --extra nn --extra jax pytest -ra -- tests
