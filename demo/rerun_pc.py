@@ -1,8 +1,6 @@
 """Visualize Point Cloud from Dataset using Rerun."""
 
 import os
-from functools import partial
-from typing import Sequence
 
 import jax
 import jax.numpy as jnp
@@ -19,9 +17,11 @@ from tqdm import tqdm
 from xwr.rsp import RSP, iq_from_iiqq
 from xwr.rsp.jax import CFARCASO, AWR1843Boost, PointCloud
 
+BASE_PATH = "/scratch/shared/datasets/bosch_datasets/CMU_radar/data/deepradar"
+
 
 def main(
-    path: str = "/scratch/shared/datasets/bosch_datasets/CMU_radar/data/deepradar",
+    path: str = BASE_PATH,
     trace: str = "bike/bloomfield.back",
     gain: float = 5e-6,
     azimuth_size: int = 128,
@@ -55,7 +55,8 @@ def main(
     )
     cfar = CFARCASO()
     radar_pc = PointCloud(
-        radar_cfg.range_resolution[0].item(), radar_cfg.doppler_resolution[0].item()
+        radar_cfg.range_resolution[0].item(),
+        radar_cfg.doppler_resolution[0].item(),
     )
 
     @jax.jit
@@ -77,7 +78,6 @@ def main(
 
     pbar = tqdm(dataset)  # type: ignore
     for data in pbar:
-
         iq = iq_from_iiqq(data["radar"].iq.squeeze(1))
         img = data["camera"].image.squeeze()
         t_radar = data["radar"].timestamps[0, 0]
@@ -90,7 +90,9 @@ def main(
 
         D, nrx, ntd, R = rd.shape
         rd = np.transpose(rd, (3, 0, 1, 2))
-        rd = np.flip(np.clip(np.mean(np.abs(rd).reshape(R, D, -1), -1) * gain, 0, 1), 0)
+        rd = np.flip(
+            np.clip(np.mean(np.abs(rd).reshape(R, D, -1), -1) * gain, 0, 1), 0
+        )
         rd_img = Image.fromarray((cmap(rd)[..., :3] * 255).astype(np.uint8))
         obj_mask = np.flip(rd_mask, 0)
         cfar_img = cmap(rd)[..., :3]
@@ -103,8 +105,10 @@ def main(
         rr.log("pc", rr.Points3D(np.asarray(pc[:, :3])))
 
         rr.set_time("time", timestamp=t_cam)
-        cam = Image.fromarray(img).resize((img.shape[1] // 2, img.shape[0] // 2))
-        rr.log(f"camera", rr.Image(cam))
+        cam = Image.fromarray(img).resize(
+            (img.shape[1] // 2, img.shape[0] // 2)
+        )
+        rr.log("camera", rr.Image(cam))
 
 
 if __name__ == "__main__":

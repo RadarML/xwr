@@ -49,14 +49,13 @@ class CFAR:
     """
 
     def __init__(
-        self, guard: tuple[int, int] = (2, 2),
-        window: tuple[int, int] = (4, 4)
+        self, guard: tuple[int, int] = (2, 2), window: tuple[int, int] = (4, 4)
     ) -> None:
         w0, w1 = window
         g0, g1 = guard
 
         mask = np.ones((2 * w0 + 1, 2 * w1 + 1), dtype=np.float32)
-        mask[w0 - g0: w0 + g0 + 1, w1 - g1: w1 + g1 + 1] = 0.0
+        mask[w0 - g0 : w0 + g0 + 1, w1 - g1 : w1 + g1 + 1] = 0.0
         self.mask: Array = jnp.array(mask)
 
     def __call__(self, x: Float[Array, "d r ..."]) -> Float[Array, "d r"]:
@@ -79,9 +78,9 @@ class CFAR:
 
         # Jax currently only supports 'fill', but this should be changed to
         # 'wrap' if they ever decide to add support.
-        valid = convolve2d(jnp.ones_like(x), self.mask, mode='same')
-        mu = convolve2d(x, self.mask, mode='same') / valid
-        second_moment = convolve2d(x**2, self.mask, mode='same') / valid
+        valid = convolve2d(jnp.ones_like(x), self.mask, mode="same")
+        mu = convolve2d(x, self.mask, mode="same") / valid
+        second_moment = convolve2d(x**2, self.mask, mode="same") / valid
         sigma = jnp.sqrt(second_moment - mu**2)
 
         return (x - mu) / sigma
@@ -116,7 +115,10 @@ class CFARCASO:
         self.pad_d = train_doppler + guard_doppler
 
         # discard detect object around DC
-        self.discard_close, self.discard_far = discard_range_close, discard_range_far
+        self.discard_close, self.discard_far = (
+            discard_range_close,
+            discard_range_far,
+        )
 
         # caso
         def make_caso_kernels(train, pad):
@@ -128,7 +130,9 @@ class CFARCASO:
             return jnp.asarray(ker_a), jnp.asarray(ker_b)
 
         self.r_ker_a, self.r_ker_b = make_caso_kernels(train_range, self.pad_r)
-        self.d_ker_a, self.d_ker_b = make_caso_kernels(train_doppler, self.pad_d)
+        self.d_ker_a, self.d_ker_b = make_caso_kernels(
+            train_doppler, self.pad_d
+        )
 
         self.snr_r, self.snr_d = snr_range, snr_doppler
 
@@ -159,7 +163,9 @@ class CFARCASO:
         detect = signal[pad:-pad] > snr * noise
         return detect, noise
 
-    def __call__(self, signal_cube: Float32[Array, "doppler Rx Tx range"]) -> tuple[
+    def __call__(
+        self, signal_cube: Float32[Array, "doppler Rx Tx range"]
+    ) -> tuple[
         Bool[Array, "range doppler"],
         Float32[Array, "range doppler"],
         Float32[Array, "range doppler"],
@@ -182,18 +188,29 @@ class CFARCASO:
         signal = jnp.sum(range_dopp**2, axis=-1) + 1
         sig_discard = signal[self.discard_close : -self.discard_far]
         sig_pad_r = jnp.concat(
-            (sig_discard[: self.pad_r], sig_discard, sig_discard[-self.pad_r :]), axis=0
+            (
+                sig_discard[: self.pad_r],
+                sig_discard,
+                sig_discard[-self.pad_r :],
+            ),
+            axis=0,
         )
-        sig_pad_d = jnp.pad(signal, ((0, 0), (self.pad_d, self.pad_d)), mode="wrap")
+        sig_pad_d = jnp.pad(
+            signal, ((0, 0), (self.pad_d, self.pad_d)), mode="wrap"
+        )
 
         # detection
-        detect_r, noise = jax.vmap(self.caso, in_axes=(1, None, None, None, None))(
-            sig_pad_r, self.r_ker_a, self.r_ker_b, self.snr_r, self.pad_r
-        )
+        detect_r, noise = jax.vmap(
+            self.caso, in_axes=(1, None, None, None, None)
+        )(sig_pad_r, self.r_ker_a, self.r_ker_b, self.snr_r, self.pad_r)
         detect_r, noise = detect_r.swapaxes(0, 1), noise.swapaxes(0, 1)
-        detect_r = jnp.pad(detect_r, ((self.discard_close, self.discard_far), (0, 0)))
+        detect_r = jnp.pad(
+            detect_r, ((self.discard_close, self.discard_far), (0, 0))
+        )
         noise = jnp.pad(
-            noise, ((self.discard_close, self.discard_far), (0, 0)), constant_values=1
+            noise,
+            ((self.discard_close, self.discard_far), (0, 0)),
+            constant_values=1,
         )
         detect_d, _ = jax.vmap(self.caso, in_axes=(0, None, None, None, None))(
             sig_pad_d, self.d_ker_a, self.d_ker_b, self.snr_d, self.pad_d
@@ -226,13 +243,16 @@ class CalibratedSpectrum(Generic[TRSP]):
     """
 
     def __init__(
-        self, rsp: TRSP,
+        self,
+        rsp: TRSP,
     ) -> None:
         self.rsp = rsp
 
     def calibration_patch(
-        self, sample: Complex64[Array, "n slow tx rx fast"]
-            | Int16[Array, "n slow tx rx fast2"], batch: int = 1
+        self,
+        sample: Complex64[Array, "n slow tx rx fast"]
+        | Int16[Array, "n slow tx rx fast2"],
+        batch: int = 1,
     ) -> Float32[Array, "doppler el az range"]:
         """Create a calibration patch for zero-doppler correction.
 
@@ -266,9 +286,10 @@ class CalibratedSpectrum(Generic[TRSP]):
         return jnp.median(jnp.concatenate(slices, axis=0))
 
     def __call__(
-        self, iq: Complex64[Array, "#batch doppler tx rx range"]
-            | Int16[Array, "#batch doppler tx rx range2"],
-        calib: Float32[Array, "doppler el az range"]
+        self,
+        iq: Complex64[Array, "#batch doppler tx rx range"]
+        | Int16[Array, "#batch doppler tx rx range2"],
+        calib: Float32[Array, "doppler el az range"],
     ) -> Float32[Array, "batch doppler el az range"]:
         """Run radar spectrum processing pipeline.
 
@@ -286,5 +307,4 @@ class CalibratedSpectrum(Generic[TRSP]):
                 correction applied.
         """
         raw = jnp.abs(self.rsp(iq))
-        return raw.at[self.slice].set(
-            jnp.maximum(raw[self.slice] - calib, 0.0))
+        return raw.at[self.slice].set(jnp.maximum(raw[self.slice] - calib, 0.0))

@@ -1,7 +1,6 @@
 """Angle of Arrival Estimation and Point Cloud Module using JAX."""
 
 import jax
-import numpy as np
 from jax import numpy as jnp
 from jaxtyping import Array, Bool, Float32, Int
 
