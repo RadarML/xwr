@@ -20,11 +20,11 @@ jobs:
 
     - name: Lint with ruff
       run: |
-        uv run --extra dev --extra torch --extra nn --extra jax ruff check
+        uv run --extra dev --extra torch --extra nn --extra jax ruff check ./src
 
     - name: Type check with pyright
       run: |
-        uv run --extra dev --extra torch --extra nn --extra jax pyright
+        uv run --extra dev --extra torch --extra nn --extra jax pyright ./src
 
     - name: Run tests
       run: |
