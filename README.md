@@ -1,5 +1,8 @@
 # `xwr`: Linux-Compatible Real-Time Raw Data Capture for TI mmWave Radars
 
+[![pypi version](https://img.shields.io/pypi/v/xwr.svg)](https://pypi.org/project/xwr/)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/xwr)
+![PyPI - Types](https://img.shields.io/pypi/types/xwr)
 ![License - MIT](https://img.shields.io/badge/license-MIT-green)
 ![Typed](https://img.shields.io/badge/types-typed-brightgreen)
 [![bear-ified](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg)](https://beartype.readthedocs.io)

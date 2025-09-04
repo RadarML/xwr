@@ -86,7 +86,7 @@ plugins:
         inventories:
         - https://docs.python.org/3/objects.inv
         - https://numpy.org/doc/stable/objects.inv
-        - https://wiselabcmu.github.io/abstract-dataloader/objects.inv
+        - https://radarml.github.io/abstract-dataloader/objects.inv
         - https://docs.pytorch.org/docs/stable/objects.inv
         - https://docs.jax.dev/en/latest/objects.inv
 
