@@ -1,5 +1,8 @@
 # `xwr`: Linux-Compatible Real-Time Raw Data Capture for TI mmWave Radars
 
+[![pypi version](https://img.shields.io/pypi/v/xwr.svg)](https://pypi.org/project/xwr/)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/xwr)
+![PyPI - Types](https://img.shields.io/pypi/types/xwr)
 ![License - MIT](https://img.shields.io/badge/license-MIT-green)
 ![Typed](https://img.shields.io/badge/types-typed-brightgreen)
 [![bear-ified](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg)](https://beartype.readthedocs.io)
@@ -27,9 +30,13 @@ See our [documentation site](https://radarml.github.io/xwr/) for more details, s
 
 ## Install
 
-The `xwr` library is currently only distributed via github:
+The `xwr` library can be installed from pypi or github:
 
 ```sh
-# Install directly from github
+pip install xwr
+# or
 pip install git+ssh://github.com/RadarML/xwr.git
 ```
+
+> [!WARNING]
+> `xwr` does not include a copy of `torch` or `jax` by default! You must specify your own dependency and/or use the `xwr[torch]` and `xwr[jax]` extras if you intend to use these backends for the radar signal processing (`xwr.rsp`) submodule.

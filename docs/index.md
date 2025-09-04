@@ -4,6 +4,9 @@
 ![DCA1000EVM](images/dca1000evm.jpg){: style="width: 32%"}
 ![AWR1843Boost](images/awr1843aopevm-inset.jpg){: style="width: 32%"}
 
+[![pypi version](https://img.shields.io/pypi/v/xwr.svg)](https://pypi.org/project/xwr/)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/xwr)
+![PyPI - Types](https://img.shields.io/pypi/types/xwr)
 ![License - MIT](https://img.shields.io/badge/license-MIT-green)
 ![Typed](https://img.shields.io/badge/types-typed-brightgreen)
 [![bear-ified](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg)](https://beartype.readthedocs.io)
@@ -47,12 +50,13 @@
 
 ## Install
 
-The `xwr` library is currently only distributed via github:
+The `xwr` library can be installed from [pypi](https://pypi.org/project/xwr/) or github:
 
 === "Direct Install"
 
     ```sh
-    # Install directly from github
+    pip install xwr
+    # or
     pip install git+ssh://github.com/RadarML/xwr.git
     ```
 
@@ -82,17 +86,16 @@ The `xwr` library is currently only distributed via github:
 
 See the [user guide](usage.md) and [hardware setup](setup.md) for instructions on how to configure and use `xwr`.
 
+!!! warning
+
+    `xwr` does not include a copy of `torch` or `jax` by default! You must specify your own dependency and/or use the `xwr[torch]` and `xwr[jax]` extras if you intend to use these backends for the radar signal processing (`xwr.rsp`) submodule.
+
+
 ## See Also
 
 <div class="grid cards" markdown>
 
-- :material-golf-cart: [`red-rover`](https://radarml.github.io/red-rover/)
-
-    ---
-
-    a multimodal mmWave Radar spectrum ecosystem
-
-- :material-cube-outline: [`abstract_dataloader`](https://wiselabcmu.github.io/abstract-dataloader/)
+- :material-cube-outline: [`abstract_dataloader`](https://radarml.github.io/abstract-dataloader/)
 
     ---
 

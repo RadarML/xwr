@@ -60,13 +60,11 @@ uv run --all-extras pytest -ra --cov --cov-report=html --cov-report=term -- test
 
 ## Docs
 
-Build docs:
+Build docs for development:
 ```sh
 uv run --extra docs mkdocs serve
 ```
 
-Deploy docs:
-```sh
-uv run --extra docs mkdocs build
-./update_gh_pages.sh
-```
+!!! info
+
+    The [documentation site](https://radarml.github.io/xwr) is automatically built and deployed via GitHub Actions when a PR is merged.

@@ -16,7 +16,6 @@ jobs:
       uses: astral-sh/setup-uv@v6
       with:
         python-version: "3.12"
-        uv-version: 0.8.13
 
     - name: Lint with ruff
       run: |
