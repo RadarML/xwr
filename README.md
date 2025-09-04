@@ -30,9 +30,13 @@ See our [documentation site](https://radarml.github.io/xwr/) for more details, s
 
 ## Install
 
-The `xwr` library is currently only distributed via github:
+The `xwr` library can be installed from pypi or github:
 
 ```sh
-# Install directly from github
+pip install xwr
+# or
 pip install git+ssh://github.com/RadarML/xwr.git
 ```
+
+> [!WARNING]
+> `xwr` does not include a copy of `torch` or `jax` by default! You must specify your own dependency and/or use the `xwr[torch]` and `xwr[jax]` extras if you intend to use these backends for the radar signal processing (`xwr.rsp`) submodule.
