@@ -183,7 +183,7 @@ class PhaseVec(Representation):
             spectrum = np.flip(spectrum, axis=-3)
 
         magnitude = np.abs(spectrum)
-        normed = spectrum / magnitude
+        normed = spectrum / np.maximum(magnitude, self.eps)
         if aug.get("radar_phase", 0.0) != 0.0:
             normed *= np.exp(-1j * aug["radar_phase"])
         re = np.real(normed)
