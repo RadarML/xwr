@@ -1,6 +1,6 @@
 """Calibrated Spectrum Processing."""
 
-from typing import Generic, TypeVar
+from typing import Generic, Sequence, TypeVar
 
 import jax
 import numpy as np
@@ -87,38 +87,32 @@ class CFAR:
 
 
 class CFARCASO:
-    """CASO_CFAR: Cell Averaging Smallest of CFAR.
+    """CASO_CFAR: Cell-averaging Smallest of CFAR.
+
+    Instead of 2D kernel of Cell-averaging CFAR.
+    This implementation use 1D kernel for range and doppler axis separately.
+    The detected object has SNR larger than threshold on
+    either side of the kernel.
 
     Args:
-        train_range: train window size for range dimension.
-        guard_range: guard window size for range dimension.
-        train_doppler: train window size for doppler dimension.
-        guard_doppler: guard window size for doppler dimension.
-        snr_range: signal to noise ratio threshold on range dimension.
-        snr_doppler: signal to noise ratio threshold on doppler dimension.
-        discard_range_close: discard low frequency noise bin.
-        discard_range_far: discard high frequency noise bin.
+        train_window: training window size for (range, doppler).
+        guard_window: guard window size for (range, doppler).
+        snr_thresh: signal to noise ratio threshold for (range, doppler).
+        discard_range: range bins (close, far) to discard around DC.
     """
 
     def __init__(
         self,
-        train_range: int = 8,
-        guard_range: int = 8,
-        train_doppler: int = 4,
-        guard_doppler: int = 0,
-        snr_range: float = 5.0,
-        snr_doppler: float = 3.0,
-        discard_range_close: int = 10,
-        discard_range_far: int = 20,
+        train_window: Sequence[int] = (8, 4),
+        guard_window: Sequence[int] = (8, 0),
+        snr_thresh: Sequence[float] = (5.0, 3.0),
+        discard_range: Sequence[int] = (10, 20),
     ):
-        self.pad_r = train_range + guard_range
-        self.pad_d = train_doppler + guard_doppler
-
-        # discard detect object around DC
-        self.discard_close, self.discard_far = (
-            discard_range_close,
-            discard_range_far,
+        assert len(train_window) == 2 and len(guard_window) == 2, (
+            "train and guard window must be a sequence of length 2"
         )
+        self.pad_r = train_window[0] + guard_window[0]
+        self.pad_d = train_window[1] + guard_window[1]
 
         # caso
         def make_caso_kernels(train, pad):
@@ -129,15 +123,24 @@ class CFARCASO:
             ker_b /= ker_b.sum()
             return jnp.asarray(ker_a), jnp.asarray(ker_b)
 
-        self.r_ker_a, self.r_ker_b = make_caso_kernels(train_range, self.pad_r)
+        self.r_ker_a, self.r_ker_b = make_caso_kernels(
+            train_window[0], self.pad_r
+        )
         self.d_ker_a, self.d_ker_b = make_caso_kernels(
-            train_doppler, self.pad_d
+            train_window[1], self.pad_d
         )
 
-        self.snr_r, self.snr_d = snr_range, snr_doppler
+        # discard detect object around DC
+        assert len(discard_range) == 2, (
+            "discard_range must be a sequence of length 2"
+        )
+        self.discard_r = discard_range
 
-    def caso(
-        self,
+        assert len(snr_thresh) == 2, "snr_thresh must be a sequence of length 2"
+        self.snr_r, self.snr_d = snr_thresh
+
+    @staticmethod
+    def _caso(
         signal: Float32[Array, "n"],
         ker_a: Float32[Array, "w"],
         ker_b: Float32[Array, "w"],
@@ -186,7 +189,7 @@ class CFARCASO:
 
         # non-coherent signal combination along the antenna array
         signal = jnp.sum(range_dopp**2, axis=-1) + 1
-        sig_discard = signal[self.discard_close : -self.discard_far]
+        sig_discard = signal[self.discard_r[0] : -self.discard_r[1]]
         sig_pad_r = jnp.concat(
             (
                 sig_discard[: self.pad_r],
@@ -201,18 +204,18 @@ class CFARCASO:
 
         # detection
         detect_r, noise = jax.vmap(
-            self.caso, in_axes=(1, None, None, None, None)
+            self._caso, in_axes=(1, None, None, None, None)
         )(sig_pad_r, self.r_ker_a, self.r_ker_b, self.snr_r, self.pad_r)
         detect_r, noise = detect_r.swapaxes(0, 1), noise.swapaxes(0, 1)
         detect_r = jnp.pad(
-            detect_r, ((self.discard_close, self.discard_far), (0, 0))
+            detect_r, ((self.discard_r[0], self.discard_r[1]), (0, 0))
         )
         noise = jnp.pad(
             noise,
-            ((self.discard_close, self.discard_far), (0, 0)),
+            ((self.discard_r[0], self.discard_r[1]), (0, 0)),
             constant_values=1,
         )
-        detect_d, _ = jax.vmap(self.caso, in_axes=(0, None, None, None, None))(
+        detect_d, _ = jax.vmap(self._caso, in_axes=(0, None, None, None, None))(
             sig_pad_d, self.d_ker_a, self.d_ker_b, self.snr_d, self.pad_d
         )
 
