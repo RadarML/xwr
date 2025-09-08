@@ -10,11 +10,11 @@ nav:
       - Development: develop.md
     - High Level API: system.md
   - Radar Processing:
-    - RSP: rsp/rsp.md
-    - Numpy: rsp/numpy.md
-    - Pytorch: rsp/torch.md
-    - Jax: rsp/jax.md
-    - NN Extensions: rsp/nn.md
+    - rsp: rsp/index.md
+    - rsp.numpy: rsp/numpy.md
+    - rsp.torch: rsp/torch.md
+    - rsp.jax: rsp/jax.md
+    - xwr.nn: nn/index.md
   - Low Level API:
     - Capture Card:
       - API: dca/api.md

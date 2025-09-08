@@ -10,21 +10,26 @@ from jaxtyping import Array, Bool, Float32, Int
 class PointCloud:
     """Get radar point cloud from post FFT cube.
 
-    !!! note
-        To convert azimuth-elevation bin indices to azimuth-elevation angles,
-        we use the property that the azimuth bin indices correspond
-        to the sin of the angle:
-        ```
-        jnp.arcsin(
-            jnp.linspace(-jnp.pi, jnp.pi, bin_size)
-            / (2 * jnp.pi * antenna_spacing)
-        )
-        ```
+    To convert azimuth-elevation bin indices to azimuth-elevation angles,
+    we use the property that the azimuth bin indices correspond to the sin of
+    the angle
+    ```
+    angles = jnp.arcsin(
+        jnp.linspace(-jnp.pi, jnp.pi, bin_size)
+        / (2 * jnp.pi * antenna_spacing)
+    )
+    ```
+    where the *corrected* antenna spacing is calculated by
+    ```
+    0.5 * chirp_center_frequency / antenna_design_frequency
+    ```
 
-        antenna spacing (in terms of wavelength) is calculated by:
-        ```
-        0.5 * chirp_center_frequency / antenna_design_frequency
-        ```
+    !!! info
+
+        The antenna design frequency here refers to the grid alignment of the
+        antenna array, which are typically 0.5 wavelengths apart at some
+        nominal design frequency. Thus, you must correct by a corresponding
+        scale factor when the chirp center frequency differs.
 
     Args:
         range_resolution: range fft resolution

@@ -2,9 +2,8 @@
 
 [![pypi version](https://img.shields.io/pypi/v/xwr.svg)](https://pypi.org/project/xwr/)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/xwr)
-![PyPI - Types](https://img.shields.io/pypi/types/xwr)
 ![License - MIT](https://img.shields.io/badge/license-MIT-green)
-![Typed](https://img.shields.io/badge/types-typed-brightgreen)
+![PyPI - Types](https://img.shields.io/pypi/types/xwr)
 [![bear-ified](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg)](https://beartype.readthedocs.io)
 
 `xwr` is a pure-python, linux-based real time raw data capture system for TI mmWave radars, and includes four key components:

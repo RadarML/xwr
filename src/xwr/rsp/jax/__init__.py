@@ -2,7 +2,9 @@
 
 !!! info
 
-    This module mirrors the functionality of [`xwr.rsp.numpy`][xwr.rsp.numpy].
+    In addition to mirroring the functionality of
+    [`xwr.rsp.numpy`][xwr.rsp.numpy], this module also provides a range of
+    point cloud processing algorithms.
 
 !!! warning
 

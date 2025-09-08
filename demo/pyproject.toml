@@ -1,0 +1,25 @@
+[project]
+name = "xwr-demo"
+version = "0.3.3"
+requires-python = ">=3.10"
+
+dependencies = [
+    "xwr >= 0.3.3",
+    "matplotlib >= 3.0",
+    "pyyaml >= 6.0",
+    "PyQt6 >= 6.0.0",
+    "tyro >= 0.8.0",
+    "rich >= 13.0.0",
+]
+
+[project.optional-dependencies]
+rerun = [
+    "rerun-sdk >= 0.24.1",
+    "tqdm >= 4.67.1",
+    "abstract-dataloader >= 0.4.0",
+    "jax[cuda12] >= 0.4.0",
+    "roverd[video]@git+ssh://git@github.com/RadarML/red-rover.git#subdirectory=format"
+]
+
+[tool.uv.sources]
+xwr = { path = "../", editable = true }

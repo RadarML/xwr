@@ -38,20 +38,6 @@ dependencies = [
 torch = [ "torch >= 2.0" ]
 nn = [ "torchvision >= 0.15.0" ]
 jax = [ "jax >= 0.4.0" ]
-demo = [
-    "matplotlib >= 3.0",
-    "pyyaml >= 6.0",
-    "PyQt6 >= 6.0.0",
-    "tyro >= 0.8.0",
-    "rich >= 13.0.0",
-]
-rerun-demo = [
-    "rerun-sdk >= 0.24.1",
-    "tqdm >= 4.67.1",
-    "abstract-dataloader >= 0.4.0",
-    "jax[cuda12] >= 0.4.0",
-    "roverd[video]@git+ssh://git@github.com/RadarML/red-rover.git#subdirectory=format"
-]
 dev = [
     "pre-commit >= 4.0.0",
     "pytest >= 8.0.0",
