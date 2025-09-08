@@ -1,6 +1,7 @@
 """Calibrated Spectrum Processing."""
 
-from typing import Generic, Sequence, TypeVar
+from collections.abc import Sequence
+from typing import Generic, TypeVar
 
 import jax
 import numpy as np
@@ -87,12 +88,28 @@ class CFAR:
 
 
 class CFARCASO:
-    """CASO_CFAR: Cell-averaging Smallest of CFAR.
+    """Cell-averaging Smallest of CFAR.
 
-    Instead of 2D kernel of Cell-averaging CFAR.
-    This implementation use 1D kernel for range and doppler axis separately.
-    The detected object has SNR larger than threshold on
-    either side of the kernel.
+    Expects a 2d input, with the `guard` and `window` sizes corresponding to
+    the respective input axes.
+
+    !!! info
+
+        Instead of the 2D kernel used in Cell-averaging CFAR, CASO uses
+        a separate 1D kernel for the range and doppler axes; detection occurs
+        if the SNR exceeds the specified threshold on either axis.
+
+    ```
+               ┌─┐       ▲ window[0]
+               │ │       │
+               ├─┤       ▼
+         ┌───┬─┼─┼─┬───┐
+         └───┴─┼─┼─┴───┘ ▲ guard[0]
+               ├─┤       ▼
+               │ │
+               └─┘
+    guard[1] ◄─►   ◄───► window[1]
+    ```
 
     Args:
         train_window: training window size for (range, doppler).
@@ -108,9 +125,20 @@ class CFARCASO:
         snr_thresh: Sequence[float] = (5.0, 3.0),
         discard_range: Sequence[int] = (10, 20),
     ):
-        assert len(train_window) == 2 and len(guard_window) == 2, (
-            "train and guard window must be a sequence of length 2"
-        )
+        if len(train_window) != 2:
+            raise ValueError(f"Train window {train_window} must be length 2.")
+        if len(guard_window) != 2:
+            raise ValueError(f"Guard window {guard_window} must be length 2.")
+        if len(discard_range) != 2:
+            raise ValueError(
+                f"Discard range {discard_range} must be length 2.")
+        if len(snr_thresh) != 2:
+            raise ValueError(f"SNR thresh {snr_thresh} must be length 2.")
+
+        # discard detect object around DC
+        self.discard_r = discard_range
+        self.snr_r, self.snr_d = snr_thresh
+
         self.pad_r = train_window[0] + guard_window[0]
         self.pad_d = train_window[1] + guard_window[1]
 
@@ -124,20 +152,9 @@ class CFARCASO:
             return jnp.asarray(ker_a), jnp.asarray(ker_b)
 
         self.r_ker_a, self.r_ker_b = make_caso_kernels(
-            train_window[0], self.pad_r
-        )
+            train_window[0], self.pad_r)
         self.d_ker_a, self.d_ker_b = make_caso_kernels(
-            train_window[1], self.pad_d
-        )
-
-        # discard detect object around DC
-        assert len(discard_range) == 2, (
-            "discard_range must be a sequence of length 2"
-        )
-        self.discard_r = discard_range
-
-        assert len(snr_thresh) == 2, "snr_thresh must be a sequence of length 2"
-        self.snr_r, self.snr_d = snr_thresh
+            train_window[1], self.pad_d)
 
     @staticmethod
     def _caso(

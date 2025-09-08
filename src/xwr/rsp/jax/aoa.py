@@ -1,6 +1,6 @@
 """Angle of Arrival Estimation and Point Cloud Module using JAX."""
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import jax
 from jax import numpy as jnp
