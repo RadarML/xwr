@@ -44,6 +44,10 @@ class PointCloud:
     ) -> None:
         self.range_res = range_resolution
         self.doppler_res = doppler_resolution
+
+        assert len(angle_fov) == 2 and len(angle_size) == 2, (
+            "angle_fov and angle_size must be a sequence of length 2."
+        )
         self.ele_fov = jnp.deg2rad(angle_fov[0])
         self.azi_fov = jnp.deg2rad(angle_fov[1])
         self.ele_angles = jnp.arcsin(
