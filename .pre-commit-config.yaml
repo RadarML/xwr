@@ -6,12 +6,14 @@ repos:
         entry: uv run --extra dev --extra torch --extra jax --extra nn ruff check
         language: system
         types: [python]
+        files: ^src/
 
       - id: pyright
         name: Type check with pyright
         entry: uv run --extra dev --extra torch --extra jax --extra nn pyright
         language: system
         types: [python]
+        files: ^src/
 
       - id: pytest
         name: Run pytest with coverage

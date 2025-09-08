@@ -17,11 +17,9 @@ from tqdm import tqdm
 from xwr.rsp import RSP, iq_from_iiqq
 from xwr.rsp.jax import CFARCASO, AWR1843Boost, PointCloud
 
-BASE_PATH = "/scratch/shared/datasets/bosch_datasets/CMU_radar/data/deepradar"
-
 
 def main(
-    path: str = BASE_PATH,
+    path: str, /,
     trace: str = "bike/bloomfield.back",
     gain: float = 5e-6,
     azimuth_size: int = 128,

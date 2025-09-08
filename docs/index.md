@@ -6,9 +6,8 @@
 
 [![pypi version](https://img.shields.io/pypi/v/xwr.svg)](https://pypi.org/project/xwr/)
 ![PyPI - Python Version](https://img.shields.io/pypi/pyversions/xwr)
-![PyPI - Types](https://img.shields.io/pypi/types/xwr)
 ![License - MIT](https://img.shields.io/badge/license-MIT-green)
-![Typed](https://img.shields.io/badge/types-typed-brightgreen)
+![PyPI - Types](https://img.shields.io/pypi/types/xwr)
 [![bear-ified](https://raw.githubusercontent.com/beartype/beartype-assets/main/badge/bear-ified.svg)](https://beartype.readthedocs.io)
 
 `xwr` is a pure-python, linux-based real time raw data capture system for TI mmWave radars, and includes four key components:
@@ -16,7 +15,7 @@
 <div class="grid cards" markdown>
 
 - [`xwr`](system.md): a high-level data capture interface
-- [`xwr.rsp`](rsp/rsp.md): a radar signal processing library with [Numpy](rsp/numpy.md), [Pytorch](rsp/torch.md), and [Jax](rsp/jax.md) support
+- [`xwr.rsp`](rsp/index.md): a radar signal processing library with [Numpy](rsp/numpy.md), [Pytorch](rsp/torch.md), and [Jax](rsp/jax.md) support
 - [`xwr.radar`](radar/api.md): a parameterized python interface for the default radar firmware
 - [`xwr.capture`](dca/api.md): a pure-python, real-time interface for the DCA1000EVM
 
@@ -56,7 +55,7 @@ The `xwr` library can be installed from [pypi](https://pypi.org/project/xwr/) or
 
     ```sh
     pip install xwr
-    # or
+    # or, for the bleeding-edge version:
     pip install git+ssh://github.com/RadarML/xwr.git
     ```
 
