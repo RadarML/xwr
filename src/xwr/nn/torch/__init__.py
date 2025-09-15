@@ -16,7 +16,7 @@ conventions are:
 
 from jaxtyping import install_import_hook
 
-with install_import_hook("xwr.nn.numpy", "beartype.beartype"):
+with install_import_hook("xwr.nn.torch", "beartype.beartype"):
     from .representations import (
         Magnitude,
         PhaseAngle,
