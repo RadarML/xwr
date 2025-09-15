@@ -1950,6 +1950,7 @@ jax = [
     { name = "jax", version = "0.7.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
 nn = [
+    { name = "torch" },
     { name = "torchvision" },
 ]
 torch = [
@@ -1977,6 +1978,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11.0" },
     { name = "ruff", marker = "extra == 'docs'", specifier = ">=0.11.0" },
+    { name = "torch", marker = "extra == 'nn'", specifier = ">=2.0" },
     { name = "torch", marker = "extra == 'torch'", specifier = ">=2.0" },
     { name = "torchvision", marker = "extra == 'nn'", specifier = ">=0.15.0" },
     { name = "types-pyserial", specifier = ">=3.5" },
