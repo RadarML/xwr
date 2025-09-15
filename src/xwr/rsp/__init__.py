@@ -1,4 +1,4 @@
-"""Radar Signal Processing in numpy for batched 4D spectrum.
+"""Radar Signal Processing for batched 4D spectrum.
 
 !!! warning "Image Axis Order"
 

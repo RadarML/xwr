@@ -2,11 +2,13 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 import numpy as np
-from jaxtyping import Complex64, Float32
+from jaxtyping import Complex64, Float32, Shaped
 
+from . import backend
+from .backend import TArray
 from .utils import resize
 
 
@@ -28,23 +30,36 @@ class Representation(ABC):
         self.eps = eps
         self._magnitude_transform = transform
 
+    def _flip(
+        self, spectrum: Shaped[TArray, "batch doppler el az rng"],
+        aug: Mapping[str, Any] = {}
+    ) -> Shaped[TArray, "batch doppler el az rng"]:
+        if aug.get("azimuth_flip", False):
+            spectrum = backend.flip(spectrum, axis=-2)
+        if aug.get("doppler_flip", False):
+            spectrum = backend.flip(spectrum, axis=-3)
+        return spectrum
+
     def _scale(
-        self, data: Float32[np.ndarray, "..."]
-    ) -> Float32[np.ndarray, "..."]:
-        data = data * self.scale
+        self, data: Float32[TArray, "..."]
+    ) -> Float32[TArray, "..."]:
+        data = cast(TArray, data * self.scale)
         if self._magnitude_transform == "log":
-            return np.log(data + self.eps)
+            return backend.log(cast(TArray, data + self.eps))
         elif self._magnitude_transform == "sqrt":
-            return np.sqrt(data)
+            return backend.sqrt(data)
         else:
             return data
 
     @abstractmethod
     def __call__(
-        self, spectrum: Complex64[np.ndarray, "batch doppler el az rng"],
+        self, spectrum: Complex64[TArray, "batch doppler el az rng"],
         aug: Mapping[str, Any] = {}
-    ) -> Float32[np.ndarray, "batch doppler el az rng c"]:
+    ) -> Float32[TArray, "batch doppler el az rng c"]:
         """Get spectrum representation.
+
+        Type Parameters:
+            - `TArray`: array type; `np.ndarray` or `torch.Tensor`.
 
         Args:
             spectrum: complex spectrum as output by one of the
@@ -73,10 +88,13 @@ class Magnitude(Representation):
     """
 
     def __call__(
-        self, spectrum: Complex64[np.ndarray, "batch doppler el az rng"],
+        self, spectrum: Complex64[TArray, "batch doppler el az rng"],
         aug: Mapping[str, Any] = {}
-    ) -> Float32[np.ndarray, "batch doppler el az rng 1"]:
+    ) -> Float32[TArray, "batch doppler el az rng 1"]:
         """Get spectrum amplitude.
+
+        Type Parameters:
+            - `TArray`: array type; `np.ndarray` or `torch.Tensor`.
 
         Args:
             spectrum: complex spectrum as output by one of the
@@ -87,12 +105,9 @@ class Magnitude(Representation):
             Real 4D spectrum with a leading batch axis and trailing
                 `[magnitude]` channel axis.
         """
-        if aug.get("azimuth_flip", False):
-            spectrum = np.flip(spectrum, axis=-2)
-        if aug.get("doppler_flip", False):
-            spectrum = np.flip(spectrum, axis=-3)
+        spectrum = self._flip(spectrum, aug)
 
-        magnitude = np.abs(spectrum)
+        magnitude = backend.abs(spectrum)
         if aug.get("radar_scale", 1.0) != 1.0:
             magnitude *= aug["radar_scale"]
         magnitude = self._scale(magnitude)
@@ -104,7 +119,7 @@ class Magnitude(Representation):
             magnitude, range_scale=aug.get("range_scale", 1.0),
             speed_scale=aug.get("speed_scale", 1.0))
 
-        return resized[..., None]
+        return cast(TArray, resized[..., None])
 
 
 class PhaseAngle(Representation):
@@ -117,10 +132,13 @@ class PhaseAngle(Representation):
     """
 
     def __call__(
-        self, spectrum: Complex64[np.ndarray, "batch doppler el az rng"],
+        self, spectrum: Complex64[TArray, "batch doppler el az rng"],
         aug: Mapping[str, Any] = {}
-    ) -> Float32[np.ndarray, "batch doppler el az rng 2"]:
+    ) -> Float32[TArray, "batch doppler el az rng 2"]:
         """Get complex spectrum representation.
+
+        Type Parameters:
+            - `TArray`: array type; `np.ndarray` or `torch.Tensor`.
 
         Args:
             spectrum: complex spectrum as output by one of the
@@ -131,13 +149,10 @@ class PhaseAngle(Representation):
             Complex 4D spectrum with a leading batch axis and trailing
                 `[magnitude, phase]` channel axis.
         """
-        if aug.get("azimuth_flip", False):
-            spectrum = np.flip(spectrum, axis=-2)
-        if aug.get("doppler_flip", False):
-            spectrum = np.flip(spectrum, axis=-3)
+        spectrum = self._flip(spectrum, aug)
 
-        magnitude = np.abs(spectrum)
-        phase = np.unwrap(np.angle(spectrum), axis=1)
+        magnitude = backend.abs(spectrum)
+        phase = backend.angle(spectrum)
 
         if aug.get("radar_scale", 1.0) != 1.0:
             magnitude *= aug["radar_scale"]
@@ -147,10 +162,10 @@ class PhaseAngle(Representation):
 
         range_scale = aug.get("range_scale", 1.0)
         speed_scale = aug.get("speed_scale", 1.0)
-        return np.stack([
+        return cast(TArray, backend.stack([
             resize(magnitude, range_scale=range_scale, speed_scale=speed_scale),
             resize(phase, range_scale, speed_scale) % (2 * np.pi)
-        ], axis=-1)
+        ], axis=-1))
 
 
 class PhaseVec(Representation):
@@ -163,10 +178,13 @@ class PhaseVec(Representation):
     """
 
     def __call__(
-        self, spectrum: Complex64[np.ndarray, "batch doppler el az rng"],
+        self, spectrum: Complex64[TArray, "batch doppler el az rng"],
         aug: Mapping[str, Any] = {}
-    ) -> Float32[np.ndarray, "batch doppler el az rng 3"]:
+    ) -> Float32[TArray, "batch doppler el az rng 3"]:
         """Get amplitude spectrum.
+
+        Type Parameters:
+            - `TArray`: array type; `np.ndarray` or `torch.Tensor`.
 
         Args:
             spectrum: complex spectrum as output by one of the
@@ -177,17 +195,14 @@ class PhaseVec(Representation):
             Real 4D spectrum with a leading batch axis and trailing
                 `[magnitude, re, im]` channel axis.
         """
-        if aug.get("azimuth_flip", False):
-            spectrum = np.flip(spectrum, axis=-2)
-        if aug.get("doppler_flip", False):
-            spectrum = np.flip(spectrum, axis=-3)
+        spectrum = self._flip(spectrum, aug)
 
-        magnitude = np.abs(spectrum)
-        normed = spectrum / np.maximum(magnitude, self.eps)
+        magnitude = backend.abs(spectrum)
+        normed = spectrum / backend.maximum(magnitude, self.eps)
         if aug.get("radar_phase", 0.0) != 0.0:
-            normed *= np.exp(-1j * aug["radar_phase"])
-        re = np.real(normed)
-        im = np.imag(normed)
+            normed *= backend.exp(-1j * aug["radar_phase"])
+        re = backend.real(normed)
+        im = backend.imag(normed)
 
         if aug.get("radar_scale", 1.0) != 1.0:
             magnitude *= aug["radar_scale"]
@@ -195,8 +210,8 @@ class PhaseVec(Representation):
 
         range_scale = aug.get("range_scale", 1.0)
         speed_scale = aug.get("speed_scale", 1.0)
-        return np.stack([
+        return cast(TArray, backend.stack([
             resize(magnitude, range_scale=range_scale, speed_scale=speed_scale),
             resize(re, range_scale=range_scale, speed_scale=speed_scale),
             resize(im, range_scale=range_scale, speed_scale=speed_scale)
-        ], axis=-1)
+        ], axis=-1))
