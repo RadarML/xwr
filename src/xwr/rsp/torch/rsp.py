@@ -23,9 +23,10 @@ class RSPTorch(RSP[Tensor], ABC):
 
     def fft(
         self, array: Complex64[Tensor, "..."], axes: tuple[int, ...],
+        size: tuple[int, ...] | None = None,
         shift: tuple[int, ...] | None = None
     ) -> Complex64[Tensor, "..."]:
-        fftd = torch.fft.fftn(array, dim=axes)
+        fftd = torch.fft.fftn(array, s=size, dim=axes)
         if shift is None:
             return fftd
         else:

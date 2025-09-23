@@ -56,9 +56,6 @@ def test_numpy_basic():
     awr1843boost = rspn.AWR1843Boost(window=False, size={})
     assert awr1843boost(data).shape == (2, 4, 2, 8, 8)
 
-    with pytest.raises(ValueError):
-        _ = rspn.AWR1843Boost(window=False, size={"azimuth": 4})(data)
-
     awr1843aop = rspn.AWR1843AOP(window=False, size={})
     assert awr1843aop(data).shape == (2, 4, 4, 3, 8)
 
