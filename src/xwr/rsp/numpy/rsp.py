@@ -33,8 +33,13 @@ class RSPNumpy(RSP[np.ndarray], ABC):
 
     def fft(
         self, array: Complex64[np.ndarray, "..."], axes: tuple[int, ...],
+        size: tuple[int, ...] | None = None,
         shift: tuple[int, ...] | None = None
     ) -> Complex64[np.ndarray, "..."]:
+        if size is not None:
+            for axis, s in zip(axes, size):
+                array = self.pad(array, axis, s)
+
         key = (array.shape, axes)
         if key not in self._fft_cache:
             self._fft_cache[key] = FFTW(
@@ -47,16 +52,17 @@ class RSPNumpy(RSP[np.ndarray], ABC):
     def pad(
         x: Shaped[np.ndarray, "..."], axis: int, size: int
     ) -> Shaped[np.ndarray, "..."]:
-        if size <= x.shape[axis]:
-            raise ValueError(
-                f"Cannot zero-pad axis {axis} to target size {size}, which is "
-                f"less than or equal the current size {x.shape[axis]}.")
-
-        shape = list(x.shape)
-        shape[axis] = size - x.shape[axis]
-        zeros = np.zeros(shape, dtype=x.dtype)
-
-        return np.concatenate([x, zeros], axis=axis)
+        if size == x.shape[axis]:
+            return x
+        elif size < x.shape[axis]:
+            slices = [slice(None)] * x.ndim
+            slices[axis] = slice(0, size)
+            return x[tuple(slices)]
+        else:
+            shape = list(x.shape)
+            shape[axis] = size - x.shape[axis]
+            zeros = np.zeros(shape, dtype=x.dtype)
+            return np.concatenate([x, zeros], axis=axis)
 
     @staticmethod
     def hann(

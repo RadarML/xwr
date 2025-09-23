@@ -12,7 +12,7 @@ from typing import (
 )
 
 import numpy as np
-from jaxtyping import Complex64, Int16, Shaped
+from jaxtyping import Complex64, Int16
 
 
 @runtime_checkable
@@ -205,35 +205,22 @@ class RSP(ABC, Generic[TArray]):
 
     @abstractmethod
     def fft(
-        self, array: Complex64[TArray, "..."], axes: tuple[int, ...],
+        self, array: Complex64[TArray, "..."],
+        axes: tuple[int, ...],
+        size: tuple[int, ...] | None = None,
         shift: tuple[int, ...] | None = None
     ) -> Complex64[TArray, "..."]:
         """Compute FFT on the specified axes of the array.
 
         Args:
             array: Input array.
+            size: Target size for each axis after FFT (or `None` to use the
+                input size).
             axes: Axes along which to compute the FFT.
             shift: Axes to shift after FFT, if any.
 
         Returns:
             FFT of the input array along the specified axes.
-        """
-        ...
-
-    @staticmethod
-    @abstractmethod
-    def pad(
-        x: Shaped[TArray, "..."], axis: int, size: int
-    ) -> Shaped[TArray, "..."]:
-        """Pad the specified axis with zeros to reach the target size.
-
-        Args:
-            x: input array.
-            axis: Axis along which to pad.
-            size: Target size after padding.
-
-        Returns:
-            Input array with padding applied along the specified axis.
         """
         ...
 
@@ -269,12 +256,11 @@ class RSP(ABC, Generic[TArray]):
         if self.window.get("doppler", self._default_window):
             iq = self.hann(iq, 1)
 
-        if self.size.get("range") is not None:
-            iq = self.pad(iq, 4, self.size["range"])
-        if self.size.get("doppler") is not None:
-            iq = self.pad(iq, 1, self.size["doppler"])
-
-        return self.fft(iq, axes=(1, 4), shift=(1,))
+        return self.fft(
+            iq, axes=(1, 4), shift=(1,),
+            size=(
+                self.size.get("doppler", iq.shape[1]),
+                self.size.get("range", iq.shape[4])))
 
     @abstractmethod
     def mimo_virtual_array(
@@ -309,12 +295,11 @@ class RSP(ABC, Generic[TArray]):
         if self.window.get("azimuth", self._default_window):
             mimo = self.hann(mimo, 3)
 
-        if self.size.get("elevation") is not None:
-            mimo = self.pad(mimo, 2, self.size["elevation"])
-        if self.size.get("azimuth") is not None:
-            mimo = self.pad(mimo, 3, self.size["azimuth"])
-
-        return self.fft(mimo, axes=(2, 3), shift=(2, 3))
+        return self.fft(
+            mimo, axes=(2, 3), shift=(2, 3),
+            size=(
+                self.size.get("elevation", mimo.shape[2]),
+                self.size.get("azimuth", mimo.shape[3])))
 
     def __call__(
         self, iq: Complex64[TArray, "#batch doppler tx rx _range"]

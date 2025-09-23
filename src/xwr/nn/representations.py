@@ -1,5 +1,6 @@
 """Spectrum representations."""
 
+import cmath
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from typing import Any, Literal, cast
@@ -200,7 +201,8 @@ class PhaseVec(Representation):
         magnitude = backend.abs(spectrum)
         normed = spectrum / backend.maximum(magnitude, self.eps)
         if aug.get("radar_phase", 0.0) != 0.0:
-            normed *= backend.exp(-1j * aug["radar_phase"])
+            # aug["radar_phase"] is a python scalar, so we always use cmath
+            normed *= cmath.exp(-1j * aug["radar_phase"])
         re = backend.real(normed)
         im = backend.imag(normed)
 

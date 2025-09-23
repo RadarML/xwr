@@ -21,9 +21,10 @@ class RSPJax(RSP[Array], ABC):
 
     def fft(
         self, array: Complex64[Array, "..."], axes: tuple[int, ...],
+        size: tuple[int, ...] | None = None,
         shift: tuple[int, ...] | None = None
     ) -> Complex64[Array, "..."]:
-        fftd = jnp.fft.fftn(array, axes=axes)
+        fftd = jnp.fft.fftn(array, s=size, axes=axes)
         if shift is None:
             return fftd
         else:
