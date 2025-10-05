@@ -1,6 +1,7 @@
 """Backend-agnostic components."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from typing import (
     Any,
     Generic,
@@ -184,9 +185,9 @@ class RSP(ABC, Generic[TArray]):
     """
 
     def __init__(
-        self, window: bool | dict[
+        self, window: bool | Mapping[
             Literal["range", "doppler", "azimuth", "elevation"], bool] = False,
-        size: dict[
+        size: Mapping[
             Literal["range", "doppler", "azimuth", "elevation"], int] = {}
     ) -> None:
         self.window: dict[
@@ -198,7 +199,7 @@ class RSP(ABC, Generic[TArray]):
             self.window = {}
             self._default_window = window
         else:
-            self.window = window
+            self.window = dict(window)
             self._default_window = False
 
         self.size = size

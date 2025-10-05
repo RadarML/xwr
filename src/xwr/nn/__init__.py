@@ -59,6 +59,7 @@ from jaxtyping import install_import_hook
 
 with install_import_hook("xwr.nn", "beartype.beartype"):
     from .representations import (
+        ComplexParts,
         Magnitude,
         PhaseAngle,
         PhaseVec,
@@ -66,4 +67,6 @@ with install_import_hook("xwr.nn", "beartype.beartype"):
     )
     from .utils import resize
 
-__all__ = ["resize", "Magnitude", "PhaseAngle", "PhaseVec", "Representation"]
+__all__ = [
+    "resize", "ComplexParts", "Magnitude", "PhaseAngle", "PhaseVec",
+    "Representation"]

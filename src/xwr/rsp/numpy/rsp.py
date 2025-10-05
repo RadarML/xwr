@@ -1,6 +1,7 @@
 """Radar Signal Processing implementations."""
 
 from abc import ABC
+from collections.abc import Mapping
 from typing import Literal
 
 import numpy as np
@@ -22,9 +23,9 @@ class RSPNumpy(RSP[np.ndarray], ABC):
     """
 
     def __init__(
-        self, window: bool | dict[
+        self, window: bool | Mapping[
             Literal["range", "doppler", "azimuth", "elevation"], bool] = False,
-        size: dict[
+        size: Mapping[
             Literal["range", "doppler", "azimuth", "elevation"], int] = {}
     ) -> None:
         super().__init__(window=window, size=size)
