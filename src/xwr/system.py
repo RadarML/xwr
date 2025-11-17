@@ -57,6 +57,7 @@ class XWRSystem(Generic[TRadar]):
             capture = DCAConfig(**capture)
 
         self.log: logging.Logger = logging.getLogger(name)
+        self.strict = strict
         self._check_config(radar, capture)
 
         self.dca: DCA1000EVM = capture.create()
@@ -65,7 +66,6 @@ class XWRSystem(Generic[TRadar]):
 
         self.config = radar
         self.fps: float = 1000.0 / radar.frame_period
-        self.strict = strict
 
     def _assert(self, cond: bool, desc: str) -> None:
         """Check a condition and log (or raise) a warning if it is not met."""
