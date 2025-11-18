@@ -217,3 +217,48 @@ class PhaseVec(Representation):
             resize(re, range_scale=range_scale, speed_scale=speed_scale),
             resize(im, range_scale=range_scale, speed_scale=speed_scale)
         ], axis=-1))
+
+
+class ComplexParts(Representation):
+    """Complex spectrum with real and imaginary parts.
+
+    !!! warning
+
+        This representation does not apply any magnitude transform since it
+        does not have a dedicated magnitude channel! This may lead to numerical
+        instability.
+
+    Args:
+        scale: scale factor to apply to the magnitude.
+    """
+
+    def __call__(
+        self, spectrum: Complex64[TArray, "batch doppler el az rng"],
+        aug: Mapping[str, Any] = {}
+    ) -> Float32[TArray, "batch doppler el az rng 2"]:
+        """Get complex spectrum representation.
+
+        Type Parameters:
+            - `TArray`: array type; `np.ndarray` or `torch.Tensor`.
+
+        Args:
+            spectrum: complex spectrum as output by one of the
+                [`xwr.rsp.numpy`][xwr.rsp.numpy] classes.
+            aug: augmentations to apply.
+
+        Returns:
+            Real 4D spectrum with a leading batch axis and trailing
+                `[real, imag]` channel axis.
+        """
+        spectrum = cast(TArray, self.scale * self._flip(spectrum, aug))
+        if aug.get("radar_scale", 1.0) != 1.0:
+            spectrum *= aug["radar_scale"]
+
+        real = backend.real(spectrum)
+        imag = backend.imag(spectrum)
+        range_scale = aug.get("range_scale", 1.0)
+        speed_scale = aug.get("speed_scale", 1.0)
+        return cast(TArray, backend.stack([
+            resize(real, range_scale=range_scale, speed_scale=speed_scale),
+            resize(imag, range_scale=range_scale, speed_scale=speed_scale)
+        ], axis=-1))
