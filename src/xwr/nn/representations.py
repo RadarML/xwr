@@ -224,7 +224,7 @@ class ComplexParts(Representation):
 
     !!! warning
 
-        This representation dose not apply any magnitude transform since it
+        This representation does not apply any magnitude transform since it
         does not have a dedicated magnitude channel! This may lead to numerical
         instability.
 
@@ -252,7 +252,6 @@ class ComplexParts(Representation):
         """
         spectrum = cast(TArray, self.scale * self._flip(spectrum, aug))
         if aug.get("radar_scale", 1.0) != 1.0:
-            spectrum *= aug["radar_scale"]
             spectrum *= aug["radar_scale"]
 
         real = backend.real(spectrum)
