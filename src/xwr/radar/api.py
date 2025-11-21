@@ -3,7 +3,7 @@
 from typing import Literal
 
 from . import defines
-from .base import XWRBase
+from .base import XWRBase, XWRError
 
 # NOTE: We ignore a few naming rules to maintain consistency with TI's naming.
 # ruff: noqa: N802, N803
@@ -27,6 +27,7 @@ class AWR1843(XWRBase):
     _TX_MASK = 0b111
     NUM_TX = 3
     NUM_RX = 4
+    BYTES_PER_SAMPLE = 2 * 2
 
     def __init__(
         self, port: str | None = None, baudrate: int = 115200,
@@ -96,6 +97,7 @@ class AWR1843L(AWR1843):
     _TX_MASK = 0b101
     NUM_TX = 2
     NUM_RX = 4
+    BYTES_PER_SAMPLE = 2 * 2
 
 
 class AWR1642(XWRBase):
@@ -114,6 +116,7 @@ class AWR1642(XWRBase):
     _PORT_NAME = r'XDS110'
     NUM_TX = 2
     NUM_RX = 4
+    BYTES_PER_SAMPLE = 2 * 2
 
     def __init__(
         self, port: str | None = None, baudrate: int = 115200,
@@ -178,6 +181,103 @@ class AWR1642(XWRBase):
         self.send(cmd)
 
 
+class AWR2944(XWRBase):
+
+    _PORT_NAME = r'XDS110'
+    NUM_TX = 4
+    NUM_RX = 4
+    BYTES_PER_SAMPLE = 2
+
+    def __init__(
+        self, port: str | None = None, baudrate: int = 115200,
+        name: str = "AWR2944"
+    ) -> None:
+        super().__init__(port=port, baudrate=baudrate, name=name)
+
+    def setup(
+        self, frequency: float = 77.0, idle_time: float = 110.0,
+        adc_start_time: float = 4.0, ramp_end_time: float = 56.0,
+        tx_start_time: float = 1.0, freq_slope: float = 70.006,
+        adc_samples: int = 256, sample_rate: int = 5000,
+        frame_length: int = 64, frame_period: float = 100.0
+    ) -> None:
+        """Configure radar.
+
+        Args:
+            frequency: frequency band, in GHz; 77.0 or 76.0.
+            idle_time: see TI chirp timing documentation; in us.
+            adc_start_time: see TI chirp timing documentation; in us.
+            ramp_end_time: see TI chirp timing documentation; in us.
+            tx_start_time: see TI chirp timing documentation; in us.
+            freq_slope: chirp frequency slope; in MHz/us.
+            adc_samples: number of samples per chirp.
+            sample_rate: ADC sampling rate; in ksps.
+            frame_length: chirps per frame per TX antenna. Must be a power of 2.
+            frame_period: time between the start of each frame; in ms.
+        """
+        assert frame_length & (frame_length - 1) == 0
+
+        self.port.write('\n'.encode('ascii'))
+        self._wait_for_response()
+
+        self.stop()
+        self.flushCfg()
+
+        self.dfeDataOutputMode(defines.DFEMode.LEGACY)
+        self.adcCfg(adcOutputFmt=defines.ADCFormat.REAL)
+        self.adcbufCfg(adcOutputFmt=defines.ADCFormat.REAL)
+        self.profileCfg(
+            startFreq=frequency, idleTime=idle_time,
+            adcStartTime=adc_start_time, rampEndTime=ramp_end_time,
+            txStartTime=tx_start_time, freqSlopeConst=freq_slope,
+            numAdcSamples=adc_samples, digOutSampleRate=sample_rate)
+        self.frameCfg(
+            numLoops=frame_length, chirpEndIdx=3, numAdcSamples=adc_samples,
+            framePeriodicity=frame_period)
+        self._configure_channels(rx=0b1111, tx=0b1111)
+        self.compRangeBiasAndRxChanPhase(rx_phase = [(1, 0)] * 4 * 4)
+        self.lvdsStreamCfg()
+
+        # Can't be bothered to figure out what this does
+        self.send(
+            "antGeometryCfg 1 0 1 1 1 2 1 3 0 2 0 3 0 4 0 5 1 4 1 5 1 6 1 7 "
+            "1 8 1 9 1 10 1 11 0.5 0.8")
+
+        self.boilerplate_setup()
+
+        self.log.info("Radar setup complete.")
+
+    def frameCfg(  # type: ignore
+        self, chirpStartIdx: int = 0, chirpEndIdx: int = 1, numLoops: int = 16,
+        numFrames: int = 0, numAdcSamples: int = 256,
+        framePeriodicity: float = 100.0,
+        triggerSelect: int = 1, frameTriggerDelay: float = 0.0
+    ) -> None:
+        """Radar frame configuration.
+
+        !!! warning
+
+            The frame should not have more than a 50% duty cycle according to
+            the mmWave SDK documentation.
+
+        Args:
+            chirpStartIdx: chirps to use in the frame.
+            chirpEndIdx: chirps to use in the frame.
+            numLoops: number of chirps per frame; must be >= 16 based on
+                trial/error.
+            numFrames: how many frames to run before stopping; infinite if 0.
+            numAdcSamples: number of samples per chirp; must match the
+                `numAdcSamples` provided to `profileCfg`.
+            framePeriodicity: period between frames, in ms.
+            triggerSelect: only software trigger (1) is supported.
+            frameTriggerDelay: does not appear to be documented.
+        """
+        cmd = "frameCfg {} {} {} {} {} {} {} {}".format(
+            chirpStartIdx, chirpEndIdx, numLoops, numFrames, numAdcSamples,
+            framePeriodicity, triggerSelect, frameTriggerDelay)
+        self.send(cmd)
+
+
 class AWR2544(XWRBase):
     """Interface implementation for the TI AWR2544 family.
 
@@ -194,6 +294,7 @@ class AWR2544(XWRBase):
     _PORT_NAME = r'XDS110'
     NUM_TX = 4
     NUM_RX = 4
+    BYTES_PER_SAMPLE = 2 * 2
 
     def __init__(
         self, port: str | None = None, baudrate: int = 115200,

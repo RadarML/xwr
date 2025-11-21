@@ -25,12 +25,19 @@
 from jaxtyping import install_import_hook
 
 with install_import_hook("xwr.rsp.numpy", "beartype.beartype"):
-    from .rsp import AWR1843AOP, AWR1642Boost, AWR1843Boost, RSPNumpy
+    from .rsp import (
+        AWR1843AOP,
+        AWR2944EVM,
+        AWR1642Boost,
+        AWR1843Boost,
+        RSPNumpy,
+    )
 
 
 __all__ = [
     "AWR1642Boost",
     "AWR1843AOP",
     "AWR1843Boost",
+    "AWR2944EVM",
     "RSPNumpy",
 ]
