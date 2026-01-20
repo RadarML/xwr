@@ -167,6 +167,14 @@ def resize(
         supports antialiasing, with `skimage.transform.resize` being
         particularly slow.
 
+    !!! warning
+
+        `resize` requires the following:
+
+        - The doppler resolution is always even.
+        - `speed_scale * n_doppler >= 2`.
+        - `range_scale * n_range >= 1`.
+
     Type Parameters:
         - `TArray`: array type; `np.ndarray` or `torch.Tensor`.
 
@@ -182,6 +190,12 @@ def resize(
     range_out_dim = int(range_scale * Nr)
     speed_out_dim = 2 * (int(speed_scale * Nd) // 2)
 
+    assert Nd % 2 == 0, f"Doppler dim {Nd} must be even."
+    assert int(speed_out_dim) >= 2, (
+        f"Doppler dim {Nd} too small for scale {speed_scale}")
+    assert int(range_out_dim) >= 1, (
+        f"Range dim {Nr} too small for scale {range_scale}")
+
     if range_out_dim != Nr or speed_out_dim != Nd:
         resized = _resize(spectrum, nd=speed_out_dim, nr=range_out_dim)
 
@@ -191,7 +205,7 @@ def resize(
         # Downsample -> zero pad far ranges (high indices)
         else:
             pad = _zeros(
-                (*spectrum.shape[:-1], Nr - range_out_dim), like=resized)
+                (*resized.shape[:-1], Nr - range_out_dim), like=resized)
             resized = backend.concatenate([resized, pad], axis=-1)
 
         # Upsample -> wrap
