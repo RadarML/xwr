@@ -28,6 +28,7 @@ See our [documentation site](https://radarml.github.io/xwr/) for more details, s
 >
 > WIP:
 >    - AWR2544LOPEVM
+>    - AWR2944
 
 ## Install
 

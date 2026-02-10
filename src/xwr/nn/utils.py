@@ -23,7 +23,7 @@ def msc_from_iq(
         real/imaginary parts) may not necessarily have a norm of `1.0`.
 
     Args:
-        iq: input complex data, with a trailing `[real, complex]` channel.
+        iq: input complex data, with a trailing `[real, imaginary]` channel.
         eps: small value to avoid division by zero.
 
     Returns:
@@ -40,7 +40,7 @@ def msc_from_iq(
 def iq_from_msc(
     msc: Float[Tensor, "... 3"]
 ) -> Float[Tensor, "... 2"]:
-    """Convert `(real, imaginary)` to `(magnitude, sin, cosine)`.
+    """Convert `(magnitude, sin, cosine)` to `(real, imaginary)`.
 
     !!! info
 
