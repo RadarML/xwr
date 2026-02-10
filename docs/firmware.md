@@ -78,4 +78,4 @@ export XDC_PLATFORM_DEFINE=AWR18XX
 make all
 ```
 
-After building, flash `xwr...demo.bin` to your radar; see the [hardware setup instructions](../setup.md).
+After building, flash `xwr...demo.bin` to your radar; see the [hardware setup instructions](setup.md).
