@@ -2,7 +2,7 @@
 
 While `xwr` generally works with the default TI Demo firmware, we are working on custom firmware versions which remove unnecessary bloat and disable software limitations.
 
-This firmware code is based on the TI mmWave demo, and is distributed via a [separate repository](github.com/RadarML/firmware). We currently have the following versions:
+This firmware code is based on the TI mmWave demo, and is distributed via a [separate repository](https://github.com/RadarML/firmware). We currently have the following versions:
 
 | Version | Devices | Description |
 | ------- | ------- |  ---------- |
@@ -44,7 +44,7 @@ cd ~/ti/mmwave_sdk_03_06_02_00-LTS/packages/scripts/unix
 source ./setenv.sh
 ```
 
-- This should give you `$MMW_SDK_INSTALL_PATH`
+- This should give you `$MMWAVE_SDK_INSTALL_PATH`
 
 !!! bug
 
@@ -65,7 +65,7 @@ You can then build the firmware:
     #                         xwr18xx (common for awr18xx, iwr18xx),
     #                         xwr68xx (common for awr68xx, iwr68xx)
     # PLATFORM_DEFINE       : SOC_XWR14XX, SOC_XWR16XX, SOC_XWR18XX, SOC_XWR68XX
-    # BOARD_DEFINE		: ISK, ODS, AOP, DEFAULT_ANT_DESIGN, NO_ANTENNA_CORRECTION
+    # BOARD_DEVICE          : ISK, ODS, AOP, DEFAULT_ANT_DESIGN, NO_ANTENNA_CORRECTION
     # XDC_PLATFORM_DEFINE   : AWR14XX, AWR16XX, AWR18XX, AWR68XX, IWR14XX, IWR16XX, IWR18XX, IWR68XX
     ```
 
