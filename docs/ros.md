@@ -1,6 +1,6 @@
-# XWR Ros Node
+# XWR ROS Node
 
-A ROS 2 node wrapping the XWR data collection pipeline can be found in the [xwr_ros](https://github.com/radarML/xwr_ros) package.
+A ROS 2 node wrapping the XWR data collection pipeline can be found in the [`xwr_ros`](https://github.com/RadarML/xwr_ros) package.
 
 ## Setup
 
@@ -14,7 +14,7 @@ A ROS 2 node wrapping the XWR data collection pipeline can be found in the [xwr_
     pip install uv colcon-uv
     ```
 
-3. After cloning the repository, build the ROS node with colcon-uv:
+3. After cloning [`xwr_ros`](https://github.com/RadarML/xwr_ros) into your ROS 2 workspace (or adding it as a submodule), build the ROS node with colcon-uv:
     ```sh
     UV_VENV_CLEAR=1 UV_LINK_MODE=symlink colcon build
     ```
@@ -22,9 +22,9 @@ A ROS 2 node wrapping the XWR data collection pipeline can be found in the [xwr_
 
 ## Run the ROS node
 
-Increase [socket receive buffer size](https://radarml.github.io/xwr/usage/#receive-socket-buffer) before starting streaming:
+Increase the [socket receive buffer size](usage.md#receive-socket-buffer) before starting streaming:
 ```sh
-sudo sysctl -w net.core.rmem_max=6291456  # 6.3 MiB = 8 frames @ 786k each.
+sudo sysctl -w net.core.rmem_max=6291456  # 6.3 MiB = 8 frames @ 786KiB each.
 ```
 
 Then, launch the streaming node with the config file.
@@ -39,7 +39,7 @@ To run signal processing visualization:
 ros2 run xwr_ros process
 ```
 
-- This will publish range_doppler and range_azimuth visualization images to `/xwr/range_doppler` and  `/xwr/range_azimuth`.
+- This will publish range_doppler and range_azimuth visualization images to `/xwr/range_doppler` and `/xwr/range_azimuth`.
 
 ## Messages
 
@@ -56,14 +56,14 @@ float32 ramp_end_time   # us
 float32 tx_start_time   # us
 float32 freq_slope      # MHz/us
 uint16 adc_samples      # number of samples per chirp
-uint16 sample_rate      # KHz
-uint16 frame_length     # number of chirp loop
+uint16 sample_rate      # kHz
+uint16 frame_length     # number of chirps per frame
 ```
 
 **IQ**:
 ```
 std_msgs/Header header
 
-std_msgs/Int16MultiArray iq # raw data contain chirp layout
+std_msgs/Int16MultiArray iq     # raw data
 bool complete
 ```
