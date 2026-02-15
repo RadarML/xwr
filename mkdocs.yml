@@ -9,6 +9,7 @@ nav:
       - Hardware Setup: setup.md
       - Development: develop.md
     - High Level API: system.md
+    - ROS Node: ros.md
     - Firmware: firmware.md
   - Radar Processing:
     - rsp: rsp/index.md
