@@ -16,6 +16,11 @@
     Since pytorch is not declared as a required dependency, you will also need
     to install `torch` yourself (or install the `torch` extra with
     `pip install xwr[torch]`).
+
+!!! tip
+
+    The RSP implementations in this submodule support automatic differentiation
+    in pytorch.
 """
 
 from jaxtyping import install_import_hook

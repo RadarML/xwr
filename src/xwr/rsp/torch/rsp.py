@@ -119,13 +119,11 @@ class AWR1843Boost(RSPTorch):
             raise ValueError(
                 f"Expected (tx, rx)=3x4, got tx={tx} and rx={rx}.")
 
-        mimo = torch.zeros(
-            (batch, doppler, 2, 8, range),
-            dtype=torch.complex64, device=rd.device)
-        mimo[:, :, 0, 2:6, :] = rd[:, :, 1, :, :]
-        mimo[:, :, 1, 0:4, :] = rd[:, :, 0, :, :]
-        mimo[:, :, 1, 4:8, :] = rd[:, :, 2, :, :]
-        return mimo
+        zeros = torch.zeros(
+            (batch, doppler, 2, range), dtype=rd.dtype, device=rd.device)
+        el_0 = torch.cat([zeros, rd[:, :, 1, :, :], zeros], dim=2)
+        el_1 = torch.cat([rd[:, :, 0, :, :], rd[:, :, 2, :, :]], dim=2)
+        return torch.stack([el_0, el_1], dim=2)
 
 
 
