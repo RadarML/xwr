@@ -24,11 +24,12 @@ See our [documentation site](https://radarml.github.io/xwr/) for more details, s
 > [!IMPORTANT] 
 > Supported Devices:
 >    - AWR1843 Family: AWR1843Boost, AWR1843AOPEVM
->    - AWR1642
+>    - AWR1642Boost
+>    - AWR2944EVM
+>    - AWRL6844EVM
 >
 > WIP:
 >    - AWR2544LOPEVM
->    - AWR2944
 
 ## Install
 

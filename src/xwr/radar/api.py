@@ -289,6 +289,118 @@ class AWR2944(XWRBase):
         self.send(cmd)
 
 
+class AWRL6844(XWRBase):
+    """Interface implementation for the TI AWRL6844.
+
+    !!! info "Supported devices"
+
+        - AWRL6844EVM
+
+    Args:
+        port: radar control serial port; typically the lower numbered one.
+        baudrate: baudrate of control port.
+        name: human-readable name.
+    """
+
+    _PORT_NAME = r'XDS110'
+    NUM_TX = 4
+    NUM_RX = 4
+    BYTES_PER_SAMPLE = 2
+
+
+    def __init__(
+        self, port: str | None = None, baudrate: int = 115200,
+        name: str = "AWRL6844"
+    ) -> None:
+        super().__init__(port=port, baudrate=baudrate, name=name)
+
+    def stop(self) -> None:
+        self.send("sensorStop 0")
+        self.log.info("Radar Stopped.")
+
+    def setup(
+        self, frequency: float = 77.0, idle_time: float = 110.0,
+        adc_start_time: float = 4.0, ramp_end_time: float = 56.0,
+        tx_start_time: float = 1.0, freq_slope: float = 70.006,
+        adc_samples: int = 256, sample_rate: int = 5000,
+        frame_length: int = 64, frame_period: float = 100.0
+    ) -> None:
+        """Configure radar.
+
+        Args:
+            frequency: chirp start frequency, in GHz.
+            idle_time: chirp idle time; in us.
+            adc_start_time: ADC start offset, in us.
+            ramp_end_time: chirp ramp end time; in us.
+            tx_start_time: TX start time offset; in us.
+            freq_slope: chirp frequency slope; in MHz/us.
+            adc_samples: number of ADC samples per chirp.
+            sample_rate: ADC sampling rate; in ksps.
+            frame_length: bursts per frame (= chirps per TX antenna per frame).
+                Must be a power of 2.
+            frame_period: time between the start of each frame; in ms.
+        """
+        assert frame_length & (frame_length - 1) == 0
+
+        self.port.write('\n'.encode('ascii'))
+        self._wait_for_response()
+
+        self.stop()
+
+        self.send("channelCfg 153 255 0")
+        self.send("apllFreqShiftEn 0")
+
+        # digOutputSampRate: clock divider for the 400 MHz APLL.
+        # ADC rate (Msps) = 400 / (2 * digOutputSampRate), so:
+        # digOutputSampRate = 400_000 / (2 * sample_rate_ksps) = 200_000 // sample_rate
+        dig_output_samp_rate = 200_000 // sample_rate
+
+        # chirpAdcStartTime takes skip samples (int), not µs.
+        adc_start_skip = round(adc_start_time * sample_rate / 1000)
+
+        # burstPeriodus: repetition interval for one burst of NUM_TX chirps.
+        # Minimum = NUM_TX * (idle_time + ramp_end_time).
+        burst_period = self.NUM_TX * (idle_time + ramp_end_time)
+
+        # chirpTxMimoPatSel=4 is MIMO_TDM_PATTERN (one TX per chirp, cycling).
+        self.send(
+            f"chirpComnCfg {dig_output_samp_rate} 0 0 "
+            f"{adc_samples} 1 {ramp_end_time} 0")
+        self.send(
+            f"chirpTimingCfg {idle_time} {adc_start_skip} "
+            f"{tx_start_time} {freq_slope} {frequency}")
+
+        self.send("adcDataDitherCfg  1")
+
+        # numOfChirpsInBurst=NUM_TX cycles through all TX antennas per burst.
+        # numOfBurstsInFrame=frame_length gives frame_length chirps per TX.
+        # Constraint: (NUM_TX * frame_length) % NUM_TX == 0 always holds.
+        self.send(
+            f"frameCfg {frame_length} 0 {burst_period} "
+            f"1 {frame_period} 0")
+
+        self.send("gpAdcMeasConfig 0 0")
+        self.send("guiMonitor 1 1 0 0 0 1")
+        self.send("cfarProcCfg 0 2 8 4 3 0 9.0 0")
+        self.send("cfarProcCfg 1 2 4 2 2 1 9.0 0")
+        self.send("cfarFovCfg 0 0.25 9.0")
+        self.send("cfarFovCfg 1 -20.16 20.16")
+        self.send("aoaProcCfg 64 64")
+        self.send("aoaFovCfg -60 60 -60 60")
+        self.send("clutterRemoval 0")
+
+        self.send("runtimeCalibCfg 1")
+        self.send("antGeometryBoard xWRL6844EVM")
+        self.send("adcLogging 1")
+        self.send("lowPowerCfg 0")
+
+        self.log.info("Radar setup complete.")
+
+    def start(self, reconfigure: bool = True) -> None:
+        self.send("sensorStart 0 0 0 0")
+        self.log.info("Radar setup complete.")
+
+
 class AWR2544(XWRBase):
     """Interface implementation for the TI AWR2544 family.
 

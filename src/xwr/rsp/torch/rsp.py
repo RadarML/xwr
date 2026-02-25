@@ -169,6 +169,55 @@ class AWR1642Boost(RSPTorch):
         return rd.reshape(batch, doppler, 1, -1, range)
 
 
+class AWRL6844EVM(RSPTorch):
+    """Radar Signal Processing for AWRL6844.
+
+    !!! info "Antenna Array"
+
+        The AWRL6844 has a 4x4 MIMO virtual array with λ/2 spacing:
+        ```
+        2-1 2-4 1-1 1-4   ^
+        2-2 2-3 1-2 1-3   | Up
+        3-1 3-4 4-1 4-4
+        3-2 3-3 4-2 4-3 (TX-RX pairs)
+        ```
+
+    !!! info "TX Phase Relationship"
+
+        TX1 and TX3 are in phase with each other. TX2 and TX4 are also in
+        phase with each other, but are 180° out of phase with TX1 and TX3.
+        Their contributions to the virtual array are negated accordingly.
+
+        Source: Table 3-1, *EVM User's Guide: AWRL6844EVM IWRL6844EVM*.
+
+    Args:
+        window: whether to apply a hanning window. If `bool`, the same option
+            is applied to all axes. If `dict`, specify per axis with keys
+            "range", "doppler", "azimuth", and "elevation".
+        size: target size for each axis after zero-padding, specified by axis.
+            If an axis is not specified, it is not padded.
+    """
+
+    SAMPLE_TYPE = "I"
+
+    def mimo_virtual_array(
+        self, rd: Complex64[Tensor, "#batch doppler tx rx range"]
+    ) -> Complex64[Tensor, "#batch doppler el az range"]:
+        _, _, tx, rx, _ = rd.shape
+        if tx != 4 or rx != 4:
+            raise ValueError(
+                f"Expected (tx, rx)=4x4, got tx={tx} and rx={rx}.")
+
+        tx_idx = torch.tensor(
+            [[1, 1, 0, 0], [1, 1, 0, 0], [2, 2, 3, 3], [2, 2, 3, 3]])
+        rx_idx = torch.tensor(
+            [[0, 3, 0, 3], [1, 2, 1, 2], [0, 3, 0, 3], [1, 2, 1, 2]])
+        phase = torch.tensor(
+            [[-1, -1, 1, 1], [-1, -1, 1, 1], [1, 1, -1, -1], [1, 1, -1, -1]],
+            dtype=torch.float32, device=rd.device)
+        return rd[:, :, tx_idx, rx_idx, :] * phase[None, None, :, :, None]
+
+
 class AWR2944EVM(RSPTorch):
     """Radar Signal Processing for AWR2944EVM.
 

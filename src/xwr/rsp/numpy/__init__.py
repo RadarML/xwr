@@ -28,6 +28,7 @@ with install_import_hook("xwr.rsp.numpy", "beartype.beartype"):
     from .rsp import (
         AWR1843AOP,
         AWR2944EVM,
+        AWRL6844EVM,
         AWR1642Boost,
         AWR1843Boost,
         RSPNumpy,
@@ -39,5 +40,6 @@ __all__ = [
     "AWR1843AOP",
     "AWR1843Boost",
     "AWR2944EVM",
+    "AWRL6844EVM",
     "RSPNumpy",
 ]
