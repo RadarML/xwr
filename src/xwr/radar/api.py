@@ -186,7 +186,7 @@ class AWR2944(XWRBase):
 
     !!! info "Supported devices"
 
-        - AWR2944AOPEVM
+        - AWR2944EVM
 
     Args:
         port: radar control serial port; typically the lower numbered one.

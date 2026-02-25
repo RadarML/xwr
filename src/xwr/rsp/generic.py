@@ -225,7 +225,7 @@ class RSP(ABC, Generic[TArray]):
 
     @abstractmethod
     def fft(
-        self, array: Complex64[TArray, "..."],
+        self, array: Complex64[TArray, "..."] | Float32[TArray, "..."],
         axes: tuple[int, ...],
         size: tuple[int, ...] | None = None,
         shift: tuple[int, ...] | None = None
@@ -240,7 +240,10 @@ class RSP(ABC, Generic[TArray]):
             shift: Axes to shift after FFT, if any.
 
         Returns:
-            FFT of the input array along the specified axes.
+            FFT of the input array along the specified axes. If the input
+                array is real-valued, the output is the non-negative frequency
+                terms of the FFT along the specified axes (with length
+                `n // 2 + 1`).
         """
         ...
 

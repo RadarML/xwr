@@ -114,8 +114,8 @@ class APIMixins:
         """
         assert startFreq in {76.0, 77.0}
         # TODO: check these by radar
-        # e.g. 1843 is 100, 12500
-        # 2944 is 250, 45000 (sec 7.8, RF Specifications)
+        # AWR1843 is 100, 12500
+        # AWR2944 is 250, 45000 (sec 7.8, RF Specifications)
         # assert freqSlopeConst < 100.0
         # assert digOutSampleRate < 12500
 
