@@ -4,11 +4,94 @@ from typing import cast
 
 import numpy as np
 import torch
-from jaxtyping import Float32
+from jaxtyping import Float, Float32
+from torch import Tensor
 from torchvision import transforms
 
 from . import backend
 from .backend import TArray
+
+
+def msc_from_iq(
+    iq: Float[Tensor, "... 2"], eps: float = 1e-6
+) -> Float[Tensor, "... 3"]:
+    """Convert `(real, imaginary)` to `(magnitude, sin, cosine)`.
+
+    !!! warning
+
+        If `iq` is close to zero, the sin and cosine (i.e., normalized
+        real/imaginary parts) may not necessarily have a norm of `1.0`.
+
+    Args:
+        iq: input complex data, with a trailing `[real, imaginary]` channel.
+        eps: small value to avoid division by zero.
+
+    Returns:
+        3-channel `(magnitude, sin, cosine)` representation.
+    """
+    magnitude = (iq[..., 0]**2 + iq[..., 1]**2)**0.5
+    return torch.stack([
+        magnitude,
+        iq[..., 0] / torch.clamp(magnitude, min=eps),
+        iq[..., 1] / torch.clamp(magnitude, min=eps)
+    ], dim=-1)
+
+
+def iq_from_msc(
+    msc: Float[Tensor, "... 3"]
+) -> Float[Tensor, "... 2"]:
+    """Convert `(magnitude, sin, cosine)` to `(real, imaginary)`.
+
+    !!! info
+
+        The sin and cosine (i.e., normalized real/imaginary parts) are not
+        required to have a norm of `1.0`.
+
+    Args:
+        msc: input 3-channel `(magnitude, sin, cosine)` representation.
+
+    Returns:
+        2-channel `(real, imaginary)` representation.
+    """
+    magnitude = msc[..., 0]
+    norm = (msc[..., 1]**2 + msc[..., 2]**2)**0.5
+    return torch.stack([
+        magnitude * msc[..., 1] / norm,
+        magnitude * msc[..., 2] / norm
+    ], dim=-1)
+
+
+def mp_from_iq(
+    iq: Float[Tensor, "... 2"]
+) -> Float[Tensor, "... 2"]:
+    """Convert `(real, imaginary)` to `(magnitude, phase angle)`.
+
+    Args:
+        iq: input 2-channel `(real, imaginary)` representation.
+
+    Returns:
+        2-channel `(magnitude, phase angle)` representation.
+    """
+    magnitude = (iq[..., 0]**2 + iq[..., 1]**2)**0.5
+    phase = torch.atan2(iq[..., 1], iq[..., 0])
+    return torch.stack([magnitude, phase], dim=-1)
+
+
+def iq_from_mp(
+    mp: Float[Tensor, "... 2"]
+) -> Float[Tensor, "... 2"]:
+    """Convert `(magnitude, phase angle)` to `(real, imaginary)`.
+
+    Args:
+        mp: input 2-channel `(magnitude, phase angle)` representation.
+
+    Returns:
+        2-channel `(real, imaginary)` representation.
+    """
+    return torch.stack([
+        mp[..., 0] * torch.cos(mp[..., 1]),
+        mp[..., 0] * torch.sin(mp[..., 1])
+    ], dim=-1)
 
 
 def _wrap(
@@ -84,6 +167,14 @@ def resize(
         supports antialiasing, with `skimage.transform.resize` being
         particularly slow.
 
+    !!! warning
+
+        `resize` requires the following:
+
+        - The doppler resolution is always even.
+        - `speed_scale * n_doppler >= 2`.
+        - `range_scale * n_range >= 1`.
+
     Type Parameters:
         - `TArray`: array type; `np.ndarray` or `torch.Tensor`.
 
@@ -99,6 +190,12 @@ def resize(
     range_out_dim = int(range_scale * Nr)
     speed_out_dim = 2 * (int(speed_scale * Nd) // 2)
 
+    assert Nd % 2 == 0, f"Doppler dim {Nd} must be even."
+    assert int(speed_out_dim) >= 2, (
+        f"Doppler dim {Nd} too small for scale {speed_scale}")
+    assert int(range_out_dim) >= 1, (
+        f"Range dim {Nr} too small for scale {range_scale}")
+
     if range_out_dim != Nr or speed_out_dim != Nd:
         resized = _resize(spectrum, nd=speed_out_dim, nr=range_out_dim)
 
@@ -108,7 +205,7 @@ def resize(
         # Downsample -> zero pad far ranges (high indices)
         else:
             pad = _zeros(
-                (*spectrum.shape[:-1], Nr - range_out_dim), like=resized)
+                (*resized.shape[:-1], Nr - range_out_dim), like=resized)
             resized = backend.concatenate([resized, pad], axis=-1)
 
         # Upsample -> wrap

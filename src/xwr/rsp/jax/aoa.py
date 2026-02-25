@@ -122,7 +122,7 @@ class PointCloud:
 
         x = r_grid * jnp.cos(-ang_a) * jnp.cos(ang_e)
         y = r_grid * jnp.sin(-ang_a) * jnp.cos(ang_e)
-        z = r_grid * jnp.sin(-ang_e)
+        z = r_grid * jnp.sin(ang_e)
         v = d_grid
 
         pc_mask = jnp.logical_and(mask, mask_ang)

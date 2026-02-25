@@ -65,8 +65,9 @@ with install_import_hook("xwr.nn", "beartype.beartype"):
         PhaseVec,
         Representation,
     )
-    from .utils import resize
+    from .utils import iq_from_mp, iq_from_msc, mp_from_iq, msc_from_iq, resize
 
 __all__ = [
-    "resize", "ComplexParts", "Magnitude", "PhaseAngle", "PhaseVec",
+    "resize", "iq_from_mp", "mp_from_iq", "iq_from_msc", "msc_from_iq",
+    "ComplexParts", "Magnitude", "PhaseAngle", "PhaseVec",
     "Representation"]
