@@ -24,13 +24,14 @@ from jaxtyping import install_import_hook
 
 with install_import_hook("xwr.rsp.jax", "beartype.beartype"):
     from .aoa import PointCloud
-    from .rsp import AWR1843AOP, AWR1642Boost, AWR1843Boost, RSPJax
+    from .rsp import AWR1843AOP, AWR2944EVM, AWR1642Boost, AWR1843Boost, RSPJax
     from .spectrum import CFAR, CFARCASO, CalibratedSpectrum
 
 __all__ = [
     "AWR1642Boost",
     "AWR1843AOP",
     "AWR1843Boost",
+    "AWR2944EVM",
     "RSPJax",
     "CFAR",
     "CFARCASO",

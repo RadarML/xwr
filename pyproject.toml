@@ -7,7 +7,7 @@ allow-direct-references = true
 
 [project]
 name = "xwr"
-version = "0.3.7"
+version = "0.4.0"
 authors = [
   { name="Tianshu Huang", email="tianshu2@andrew.cmu.edu" },
 ]
@@ -62,7 +62,7 @@ Documentation = "https://radarml.github.io/xwr"
 Issues = "https://github.com/RadarML/xwr/issues"
 
 [tool.ruff]
-line-length = 80
+line-length = 100
 indent-width = 4
 
 [tool.ruff.lint]

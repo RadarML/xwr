@@ -26,8 +26,25 @@ def _iiqq_int16(shape):
 SHAPE = {
     "AWR1843AOP": (2, 4, 3, 4, 8),
     "AWR1843Boost": (2, 4, 3, 4, 8),
-    "AWR1642Boost": (2, 4, 2, 4, 8)
+    "AWR1642Boost": (2, 4, 2, 4, 8),
+    "AWR2944EVM": (2, 4, 4, 4, 16),
 }
+
+
+def _i_float32(shape):
+    rng = np.random.default_rng()
+    return rng.random(size=shape).astype(np.float32)
+
+
+AWR2944_PARAMS = [
+    (False, {}),
+    (True, {}),
+    (True, {"azimuth": 24}),
+    (True, {"doppler": 8}),
+    (True, {"range": 16}),
+    (True, {"elevation": 4}),
+    ({"range": True, "doppler": True}, {}),
+]
 
 PARAMS = [
     (False, {}, "AWR1843AOP"),
@@ -61,6 +78,51 @@ def test_numpy_basic():
 
     awr1642 = rspn.AWR1642Boost(window=False, size={})
     assert awr1642(data[:, :, :2]).shape == (2, 4, 1, 8, 8)
+
+    # AWR2944EVM: I-only input; range bins = input_range // 2 + 1 = 9
+    data = _i_float32(SHAPE["AWR2944EVM"])
+    awr2944 = rspn.AWR2944EVM(window=False, size={})
+    assert awr2944(data).shape == (2, 4, 2, 12, 9)
+
+
+@pytest.mark.parametrize("window,size", AWR2944_PARAMS)
+def test_jax_awr2944(window, size):
+    """Test jax vs numpy RSP for AWR2944EVM (I-only data)."""
+    rsp_numpy = rspn.AWR2944EVM(window=window, size=size)
+    rsp_jax = rspj.AWR2944EVM(window=window, size=size)
+
+    data = _i_float32(SHAPE["AWR2944EVM"])
+    numpy_result = rsp_numpy(data)
+    jax_result = rsp_jax(jnp.array(data))
+
+    assert np.allclose(numpy_result, np.array(jax_result), atol=1e-4)
+
+
+@pytest.mark.parametrize("window,size", AWR2944_PARAMS)
+def test_torch_awr2944(window, size):
+    """Test torch vs numpy RSP for AWR2944EVM (I-only data)."""
+    rsp_numpy = rspn.AWR2944EVM(window=window, size=size)
+    rsp_torch = rspt.AWR2944EVM(window=window, size=size)
+
+    data = _i_float32(SHAPE["AWR2944EVM"])
+    numpy_result = rsp_numpy(data)
+    torch_result = rsp_torch(torch.from_numpy(data))
+
+    assert np.allclose(numpy_result, torch_result.numpy(), atol=1e-4)
+
+
+def test_torch_awr2944_backward():
+    """Test that gradients flow through AWR2944EVM in torch."""
+    rng = np.random.default_rng()
+    data = torch.from_numpy(
+        rng.random(SHAPE["AWR2944EVM"]).astype(np.float32)
+    ).requires_grad_(True)
+
+    result = rspt.AWR2944EVM()(data)
+    result.abs().sum().backward()
+
+    assert data.grad is not None
+    assert data.grad.shape == data.shape
 
 
 @pytest.mark.parametrize("window,size,radar", PARAMS)

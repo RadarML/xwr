@@ -3,7 +3,7 @@
 from typing import Literal
 
 from . import defines
-from .base import XWRBase, XWRError
+from .base import XWRBase
 
 # NOTE: We ignore a few naming rules to maintain consistency with TI's naming.
 # ruff: noqa: N802, N803
@@ -182,6 +182,17 @@ class AWR1642(XWRBase):
 
 
 class AWR2944(XWRBase):
+    """Interface implementation for the TI AWR2944.
+
+    !!! info "Supported devices"
+
+        - AWR2944AOPEVM
+
+    Args:
+        port: radar control serial port; typically the lower numbered one.
+        baudrate: baudrate of control port.
+        name: human-readable name.
+    """
 
     _PORT_NAME = r'XDS110'
     NUM_TX = 4

@@ -4,7 +4,7 @@ from abc import ABC
 
 import numpy as np
 import torch
-from jaxtyping import Complex64, Shaped
+from jaxtyping import Complex64, Float32, Shaped
 from torch import Tensor
 
 from xwr.rsp import RSP
@@ -22,11 +22,15 @@ class RSPTorch(RSP[Tensor], ABC):
     """
 
     def fft(
-        self, array: Complex64[Tensor, "..."], axes: tuple[int, ...],
+        self, array: Complex64[Tensor, "..."] | Float32[Tensor, "..."],
+        axes: tuple[int, ...],
         size: tuple[int, ...] | None = None,
         shift: tuple[int, ...] | None = None
     ) -> Complex64[Tensor, "..."]:
-        fftd = torch.fft.fftn(array, s=size, dim=axes)
+        if array.dtype == torch.float32:
+            fftd = torch.fft.rfftn(array, s=size, dim=axes)
+        else:
+            fftd = torch.fft.fftn(array, s=size, dim=axes)
         if shift is None:
             return fftd
         else:
@@ -49,14 +53,14 @@ class RSPTorch(RSP[Tensor], ABC):
 
     @staticmethod
     def hann(
-        iq: Complex64[Tensor, "..."], axis: int
-    ) -> Complex64[Tensor, "..."]:
-        hann = np.hanning(iq.shape[axis] + 2).astype(np.float32)[1:-1]
-        broadcast: list[None | slice] = [None] * iq.ndim
+        x: Complex64[Tensor, "..."] | Float32[Tensor, "..."], axis: int
+    ) -> Complex64[Tensor, "..."] | Float32[Tensor, "..."]:
+        hann = np.hanning(x.shape[axis] + 2).astype(np.float32)[1:-1]
+        broadcast: list[None | slice] = [None] * x.ndim
         broadcast[axis] = slice(None)
         window = torch.from_numpy(
-            (hann / np.mean(hann))[tuple(broadcast)]).to(iq.device)
-        return iq * window
+            (hann / np.mean(hann))[tuple(broadcast)]).to(x.device)
+        return x * window
 
 
 class AWR1843AOP(RSPTorch):
@@ -119,14 +123,11 @@ class AWR1843Boost(RSPTorch):
             raise ValueError(
                 f"Expected (tx, rx)=3x4, got tx={tx} and rx={rx}.")
 
-        mimo = torch.zeros(
-            (batch, doppler, 2, 8, range),
-            dtype=torch.complex64, device=rd.device)
-        mimo[:, :, 0, 2:6, :] = rd[:, :, 1, :, :]
-        mimo[:, :, 1, 0:4, :] = rd[:, :, 0, :, :]
-        mimo[:, :, 1, 4:8, :] = rd[:, :, 2, :, :]
-        return mimo
-
+        zeros = torch.zeros(
+            (batch, doppler, 2, range), dtype=rd.dtype, device=rd.device)
+        el_0 = torch.cat([zeros, rd[:, :, 1, :, :], zeros], dim=2)
+        el_1 = torch.cat([rd[:, :, 0, :, :], rd[:, :, 2, :, :]], dim=2)
+        return torch.stack([el_0, el_1], dim=2)
 
 
 class AWR1642Boost(RSPTorch):
@@ -166,3 +167,87 @@ class AWR1642Boost(RSPTorch):
                     f"Expected (tx, rx)=2x4, got tx={tx} and rx={rx}.")
 
         return rd.reshape(batch, doppler, 1, -1, range)
+
+
+class AWR2944EVM(RSPTorch):
+    """Radar Signal Processing for AWR2944EVM.
+
+    !!! info "Antenna Array"
+
+        The AWR2944EVM has a virtual array on a 2x12 grid:
+        ```
+                2-1 2-2 2-3 2-4
+        1-1 1-2 1-3 1-4 3-1 3-2 3-3 3-4 4-1 4-2 4-3 4-4
+        ```
+        The horizontal spacing is 1/2 wavelength, and the vertical spacing is
+        0.8 wavelength.
+
+    Args:
+        window: whether to apply a hanning window. If `bool`, the same option
+            is applied to all axes. If `dict`, specify per axis with keys
+            "range", "doppler", "azimuth", and "elevation".
+        size: target size for each axis after zero-padding, specified by axis.
+            If an axis is not spacified, it is not padded.
+    """
+
+    SAMPLE_TYPE = "I"
+
+    def mimo_virtual_array(
+        self, rd: Complex64[Tensor, "#batch doppler tx rx range"]
+    ) -> Complex64[Tensor, "#batch doppler el az range"]:
+        batch, doppler, tx, rx, range = rd.shape
+        zeros_2 = torch.zeros(
+            (batch, doppler, 1, 2, range),
+            dtype=torch.complex64, device=rd.device)
+        zeros_6 = torch.zeros(
+            (batch, doppler, 1, 6, range),
+            dtype=torch.complex64, device=rd.device)
+        row0 = torch.cat([zeros_2, rd[:, :, 1:2, :, :], zeros_6], dim=3)
+        row1 = torch.cat(
+            [rd[:, :, 0:1, :, :], rd[:, :, 2:3, :, :], rd[:, :, 3:4, :, :]],
+            dim=3)
+        return torch.cat([row0, row1], dim=2)
+
+    def elevation_azimuth(
+        self, rd: Complex64[Tensor, "#batch doppler tx rx range"]
+    ) -> Complex64[Tensor, "#batch doppler el az range"]:
+        """Calculate elevation-azimuth spectrum from range-doppler spectrum.
+
+        !!! warning
+
+            Special treatment is needed for the AWR2944EVM since the two
+            rows of virtual elements are 0.8 wavelength apart instead of
+            0.5. We compute the DTFT along the elevation axis with the
+            steering matrix corresponding to the 0.8 lambda spacing.
+
+        Args:
+            rd: range-doppler spectrum.
+
+        Returns:
+            Computed elevation-azimuth spectrum, with windowing and padding if
+                specified.
+        """
+        mimo = self.mimo_virtual_array(rd)
+
+        if self.window.get("elevation", self._default_window):
+            mimo = self.hann(mimo, 2)
+        if self.window.get("azimuth", self._default_window):
+            mimo = self.hann(mimo, 3)
+
+        az_size = self.size.get("azimuth", mimo.shape[3])
+        spectrum = self.fft(mimo, axes=(3,), shift=(3,), size=(az_size,))
+
+        el_size = self.size.get("elevation", mimo.shape[2])
+        sin_theta = torch.linspace(-1, 1, el_size, device=rd.device)
+        el_elements = torch.arange(
+            mimo.shape[2], dtype=torch.float32, device=rd.device)
+        phases = (-2j * torch.pi * 0.8
+                  * torch.outer(sin_theta, el_elements).to(torch.complex64))
+        steering_matrix = torch.exp(phases)
+
+        el_az_spectrum = torch.einsum(
+            'bdear,ke->bdkar',
+            spectrum, steering_matrix
+        )
+
+        return el_az_spectrum

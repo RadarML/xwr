@@ -20,11 +20,15 @@ class RSPJax(RSP[Array], ABC):
     """
 
     def fft(
-        self, array: Complex64[Array, "..."], axes: tuple[int, ...],
+        self, array: Complex64[Array, "..."] | Float32[Array, "..."],
+        axes: tuple[int, ...],
         size: tuple[int, ...] | None = None,
         shift: tuple[int, ...] | None = None
     ) -> Complex64[Array, "..."]:
-        fftd = jnp.fft.fftn(array, s=size, axes=axes)
+        if array.dtype == jnp.float32:
+            fftd = jnp.fft.rfftn(array, s=size, axes=axes)
+        else:
+            fftd = jnp.fft.fftn(array, s=size, axes=axes)
         if shift is None:
             return fftd
         else:
@@ -47,12 +51,12 @@ class RSPJax(RSP[Array], ABC):
 
     @staticmethod
     def hann(
-        iq: Complex64[Array, "..."], axis: int
-    ) -> Complex64[Array, "..."]:
-        hann = jnp.hanning(iq.shape[axis] + 2)[1:-1]
-        broadcast: list[None | slice] = [None] * iq.ndim
+        x: Complex64[Array, "..."] | Float32[Array, "..."], axis: int
+    ) -> Complex64[Array, "..."] | Float32[Array, "..."]:
+        hann = jnp.hanning(x.shape[axis] + 2)[1:-1]
+        broadcast: list[None | slice] = [None] * x.ndim
         broadcast[axis] = slice(None)
-        return iq * (hann / jnp.mean(hann))[tuple(broadcast)]
+        return x * (hann / jnp.mean(hann))[tuple(broadcast)]
 
     def azimuth_aoa(
         self, iq: Complex64[Array, "batch slow tx rx fast"]
@@ -75,6 +79,7 @@ class RSPJax(RSP[Array], ABC):
         az_spec: Float32[Array, "batch doppler az range"] = (
             jnp.mean(jnp.abs(spec), axis=2))
         return jnp.argmax(az_spec, axis=2)
+
 
 class AWR1843AOP(RSPJax):
     """Radar Signal Processing for AWR1843AOP.
@@ -203,3 +208,81 @@ class AWR1642Boost(RSPJax):
                     f"Expected (tx, rx)=2x4, got tx={tx} and rx={rx}.")
 
         return rd.reshape(batch, doppler, 1, -1, range)
+
+
+class AWR2944EVM(RSPJax):
+    """Radar Signal Processing for AWR2944EVM.
+
+    !!! info "Antenna Array"
+
+        The AWR2944EVM has a virtual array on a 2x12 grid:
+        ```
+                2-1 2-2 2-3 2-4
+        1-1 1-2 1-3 1-4 3-1 3-2 3-3 3-4 4-1 4-2 4-3 4-4
+        ```
+        The horizontal spacing is 1/2 wavelength, and the vertical spacing is
+        0.8 wavelength.
+
+    Args:
+        window: whether to apply a hanning window. If `bool`, the same option
+            is applied to all axes. If `dict`, specify per axis with keys
+            "range", "doppler", "azimuth", and "elevation".
+        size: target size for each axis after zero-padding, specified by axis.
+            If an axis is not spacified, it is not padded.
+    """
+
+    SAMPLE_TYPE = "I"
+
+    def mimo_virtual_array(
+        self, rd: Complex64[Array, "#batch doppler tx rx range"]
+    ) -> Complex64[Array, "#batch doppler el az range"]:
+        batch, doppler, tx, rx, range = rd.shape
+        mimo = jnp.zeros(
+            (batch, doppler, 2, 12, range), dtype=jnp.complex64
+        ).at[:, :, 0, 2:6, :].set(rd[:, :, 1, :, :]
+        ).at[:, :, 1, 0:4, :].set(rd[:, :, 0, :, :]
+        ).at[:, :, 1, 4:8, :].set(rd[:, :, 2, :, :]
+        ).at[:, :, 1, 8:12, :].set(rd[:, :, 3, :, :])
+        return mimo
+
+    def elevation_azimuth(
+        self, rd: Complex64[Array, "#batch doppler tx rx range"]
+    ) -> Complex64[Array, "#batch doppler el az range"]:
+        """Calculate elevation-azimuth spectrum from range-doppler spectrum.
+
+        !!! warning
+
+            Special treatment is needed for the AWR2944EVM since the two
+            rows of virtual elements are 0.8 wavelength apart instead of
+            0.5. We compute the DTFT along the elevation axis with the
+            steering matrix corresponding to the 0.8 lambda spacing.
+
+        Args:
+            rd: range-doppler spectrum.
+
+        Returns:
+            Computed elevation-azimuth spectrum, with windowing and padding if
+                specified.
+        """
+        mimo = self.mimo_virtual_array(rd)
+
+        if self.window.get("elevation", self._default_window):
+            mimo = self.hann(mimo, 2)
+        if self.window.get("azimuth", self._default_window):
+            mimo = self.hann(mimo, 3)
+
+        az_size = self.size.get("azimuth", mimo.shape[3])
+        spectrum = self.fft(mimo, axes=(3,), shift=(3,), size=(az_size,))
+
+        el_size = self.size.get("elevation", mimo.shape[2])
+        sin_theta = jnp.linspace(-1, 1, el_size)
+        el_elements = jnp.arange(mimo.shape[2])
+        phases = -2j * jnp.pi * 0.8 * jnp.outer(sin_theta, el_elements)
+        steering_matrix = jnp.exp(phases).astype(jnp.complex64)
+
+        el_az_spectrum = jnp.einsum(
+            'bdear,ke->bdkar',
+            spectrum, steering_matrix, optimize=True
+        )
+
+        return el_az_spectrum

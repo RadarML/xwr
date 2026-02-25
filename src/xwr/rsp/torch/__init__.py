@@ -16,17 +16,28 @@
     Since pytorch is not declared as a required dependency, you will also need
     to install `torch` yourself (or install the `torch` extra with
     `pip install xwr[torch]`).
+
+!!! tip
+    The RSP implementations in this submodule support automatic differentiation
+    in pytorch.
 """
 
 from jaxtyping import install_import_hook
 
 with install_import_hook("xwr.rsp.torch", "beartype.beartype"):
-    from .rsp import AWR1843AOP, AWR1642Boost, AWR1843Boost, RSPTorch
+    from .rsp import (
+        AWR1843AOP,
+        AWR2944EVM,
+        AWR1642Boost,
+        AWR1843Boost,
+        RSPTorch,
+    )
 
 
 __all__ = [
     "AWR1642Boost",
     "AWR1843AOP",
     "AWR1843Boost",
+    "AWR2944EVM",
     "RSPTorch",
 ]
