@@ -196,13 +196,15 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 
 !!! warning
 
-    Flashing the AWR2544LOPEVM requires two jumper caps or wires in order to physically short the required pins. One of these jumpers must remain on the board to set it to functional mode.
+    Flashing the AWR2944EVM requires two jumper caps or wires in order to physically short the required pins. One of these jumpers must remain on the board to set it to functional mode.
 
-!!! danger "Requires External 12v Power"
+!!! warning "Requires External 12v Power"
 
     The AWR2944EVM requires external 12v power to operate, while the DCA1000EVM requires external 5v power.
     
-    !!! danger "Both power supplies have the same barrel jack size, and mixing them up will immediately destroy the DCA1000EVM."
+    ??? danger "Both power supplies have the same barrel jack size, and mixing them up will immediately destroy the DCA1000EVM."
+
+        Don't ask me how I know this!
 
     We recommend labeling the power supplies at the barrel jack end, as well as connecting the radar power supply first (so that if the radar does not power on, you know that you've mixed them up).
 

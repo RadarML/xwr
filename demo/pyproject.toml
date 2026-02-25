@@ -1,6 +1,6 @@
 [project]
 name = "xwr-demo"
-version = "0.3.3"
+version = "0.4.0"
 requires-python = ">=3.10"
 
 dependencies = [
@@ -18,7 +18,7 @@ rerun = [
     "tqdm >= 4.67.1",
     "abstract-dataloader >= 0.4.0",
     "jax[cuda12] >= 0.4.0",
-    "roverd[video]@git+ssh://git@github.com/RadarML/red-rover.git#subdirectory=format"
+    "roverd[video]@git+https://github.com/RadarML/red-rover.git#subdirectory=format"
 ]
 
 [tool.uv.sources]
