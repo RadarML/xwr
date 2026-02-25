@@ -41,6 +41,8 @@ def cli_main(
     logging.basicConfig(
         level=verbose, format="%(name)-12s  %(message)s", datefmt="[%H:%M:%S]",
         handlers=[RichHandler()])
+    logging.getLogger('matplotlib.font_manager').setLevel(logging.WARNING)
+
     log = logging.getLogger("XWRDemo")
 
     if config is None:
@@ -51,15 +53,23 @@ def cli_main(
     if device is not None:
         cfg["radar"]["device"] = device
 
+    awr = xwr.XWRSystem(**cfg)
+    rsp_inst = getattr(xwr_rsp, rsp)(window=False, size={"azimuth": 128})
+
+    if rsp_inst.SAMPLE_TYPE == "I":
+        Nr = cfg["radar"]["adc_samples"] // 2 + 1
+    else:
+        Nr = cfg["radar"]["adc_samples"]
+
     # Create a figure
     plt.ion()  # Enable interactive mode
     fig, axs = plt.subplots(1, 2)
 
     im1 = axs[0].imshow(
-        np.zeros((128, 128), dtype=np.float32),
+        np.zeros((Nr, cfg["radar"]["frame_length"]), dtype=np.float32),
         cmap="viridis", aspect='auto', origin='lower')
     im2 = axs[1].imshow(
-        np.zeros((128, 128), dtype=np.float32),
+        np.zeros((Nr, 128), dtype=np.float32),
         cmap="viridis", aspect='auto', origin='lower')
 
     axs[0].set_xlabel("Doppler")
@@ -67,9 +77,6 @@ def cli_main(
     axs[1].set_xlabel("Azimuth")
     axs[1].set_ylabel("Range")
     fig.tight_layout()
-
-    awr = xwr.XWRSystem(**cfg)
-    rsp_inst = getattr(xwr_rsp, rsp)(window=False, size={"azimuth": 128})
 
     try:
         for frame in awr.dstream(numpy=True):

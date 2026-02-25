@@ -31,8 +31,6 @@ To reduce dropped packets, the receive socket buffer size should also be increas
 ```sh
 RECV_BUF_SIZE=6291456  # 6.3 MiB = 8 frames @ 786k each.
 echo $RECV_BUF_SIZE | sudo tee /proc/sys/net/core/rmem_max
-# or
-sudo sysctl -w net.core.rmem_max=$RECV_BUF_SIZE
 ```
 
 !!! note
@@ -53,6 +51,17 @@ sudo chmod 777 /dev/ttyACM0  # or whatever port the radar is on.
 !!! warning
 
     This step may need to be repeated each time the radar is reconnected or rebooted.
+
+!!! tip
+
+    To avoid having to repeat this step, you can set up a udev rule to automatically set permissions for the radar's serial port when it is connected. Create a udev rule with the following content:
+
+    ``` title="/etc/udev/rules.d/99-xwr.rules"
+    KERNEL=="ttyUSB[0-9]*", MODE="0777"
+    KERNEL=="ttyACM[0-9]*", MODE="0777"
+    ```
+
+    Then reload the udev rules with `sudo udevadm control --reload-rules` and reconnect the radar.
 
 ## Radar Configuration
 

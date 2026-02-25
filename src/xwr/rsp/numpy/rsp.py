@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from typing import Literal
 
 import numpy as np
-from jaxtyping import Complex64, Shaped
+from jaxtyping import Complex64, Float32, Shaped
 from pyfftw import FFTW
 
 from xwr.rsp import RSP
@@ -30,10 +30,11 @@ class RSPNumpy(RSP[np.ndarray], ABC):
     ) -> None:
         super().__init__(window=window, size=size)
         self._fft_cache: dict[
-            tuple[tuple[int, ...], tuple[int, ...]], FFTW] = {}
+            tuple[tuple[int, ...], tuple[int, ...], np.dtype], FFTW] = {}
 
     def fft(
-        self, array: Complex64[np.ndarray, "..."], axes: tuple[int, ...],
+        self, array: Complex64[np.ndarray, "..."] | Float32[np.ndarray, "..."],
+        axes: tuple[int, ...],
         size: tuple[int, ...] | None = None,
         shift: tuple[int, ...] | None = None
     ) -> Complex64[np.ndarray, "..."]:
@@ -41,10 +42,15 @@ class RSPNumpy(RSP[np.ndarray], ABC):
             for axis, s in zip(axes, size):
                 array = self.pad(array, axis, s)
 
-        key = (array.shape, axes)
+        key = (array.shape, axes, array.dtype)
+        out_shape = array.shape
+        if array.dtype == np.float32:
+            out_shape = (*out_shape[:-1], out_shape[-1] // 2 + 1)
+
         if key not in self._fft_cache:
             self._fft_cache[key] = FFTW(
-                np.copy(array), np.zeros_like(array), axes=axes)
+                np.copy(array),
+                np.zeros(out_shape, dtype=np.complex64), axes=axes)
 
         fftd = self._fft_cache[key](array)
         return np.fft.fftshift(fftd, axes=shift) if shift else fftd
@@ -67,12 +73,13 @@ class RSPNumpy(RSP[np.ndarray], ABC):
 
     @staticmethod
     def hann(
-        iq: Complex64[np.ndarray, "..."], axis: int
-    ) -> Complex64[np.ndarray, "..."]:
-        hann = np.hanning(iq.shape[axis] + 2).astype(np.float32)[1:-1]
-        broadcast: list[None | slice] = [None] * iq.ndim
+        x: Complex64[np.ndarray, "..."] | Float32[np.ndarray, "..."],
+        axis: int
+    ) -> Complex64[np.ndarray, "..."] | Float32[np.ndarray, "..."]:
+        hann = np.hanning(x.shape[axis] + 2).astype(np.float32)[1:-1]
+        broadcast: list[None | slice] = [None] * x.ndim
         broadcast[axis] = slice(None)
-        return iq * (hann / np.mean(hann))[tuple(broadcast)]
+        return x * (hann / np.mean(hann))[tuple(broadcast)]
 
 
 class AWR1843AOP(RSPNumpy):
@@ -93,7 +100,7 @@ class AWR1843AOP(RSPNumpy):
             is applied to all axes. If `dict`, specify per axis with keys
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
-            If an axis is not spacified, it is not padded.
+            If an axis is not specified, it is not padded.
     """
 
     def mimo_virtual_array(
@@ -179,3 +186,81 @@ class AWR1642Boost(RSPNumpy):
                     f"Expected (tx, rx)=2x4, got tx={tx} and rx={rx}.")
 
         return rd.reshape(batch, doppler, 1, -1, range)
+
+
+class AWR2944EVM(RSPNumpy):
+    """Radar Signal Processing for AWR2944EVM.
+
+    !!! info "Antenna Array"
+
+        The AWR2944EVM has a virtual array on a 2x12 grid:
+        ```
+                2-1 2-2 2-3 2-4
+        1-1 1-2 1-3 1-4 3-1 3-2 3-3 3-4 4-1 4-2 4-3 4-4
+        ```
+        The horizontal spacing is 1/2 wavelength, and the vertical spacing is
+        0.8 wavelength.
+
+    Args:
+        window: whether to apply a hanning window. If `bool`, the same option
+            is applied to all axes. If `dict`, specify per axis with keys
+            "range", "doppler", "azimuth", and "elevation".
+        size: target size for each axis after zero-padding, specified by axis.
+            If an axis is not spacified, it is not padded.
+    """
+
+    SAMPLE_TYPE = "I"
+
+    def mimo_virtual_array(
+        self, rd: Complex64[np.ndarray, "#batch doppler tx rx range"]
+    ) -> Complex64[np.ndarray, "#batch doppler el az range"]:
+        batch, doppler, tx, rx, range = rd.shape
+        mimo = np.zeros((batch, doppler, 2, 12, range), dtype=np.complex64)
+        mimo[:, :, 0, 2:6, :] = rd[:, :, 1, :, :]
+        mimo[:, :, 1, 0:4, :] = rd[:, :, 0, :, :]
+        mimo[:, :, 1, 4:8, :] = rd[:, :, 2, :, :]
+        mimo[:, :, 1, 8:12, :] = rd[:, :, 3, :, :]
+
+        return mimo
+
+    def elevation_azimuth(
+        self, rd: Complex64[np.ndarray, "#batch doppler tx rx range"]
+    ) -> Complex64[np.ndarray, "#batch doppler el az range"]:
+        """Calculate elevation-azimuth spectrum from range-doppler spectrum.
+
+        !!! warning
+
+            Special treatment is needed for the AWR2944EVM since the two
+            rows of virtual elements are 0.8 wavelength apart instead of
+            0.5. We compute the DTFT along the elevation axis with the
+            steering matrix corresponding to the 0.8 lambda spacing.
+
+        Args:
+            rd: range-doppler spectrum.
+
+        Returns:
+            Computed elevation-azimuth spectrum, with windowing and padding if
+                specified.
+        """
+        mimo = self.mimo_virtual_array(rd)
+
+        if self.window.get("elevation", self._default_window):
+            mimo = self.hann(mimo, 2)
+        if self.window.get("azimuth", self._default_window):
+            mimo = self.hann(mimo, 3)
+
+        az_size = self.size.get("azimuth", mimo.shape[3])
+        spectrum = self.fft(mimo, axes=(3,), shift=(3,), size=(az_size,))
+
+        el_size = self.size.get("elevation", mimo.shape[2])
+        sin_theta = np.linspace(-1, 1, el_size)
+        el_elements = np.arange(mimo.shape[2])
+        phases = -2j * np.pi * 0.8 * np.outer(sin_theta, el_elements)
+        steering_matrix = np.exp(phases).astype(np.complex64)
+
+        el_az_spectrum = np.einsum(
+            'bdear,ke->bdkar',
+            spectrum, steering_matrix, optimize=True
+        )
+
+        return el_az_spectrum

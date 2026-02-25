@@ -38,16 +38,19 @@
     <div class="grid cards" markdown>
 
     - [:material-arrow-right: DCA1000EVM Capture Card](https://www.ti.com/tool/DCA1000EVM)
-    - [:material-arrow-right: AWR1843Boost](https://www.ti.com/tool/AWR1843BOOST)
+    - [:material-arrow-right: AWR1843Boost](https://www.ti.com/tool/AWR1843BOOST) / [IWR1843Boost](https://www.ti.com/tool/IWR1843BOOST)
     - [:material-arrow-right: AWR1843AOPEVM](https://www.ti.com/tool/AWR1843AOPEVM)
     - [:material-arrow-right: AWR1642Boost](https://www.ti.com/tool/AWR1642BOOST)
-    - :construction_site: WIP: AWR2544LOPEVM
+    - [:material-arrow-right: AWR2944EVM](https://www.ti.com/tool/AWR2944EVM)
+    - :construction_site: WIP: AWR2544LOPEVM, [AWRL6844](https://www.ti.com/product/AWRL6844)
 
     </div>
 
 !!! tip
 
     This list of supported radars is expanding, and we may add support for additional radars in the future! Feel free to leave an issue if you have a specific request.
+
+    - **v0.4.0**: Added support for the AWR2944EVM!
 
 ## Install
 

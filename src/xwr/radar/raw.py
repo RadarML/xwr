@@ -26,8 +26,7 @@ class APIMixins:
         self, modeType: defines.DFEMode = defines.DFEMode.LEGACY
     ) -> None:
         """Set frame data output mode."""
-        cmd = "dfeDataOutputMode {}".format(modeType.value)
-        self.send(cmd)
+        self.send(f"dfeDataOutputMode {modeType.value}")
 
     def channelCfg(
         self, rxChannelEn: int = 0b1111, txChannelEn: int = 0b101,
@@ -40,8 +39,7 @@ class APIMixins:
             txChannelEn: bit-masked tx channels to enable.
             cascading: must always be set to 0.
         """
-        cmd = "channelCfg {} {} {}".format(rxChannelEn, txChannelEn, cascading)
-        self.send(cmd)
+        self.send(f"channelCfg {rxChannelEn} {txChannelEn} {cascading}")
 
     def adcCfg(
         self, numADCBits: defines.ADCDepth = defines.ADCDepth.BIT16,
@@ -53,8 +51,7 @@ class APIMixins:
             numADCBits: ADC bit depth
             adcOutputFmt: real, complex, and whether to filter the image band.
         """
-        cmd = "adcCfg {} {}".format(numADCBits.value, adcOutputFmt.value)
-        self.send(cmd)
+        self.send(f"adcCfg {numADCBits.value} {adcOutputFmt.value}")
 
     def adcbufCfg(
         self, subFrameIdx: int = -1,
@@ -71,10 +68,10 @@ class APIMixins:
             chanInterleave: only non-interleaved (1) is supported.
             chirpThreshold: some kind of "ping-pong" demo parameter.
         """
-        cmd = "adcbufCfg {} {} {} {} {}".format(
-            subFrameIdx, 1 if adcOutputFmt == defines.ADCFormat.REAL else 0,
-            sampleSwap.value, chanInterleave, chirpThreshold)
-        self.send(cmd)
+        self.send(
+            f"adcbufCfg {subFrameIdx} "
+            f"{1 if adcOutputFmt == defines.ADCFormat.REAL else 0} "
+            f"{sampleSwap.value} {chanInterleave} {chirpThreshold}")
 
     def profileCfg(
         self, profileId: int = 0, startFreq: float = 77.0,
@@ -110,21 +107,23 @@ class APIMixins:
             freqSlopeConst: frequency slope ("ramp rate") in MHz/us; <100MHz/us.
             numAdcSamples: Number of ADC samples per chirp.
             digOutSampleRate: ADC sample rate in ksps (<12500); see
-                Table 8-4 in the AWR1843 Datasheet.
+                Figure 7-1 (sec. 7.7) in the AWR1843 Datasheet.
             hpfCornerFreq1: high pass filter corner frequencies.
             hpfCornerFreq2: high pass filter corner frequencies.
             rxGain: RX gain in dB. The meaning of this value is not clear.
         """
         assert startFreq in {76.0, 77.0}
-        assert freqSlopeConst < 100.0
-        assert digOutSampleRate < 12500
+        # TODO: check these by radar
+        # AWR1843 is 100, 12500
+        # AWR2944 is 250, 45000 (sec 7.8, RF Specifications)
+        # assert freqSlopeConst < 100.0
+        # assert digOutSampleRate < 12500
 
-        cmd = "profileCfg {} {} {} {} {} {} {} {} {} {} {} {} {} {}".format(
-            profileId, startFreq, idleTime, adcStartTime, rampEndTime,
-            txOutPower, txPhaseShifter, freqSlopeConst, txStartTime,
-            numAdcSamples, digOutSampleRate, hpfCornerFreq1.value,
-            hpfCornerFreq2.value, rxGain)
-        self.send(cmd)
+        self.send(
+            f"profileCfg {profileId} {startFreq} {idleTime} {adcStartTime} "
+            f"{rampEndTime} {txOutPower} {txPhaseShifter} {freqSlopeConst} "
+            f"{txStartTime} {numAdcSamples} {digOutSampleRate} "
+            f"{hpfCornerFreq1.value} {hpfCornerFreq2.value} {rxGain}")
 
     def chirpCfg(
         self, chirpIdx: int = 0, profileId: int = 0,
@@ -153,10 +152,9 @@ class APIMixins:
                 only 0 is tested.
             txEnable: antenna to enable; is converted to a bit mask.
         """
-        cmd = "chirpCfg {} {} {} {} {} {} {} {}".format(
-            chirpIdx, chirpIdx, profileId, startFreqVar, freqSlopeVar,
-            idleTimeVar, adcStartTimeVar, 1 << txEnable)
-        self.send(cmd)
+        self.send(
+            f"chirpCfg {chirpIdx} {chirpIdx} {profileId} {startFreqVar} "
+            f"{freqSlopeVar} {idleTimeVar} {adcStartTimeVar} {1 << txEnable}")
 
     def frameCfg(
         self, chirpStartIdx: int = 0, chirpEndIdx: int = 1, numLoops: int = 16,
@@ -167,8 +165,8 @@ class APIMixins:
 
         !!! warning
 
-            The frame should not have more than a 50% duty cycle according to
-            the mmWave SDK documentation.
+            The frame should not have more than a 50% RF duty cycle according
+            to the mmWave SDK documentation.
 
         Args:
             chirpStartIdx: chirps to use in the frame.
@@ -180,10 +178,9 @@ class APIMixins:
             triggerSelect: only software trigger (1) is supported.
             frameTriggerDelay: does not appear to be documented.
         """
-        cmd = "frameCfg {} {} {} {} {} {} {}".format(
-            chirpStartIdx, chirpEndIdx, numLoops, numFrames, framePeriodicity,
-            triggerSelect, frameTriggerDelay)
-        self.send(cmd)
+        self.send(
+            f"frameCfg {chirpStartIdx} {chirpEndIdx} {numLoops} {numFrames} "
+            f"{framePeriodicity} {triggerSelect} {frameTriggerDelay}")
 
     def compRangeBiasAndRxChanPhase(
         self, rangeBias: float = 0.0,
@@ -195,9 +192,8 @@ class APIMixins:
 
             rx_phase must have one term per TX-RX pair.
         """
-        args = ' '.join("{} {}".format(re, im) for re, im in rx_phase)
-        cmd = "compRangeBiasAndRxChanPhase {} {}".format(rangeBias, args)
-        self.send(cmd)
+        args = ' '.join(f"{re} {im}" for re, im in rx_phase)
+        self.send(f"compRangeBiasAndRxChanPhase {rangeBias} {args}")
 
     def lvdsStreamCfg(
         self, subFrameIdx: int = -1, enableHeader: bool = False,
@@ -216,10 +212,9 @@ class APIMixins:
                 chirps to be streamed during the inter-frame time after
                 processing. We assume HW streaming.
         """
-        cmd = "lvdsStreamCfg {} {} {} {}".format(
-            subFrameIdx, 1 if enableHeader else 0, dataFmt.value,
-            1 if enableSW else 0)
-        self.send(cmd)
+        self.send(
+            f"lvdsStreamCfg {subFrameIdx} {1 if enableHeader else 0} "
+            f"{dataFmt.value} {1 if enableSW else 0}")
 
 
 class BoilerplateMixins:
@@ -259,8 +254,7 @@ class BoilerplateMixins:
 
     def lowPower(self, dontCare: int = 0, adcMode: int = 0) -> None:
         """Low power mode config."""
-        cmd = "lowPower {} {}".format(dontCare, adcMode)
-        self.send(cmd)
+        self.send(f"lowPower {dontCare} {adcMode}")
 
     def guiMonitor(
         self, subFrameIdx: int = -1, detectedObjects: int = 0,
@@ -274,10 +268,10 @@ class BoilerplateMixins:
 
             We disable everything to minimize the chances of interference.
         """
-        cmd = "guiMonitor {} {} {} {} {} {} {}".format(
-            subFrameIdx, detectedObjects, logMagRange, noiseProfile,
-            rangeAzimuthHeatMap, rangeDopplerHeatMap, statsInfo)
-        self.send(cmd)
+        self.send(
+            f"guiMonitor {subFrameIdx} {detectedObjects} {logMagRange} "
+            f"{noiseProfile} {rangeAzimuthHeatMap} {rangeDopplerHeatMap} "
+            f"{statsInfo}")
 
     def cfarCfg(
         self, subFrameIdx: int = -1, procDirection: int = 1,
@@ -291,18 +285,16 @@ class BoilerplateMixins:
 
             This command must be called twice for `procDirection=0, 1`.
         """
-        cmd = "cfarCfg {} {} {} {} {} {} {} {} {}".format(
-            subFrameIdx, procDirection, averageMode, winLen, guardLen,
-            noiseDivShift, cyclicMode, threshold, peakGroupingEn)
-        self.send(cmd)
+        self.send(
+            f"cfarCfg {subFrameIdx} {procDirection} {averageMode} {winLen} "
+            f"{guardLen} {noiseDivShift} {cyclicMode} {threshold} "
+            f"{peakGroupingEn}")
 
     def multiObjBeamForming(
         self, subFrameIdx: int = -1, enabled: int = 0, threshold: float = 0.5
     ) -> None:
         """Configure multi-object beamforming."""
-        cmd = "multiObjBeamForming {} {} {}".format(
-            subFrameIdx, enabled, threshold)
-        self.send(cmd)
+        self.send(f"multiObjBeamForming {subFrameIdx} {enabled} {threshold}")
 
     def calibDcRangeSig(
         self, subFrameIdx: int = -1, enabled: int = 0,
@@ -324,15 +316,13 @@ class BoilerplateMixins:
 
             Rover performs this step during offline data processing.
         """
-        cmd = "calibDcRangeSig {} {} {} {} {}".format(
-            subFrameIdx, enabled, negativeBinIdx, positiveBinIdx, numAvgFrames)
-        self.send(cmd)
+        self.send(
+            f"calibDcRangeSig {subFrameIdx} {enabled} {negativeBinIdx} "
+            f"{positiveBinIdx} {numAvgFrames}")
 
     def clutterRemoval(self, subFrameIdx: int = -1, enabled: int = 0) -> None:
         """Static clutter removal."""
-        cmd = "clutterRemoval {} {}".format(subFrameIdx, enabled)
-        self.send(cmd)
-
+        self.send(f"clutterRemoval {subFrameIdx} {enabled}")
 
     def aoaFovCfg(
         self, subFrameIdx: int = -1, minAzimuthDeg: int = -90,
@@ -340,10 +330,9 @@ class BoilerplateMixins:
         maxElevationDeg: int = 90
     ) -> None:
         """FOV limits for CFAR."""
-        cmd = "aoaFovCfg {} {} {} {} {}".format(
-            subFrameIdx, minAzimuthDeg, maxAzimuthDeg,
-            minElevationDeg, maxElevationDeg)
-        self.send(cmd)
+        self.send(
+            f"aoaFovCfg {subFrameIdx} {minAzimuthDeg} {maxAzimuthDeg} "
+            f"{minElevationDeg} {maxElevationDeg}")
 
     def cfarFovCfg(
         self, subFrameIdx: int = -1, procDirection: int = 0,
@@ -355,56 +344,50 @@ class BoilerplateMixins:
 
             Must be called twice for `procDirection=0, 1`.
         """
-        cmd = "cfarFovCfg {} {} {} {}".format(
-            subFrameIdx, procDirection, min_meters_or_mps, max_meters_or_mps)
-        self.send(cmd)
+        self.send(
+            f"cfarFovCfg {subFrameIdx} {procDirection} {min_meters_or_mps} "
+            f"{max_meters_or_mps}")
 
     def measureRangeBiasAndRxChanPhase(
         self, enabled: int = 0, targetDistance: float = 1.5,
         searchWin: float = 0.2
     ) -> None:
         """Only used in a specific calibration procedure."""
-        cmd = "measureRangeBiasAndRxChanPhase {} {} {}".format(
-            enabled, targetDistance, searchWin)
-        self.send(cmd)
+        self.send(
+            f"measureRangeBiasAndRxChanPhase "
+            f"{enabled} {targetDistance} {searchWin}")
 
     def extendedMaxVelocity(
         self, subFrameIdx: int = -1, enabled: int = 0
     ) -> None:
         """Velocity disambiguation feature."""
-        cmd = "extendedMaxVelocity {} {}".format(subFrameIdx, enabled)
-        self.send(cmd)
+        self.send(f"extendedMaxVelocity {subFrameIdx} {enabled}")
 
     def CQRxSatMonitor(
         self, profile: int = 0, satMonSel: int = 3, priSliceDuration: int = 5,
         numSlices: int = 121, rxChanMask: int = 0
     ) -> None:
         """Saturation monitoring."""
-        cmd = "CQRxSatMonitor {} {} {} {} {}".format(
-            profile, satMonSel, priSliceDuration, numSlices, rxChanMask)
-        self.send(cmd)
+        self.send(
+            f"CQRxSatMonitor {profile} {satMonSel} {priSliceDuration} "
+            f"{numSlices} {rxChanMask}")
 
     def CQSigImgMonitor(
         self, profile: int = 0, numSlices: int = 127,
         numSamplePerSlice: int = 4
     ) -> None:
         """Signal/image band energy monitoring."""
-        cmd = "CQSigImgMonitor {} {} {}".format(
-            profile, numSlices, numSamplePerSlice)
-        self.send(cmd)
+        self.send(f"CQSigImgMonitor {profile} {numSlices} {numSamplePerSlice}")
 
     def analogMonitor(
         self, rxSaturation: int = 0, sigImgBand: int = 0
     ) -> None:
         """Enable/disable monitoring."""
-        cmd = "analogMonitor {} {}".format(rxSaturation, sigImgBand)
-        self.send(cmd)
+        self.send(f"analogMonitor {rxSaturation} {sigImgBand}")
 
     def calibData(
         self, save_enable: int = 0, restore_enable: int = 0,
-        Flash_offset: int = 0
+        flash_offset: int = 0
     ) -> None:
         """Save/restore RF calibration data."""
-        cmd = "calibData {} {} {}".format(
-            save_enable, restore_enable, Flash_offset)
-        self.send(cmd)
+        self.send(f"calibData {save_enable} {restore_enable} {flash_offset}")

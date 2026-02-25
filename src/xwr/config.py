@@ -67,6 +67,7 @@ class XWRConfig:
     def num_rx(self) -> int:
         """Number of RX antennas."""
         return self.device_type.NUM_RX
+
     @property
     def shape(self) -> tuple[int, int, int, int]:
         """Radar data cube shape."""
@@ -77,13 +78,14 @@ class XWRConfig:
     def raw_shape(self) -> tuple[int, int, int, int]:
         """Radar IIQQ data shape."""
         return (
-            self.frame_length, self.num_tx, self.num_rx, self.adc_samples * 2)
+            self.frame_length, self.num_tx, self.num_rx, self.adc_samples
+            * self.device_type.BYTES_PER_SAMPLE // 2)
 
     @property
     def frame_size(self) -> int:
         """Radar data cube size, in bytes."""
         return (self.frame_length * self.num_tx * self.num_rx *
-                self.adc_samples * 2 * 2)
+                self.adc_samples * self.device_type.BYTES_PER_SAMPLE)
 
     @property
     def chirp_time(self) -> float:

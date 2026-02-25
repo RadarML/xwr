@@ -11,7 +11,7 @@
 
 ## DCA1000EVM Capture Card
 
-!!! danger
+!!! danger "ESD Sensitive"
 
     In our experience, the DCA1000EVM is particularly fragile; be careful with electrostatic discharge (ESD).
 
@@ -175,7 +175,7 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
     - Choose the serial port corresponding to the radar; the serial port should have a name/description `XDS110 Class Application/User UART`.
     - Flashing should take around 1 minute, and terminate with "Program Load completed successfully".
 
-    ??? failure "`Not able to connect to serial port. Recheck COM port selected and/or permissions.`"
+    ??? failure "Not able to connect to serial port. Recheck COM port selected and/or permissions."
 
         If the SOP switches or `S2` are not in the correct position, flashing will fail with
         ```
@@ -185,22 +185,35 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 
 3. Set the radar to functional mode: `SOP2:0=001`.
 
-    !!! note
+## AWR2944EVM
+
+!!! info "Firmware"
+
+    After installing the [mmWave MCU Plus SDK](https://www.ti.com/tool/MMWAVE-MCUPLUS-SDK), you will need two firmware files:
     
-        mmWave studio expects the radar to be in *debug* mode (`SOP2:0=011`), so switching between `xwr` and mmWave Studio requires the position of the SOP switches to be changed. This is also why mmWave studio requires the MSS firmware to be "re-flashed" whenever the radar is rebooted.
-
-## :construction_site: AWR2544LOPEVM
-
-!!! failure "Not yet working"
+    - `mmwave_mcuplus_sdk_{version}/ti/demo/awr294x/mmw/awr2944_mmw_demoTDM.appimage`: main application image.
+    - `mmwave_mcuplus_sdk_{version}/tools/awr294x/sbl_qspi.release.tiimage`: bootloader image.
 
 !!! warning
 
-    Flashing the AWR2544LOPEVM requires two jumper caps or wires in order to physicall short the required pins. One of these jumpers must remain on the board to set it to functional mode.
+    Flashing the AWR2944EVM requires two jumper caps or wires in order to physically short the required pins. One of these jumpers must remain on the board to set it to functional mode.
+
+!!! warning "Requires External 12v Power"
+
+    The AWR2944EVM requires external 12v power to operate, while the DCA1000EVM requires external 5v power.
+    
+    ??? danger "Both power supplies have the same barrel jack size, and mixing them up will immediately destroy the DCA1000EVM."
+
+        Don't ask me how I know this!
+
+    We recommend labeling the power supplies at the barrel jack end, as well as connecting the radar power supply first (so that if the radar does not power on, you know that you've mixed them up).
+
 
 1. Prepare for flashing.
 
-    - Plug in a micro USB cable to the XDS port (on the right side).
+    - Plug in a USB cable to the XDS port (on the right side).
     - Find `SOP2:0`, and short SOP0 and SOP2 (`SOP2:0=101`). These are physical jumpers, which must be shorted using jumper caps or wires.
+    - Power on the radar using external 12v power.
 
 2. Flash using [TI UniFlash](https://www.ti.com/tool/UNIFLASH).
 
@@ -208,12 +221,12 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 
         UniFlash seems to work most reliably on windows.
 
-    - Uniflash should automatically discover the radar. If not, select the `AWR1843Boost` device.
-    - Select the `xwr18xx_mmw_demo.bin` image to flash.
+    - Uniflash should automatically discover the radar. If not, select the `AWR2944EVM` device.
+    - Select the `awr2944_mmw_demoTDM.appimage` and `sbl_qspi.release.tiimage` images to flash.
     - Choose the serial port corresponding to the radar; the serial port should have a name/description `XDS110 Class Application/User UART`.
     - Flashing should take around 1 minute, and terminate with "Program Load completed successfully".
 
-    ??? failure "`Not able to connect to serial port. Recheck COM port selected and/or permissions.`"
+    ??? failure "Not able to connect to serial port. Recheck COM port selected and/or permissions."
 
         If the SOP switches or `S2` are not in the correct position, flashing will fail with
         ```
@@ -221,11 +234,17 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
         Recheck COM port selected and/or permissions.
         ```
 
-3. Set the radar to functional mode: `SOP2:0=001`.
+3. Switch the radar to functional mode.
 
-    !!! note
-    
-        mmWave studio expects the radar to be in *debug* mode (`SOP2:0=011`), so switching between `xwr` and mmWave Studio requires the position of the SOP switches to be changed. This is also why mmWave studio requires the MSS firmware to be "re-flashed" whenever the radar is rebooted.
+    - Remove the jumper on SOP2, so only a jumper on SOP0 remains (`SOP2:0=001`).
+
+## :construction_site: AWR2544LOPEVM
+
+!!! failure "Not yet working"
+
+!!! warning
+
+    Flashing the AWR2544LOPEVM requires two jumper caps or wires in order to physically short the required pins. One of these jumpers must remain on the board to set it to functional mode.
 
 1. Prepare for flashing.
 
@@ -244,11 +263,18 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
         ```sh
         sudo dpkg --add-architecture i386
         sudo apt-get update
-        sudo apt-get install libc6:i386 libstdc++6:i386
-
-        sudo apt-get install build-essential
-        sudo apt-get install mono-complete
+            sudo apt-get install -y libc6:i386 libstdc++6:i386 build-essential mono-complete
         ```
+
+        2. [Code Composer Studio (CCS)](https://www.ti.com/tool/CCSTUDIO)
+        ```sh
+        wget https://dr-download.ti.com/software-development/ide-configuration-compiler-or-debugger/MD-J1VdearkvK/20.3.1/CCS_20.3.1.00005_linux.zip
+        unzip CCS_20.3.1.00005_linux.zip
+        cd CCS_20.3.1.00005_linux
+        ./ccs_setup_20.3.1.00005.run
+        ```
+
+            - This installer requires GUI access
 
         2. [MMWAVE MCUPLUS SDK](https://www.ti.com/tool/MMWAVE-MCUPLUS-SDK)
         ```sh
@@ -285,24 +311,27 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
             ...
             # Change to /home/<username>/ti/cgt-armllvm_4.0.3.LTS
             export R5F_CLANG_INSTALL_PATH=/opt/ti/sysconfig_1.21.0 
+            ...
+            # Change to match the version at /home/<username>/ti/ccs<version>/ccs/tools/compiler/ti-cgt-c6000_<version>.LTS
+            export C66X_CODEGEN_INSTALL_PATH=${CCS_INSTALL_PATH}/ccs/tools/compiler/ti-cgt-c6000_8.3.12
             ```
 
     ??? quote "Compile firmware with LVDS streaming"
 
-        Edit `~/mmwave_mcuplus_sdk_04_07_00_01/mmwave_mcuplus_sdk_04_07_00_01/ti/common/`, and add `-DLVDS_STREAM` to `DEFINES`:
+        Edit `~/mmwave_mcuplus_sdk_04_07_00_01/mmwave_mcuplus_sdk_04_07_00_01/ti/demo/awr2544/mmw/mmw_main.c`, and add `#define LVDS_STREAM 1` before :
         ```makefile
-        DEFINES = \
-            -DSUBSYS_MSS \
-            -D$(PLATFORM_DEFINE) \
-            -D$(DEVICE_TYPE) \
-            -D_LITTLE_ENDIAN \
-            -DLVDS_STREAM \
+        /* Demo Include Files */
+        #define LVDS_STREAM 1
+        #include <ti/demo/awr2544/mmw/mmw_common.h>
+        #include <ti/demo/utils/mmwdemo_rfparser.h>
+        #include <ti/demo/utils/mmwdemo_flash.h>
         ```
 
         Then compile:
         ```sh
         cd ~/ti/mmwave_mcuplus_sdk_04_07_00_01/mmwave_mcuplus_sdk_04_07_00_01/scripts/unix
         source setenv.sh
+        export MMWAVE_SDK_DEVICE=awr2544
 
         cd ~/ti/mmwave_mcuplus_sdk_04_07_00_01/mmwave_mcuplus_sdk_04_07_00_01/ti/demo/awr2544/mmw
         make clean

@@ -18,6 +18,27 @@ TRadar = TypeVar("TRadar", bound=XWRBase)
 class XWRSystem(Generic[TRadar]):
     """Radar capture system with a mmWave Radar and DCA1000EVM.
 
+    This high-level API provides three different ways to read frames, each
+    with different performance characteristics:
+
+    - [`stream`][.]: a simple iterator which yields successive frames. No
+        buffering is done, which may lead to dropped packets if the consumer
+        is too slow.
+    - [`qstream`][.]: a queue-based interface, where a separate thread reads
+        frames into a queue. This prevents dropped packets, but may lead to
+        unbounded latency if the consumer is too slow.
+    - [`dstream`][.]: a "drop frame" iterator, which yields the most recent
+        frame, dropping any frames received while the consumer is processing a
+        frame.
+
+    These correspond to the following use cases:
+
+    | Method | Use case | Performance characteristics |
+    |---|---|---|
+    | [`stream`][.] | Debugging, user-managed real-time systems | No buffering |
+    | [`qstream`][.] | Data collection | No dropped packets, but unbounded latency |
+    | [`dstream`][.] | Real-time demos | No dropped packets, but may drop frames |
+
     !!! info "Known Constraints"
 
         The `XWRSystem` will check for certain known constraints, and warn if

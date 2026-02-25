@@ -13,7 +13,7 @@ from typing import (
 )
 
 import numpy as np
-from jaxtyping import Complex64, Int16
+from jaxtyping import Complex64, Float32, Int16
 
 
 @runtime_checkable
@@ -164,6 +164,23 @@ def iq_from_iiqq(
         return cast(Complex64[TArray, "... n/2"], iq)
 
 
+def _to_float32(
+    x: Int16[TArray, "..."] | Float32[TArray, "..."]
+) -> Float32[TArray, "..."]:
+    backend = _check_backend(x)
+    if backend == "numpy":
+        assert isinstance(x, np.ndarray)
+        return cast(Float32[TArray, "..."], x.astype(np.float32))
+    elif backend == "jax":
+        from jax import numpy as jnp
+        assert isinstance(x, jnp.ndarray)
+        return cast(Float32[TArray, "..."], x.astype(jnp.float32))
+    else:  # backend == "torch"
+        import torch
+        assert isinstance(x, torch.Tensor)
+        return cast(Float32[TArray, "..."], x.float())
+
+
 class RSP(ABC, Generic[TArray]):
     """Abstract, backend-agnostic Radar Signal Processing base class.
 
@@ -183,6 +200,8 @@ class RSP(ABC, Generic[TArray]):
         size: target size for each axis after zero-padding, specified by axis.
             If an axis is not spacified, it is not padded.
     """
+
+    SAMPLE_TYPE: Literal["IQ", "I"] = "IQ"
 
     def __init__(
         self, window: bool | Mapping[
@@ -206,7 +225,7 @@ class RSP(ABC, Generic[TArray]):
 
     @abstractmethod
     def fft(
-        self, array: Complex64[TArray, "..."],
+        self, array: Complex64[TArray, "..."] | Float32[TArray, "..."],
         axes: tuple[int, ...],
         size: tuple[int, ...] | None = None,
         shift: tuple[int, ...] | None = None
@@ -221,47 +240,59 @@ class RSP(ABC, Generic[TArray]):
             shift: Axes to shift after FFT, if any.
 
         Returns:
-            FFT of the input array along the specified axes.
+            FFT of the input array along the specified axes. If the input
+                array is real-valued, the output is the non-negative frequency
+                terms of the FFT along the specified axes (with length
+                `n // 2 + 1`).
         """
         ...
 
     @staticmethod
     @abstractmethod
     def hann(
-        iq: Complex64[TArray, "..."], axis: int
-    ) -> Complex64[TArray, "..."]:
-        """Apply a Hann window to the specified axis of the IQ data.
+        x: Complex64[TArray, "..."] | Float32[TArray, "..."], axis: int
+    ) -> Complex64[TArray, "..."] | Float32[TArray, "..."]:
+        """Apply a Hann window to the specified axis of the time signal data.
 
         Args:
-            iq: IQ data.
+            x: time signal data.
             axis: Axis along which to apply the Hann window.
 
         Returns:
-            IQ data with the Hann window applied along the specified axis.
+            Time signal data with the Hann window applied along the specified
+                axis.
         """
         ...
 
     def doppler_range(
-        self, iq: Complex64[TArray, "#batch doppler tx rx range"]
+        self, x: Complex64[TArray, "#batch doppler tx rx range"]
+            | Float32[TArray, "#batch doppler tx rx range"]
     ) -> Complex64[TArray, "#batch doppler2 tx rx range2"]:
-        """Calculate range-doppler spectrum from IQ data.
+        """Calculate range-doppler spectrum from time signal data.
 
         Args:
-            iq: IQ data.
+            x: IQ (complex64) or in-phase-only (float32) data.
 
         Returns:
             Computed range-doppler spectrum, with windowing if specified.
         """
         if self.window.get("range", self._default_window):
-            iq = self.hann(iq, 4)
+            x = self.hann(x, 4)
         if self.window.get("doppler", self._default_window):
-            iq = self.hann(iq, 1)
+            x = self.hann(x, 1)
 
-        return self.fft(
-            iq, axes=(1, 4), shift=(1,),
-            size=(
-                self.size.get("doppler", iq.shape[1]),
-                self.size.get("range", iq.shape[4])))
+        if self.SAMPLE_TYPE == "I":
+            # Double range bins for in-phase-only.
+            nrange = x.shape[-1] // 2
+            range_bins = self.size.get("range", nrange) * 2
+        else:
+            range_bins = self.size.get("range", x.shape[4])
+
+        rd = self.fft(
+            x, axes=(1, 4), shift=(1,),
+            size=(self.size.get("doppler", x.shape[1]), range_bins))
+
+        return rd
 
     @abstractmethod
     def mimo_virtual_array(
@@ -270,7 +301,7 @@ class RSP(ABC, Generic[TArray]):
         """Set up MIMO virtual array from range-doppler spectrum.
 
         Args:
-            rd: range-doppler spectrum.
+            rd: complex range-doppler spectrum.
 
         Returns:
             Computed MIMO virtual array, in elevation-azimuth order.
@@ -303,18 +334,24 @@ class RSP(ABC, Generic[TArray]):
                 self.size.get("azimuth", mimo.shape[3])))
 
     def __call__(
-        self, iq: Complex64[TArray, "#batch doppler tx rx _range"]
+        self, x: Complex64[TArray, "#batch doppler tx rx _range"]
+            | Float32[TArray, "#batch doppler tx rx _range"]
             | Int16[TArray, "#batch doppler tx rx _range"]
     ) -> Complex64[TArray, "#batch doppler2 el az _range"]:
-        """Process IQ data to compute elevation-azimuth spectrum.
+        """Process time signal data to compute elevation-azimuth spectrum.
 
         Args:
-            iq: IQ data in complex or interleaved int16 IQ format.
+            x: IQ data in complex or interleaved int16 IQ format, or
+                in-phase-only data in float32 format.
 
         Returns:
             Computed doppler-elevation-azimuth-range spectrum.
         """
-        uninterleaved = iq_from_iiqq(iq)
-        dr = self.doppler_range(uninterleaved)
+        if self.SAMPLE_TYPE == "IQ":
+            x = iq_from_iiqq(x)
+        else:
+            x = _to_float32(x)
+
+        dr = self.doppler_range(x)
         drae = self.elevation_azimuth(dr)
         return drae

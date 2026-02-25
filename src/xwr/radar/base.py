@@ -54,6 +54,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
     Attributes:
         NUM_TX: number of TX antennas.
         NUM_RX: number of RX antennas.
+        BYTES_PER_SAMPLE: number of bytes per ADC sample.
     """
 
     _CMD_PROMPT = "mmwDemo:/>"
@@ -61,6 +62,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
 
     NUM_TX: int = 3
     NUM_RX: int = 4
+    BYTES_PER_SAMPLE: int = 2 * 2
 
     def __init__(
         self, port: str | None = None, baudrate: int = 115200,
@@ -109,6 +111,25 @@ class XWRBase(APIMixins, BoilerplateMixins):
     def setup(self, *args, **kwargs) -> None:
         raise NotImplementedError
 
+    def _wait_for_response(self, timeout: float = 10.0) -> bytearray:
+        r"""Wait for a response and read until we get `"...\rmmwDemo:/>"`.
+
+        Args:
+            timeout: timeout, in seconds.
+
+        Returns:
+            Radar response.
+        """
+        rx_buf = bytearray()
+        prompt = self._CMD_PROMPT.encode('utf-8')
+        start = time.time()
+        while not rx_buf.endswith(prompt):
+            rx_buf.extend(self.port.read(self.port.in_waiting))
+            if time.time() - start > timeout:
+                self.log.error("Timed out while waiting for response.")
+                raise TimeoutError()
+        return rx_buf
+
     def send(self, cmd: str, timeout: float = 10.0) -> None:
         """Send message, and wait for a response.
 
@@ -121,16 +142,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
         """
         self.log.debug("Send: {}".format(cmd))
         self.port.write((cmd + '\n').encode('ascii'))
-
-        # Read until we get "...\rmmwDemo:/>"
-        rx_buf = bytearray()
-        prompt = self._CMD_PROMPT.encode('utf-8')
-        start = time.time()
-        while not rx_buf.endswith(prompt):
-            rx_buf.extend(self.port.read(self.port.in_waiting))
-            if time.time() - start > timeout:
-                self.log.error("Timed out while waiting for response.")
-                raise TimeoutError()
+        rx_buf = self._wait_for_response(timeout=timeout)
 
         # Remove all the cruft
         decoded = rx_buf.decode('utf-8', errors='replace')

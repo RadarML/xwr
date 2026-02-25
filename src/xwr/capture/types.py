@@ -92,7 +92,7 @@ class DataPacket:
 
 @dataclass
 class RadarFrame:
-    """Radar frame, in IIQQ format (Fig 11[^1]).
+    """Radar frame, in in-phase-only or IIQQ format (Fig 11[^1]).
 
     [^1]: [MMwave Radar Device ADC Raw Capture Data](
     https://www.ti.com/lit/an/swra581b/swra581b.pdf?ts=1609161628089)
