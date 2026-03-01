@@ -10,8 +10,6 @@ import time
 import serial
 from serial.tools import list_ports
 
-from .raw import APIMixins, BoilerplateMixins
-
 
 class XWRError(Exception):
     """Error raised by the Radar (via non-normal return message)."""
@@ -19,7 +17,7 @@ class XWRError(Exception):
     pass
 
 
-class XWRBase(APIMixins, BoilerplateMixins):
+class XWRBase:
     """Generic AWR Interface for the TI demo MSS firmware.
 
     The interface is based on a UART ASCII CLI, and is documented by the
@@ -57,8 +55,18 @@ class XWRBase(APIMixins, BoilerplateMixins):
         BYTES_PER_SAMPLE: number of bytes per ADC sample.
     """
 
+    # -- internal constants --
+
+    # Demo firmware command prompt string
     _CMD_PROMPT = "mmwDemo:/>"
+    # UART device name regex to search for when auto-detecting the radar device
     _PORT_NAME = r"XDS110"
+    # Command used to start the radar
+    _START_COMMAND = "sensorStart"
+    # Command used to stop the radar
+    _STOP_COMMAND = "sensorStop"
+
+    # -- public constants --
 
     NUM_TX: int = 3
     NUM_RX: int = 4
@@ -104,9 +112,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
     def setup_from_config(self, path: str) -> None:
         """Run raw setup from a config file."""
         with open(path) as f:
-            cmds = f.readlines()
-        for c in cmds:
-            self.send(c.rstrip('\n'))
+            self.send(f.read())
 
     def setup(self, *args, **kwargs) -> None:
         raise NotImplementedError
@@ -134,12 +140,24 @@ class XWRBase(APIMixins, BoilerplateMixins):
         """Send message, and wait for a response.
 
         Args:
-            cmd: command to send.
+            cmd: command to send. If the command contains newlines, each line
+                is sent separately; lines starting with `#` are treated as
+                comments and not sent.
             timeout: timeout, in seconds.
 
         Raises:
             TimeoutError: if no response is received by the timeout.
         """
+        if '\n' in cmd:
+            self.log.debug("Send multi-line commands...")
+            for line in cmd.split('\n'):
+                if line.startswith('#'):
+                    self.log.debug(line)
+                else:
+                    self.send(line, timeout=timeout)
+            self.log.debug("... done sending multi-line commands.")
+            return
+
         self.log.debug("Send: {}".format(cmd))
         self.port.write((cmd + '\n').encode('ascii'))
         rx_buf = self._wait_for_response(timeout=timeout)
@@ -150,7 +168,7 @@ class XWRBase(APIMixins, BoilerplateMixins):
             decoded
             .replace(self._CMD_PROMPT, '').replace(cmd, '')
             .rstrip(' ;\r\n\t').lstrip(' \n\t'))
-        self.log.log(5, "Response: {}".format(resp))
+        self.log.debug("Response: {}".format(resp))
 
         # Check for non-normal response
         if resp != 'Done':
@@ -166,17 +184,9 @@ class XWRBase(APIMixins, BoilerplateMixins):
                 self.log.info(f"Raw buffer for this error was: {decoded}")
                 raise XWRError(resp)
 
-    def start(self, reconfigure: bool = True) -> None:
-        """Start radar.
-
-        Args:
-            reconfigure: Whether the radar needs to be configured.
-        """
-        if reconfigure:
-            self.send("sensorStart")
-        else:
-            self.send("sensorStart 0")
-
+    def start(self) -> None:
+        """Start radar."""
+        self.send(self._START_COMMAND)
         self.log.info("Radar Started.")
 
     def stop(self) -> None:
@@ -187,22 +197,5 @@ class XWRBase(APIMixins, BoilerplateMixins):
             The radar may be non-responsive to commands in some conditions, for
             example if the specified timings are fairly tight (or invalid).
         """
-        self.send("sensorStop")
+        self.send(self._STOP_COMMAND)
         self.log.info("Radar Stopped.")
-
-    def _configure_channels(self, rx: int = 0b1111, tx: int = 0b111) -> None:
-        """Configure RX and TX channels with sequential chirps.
-
-        Args:
-            rx: RX channel mask, e.g. `0b1111` for 4 RX antennas.
-            tx: TX channel mask, e.g. `0b111` for 3 TX antennas.
-        """
-        self.channelCfg(rxChannelEn=rx, txChannelEn=tx)
-        chirp = 0
-        i_tx = 0
-        while tx > 0:
-            if tx & 1:
-                self.chirpCfg(chirpIdx=chirp, txEnable=i_tx)
-                chirp += 1
-            tx = tx >> 1
-            i_tx += 1

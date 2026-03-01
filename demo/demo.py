@@ -2,6 +2,7 @@
 
 import logging
 import os
+import time
 
 import numpy as np
 import tyro
@@ -78,6 +79,8 @@ def cli_main(
     axs[1].set_ylabel("Range")
     fig.tight_layout()
 
+    start = time.perf_counter()
+    n = 0
     try:
         for frame in awr.dstream(numpy=True):
             # batch doppler elevation azimuth range
@@ -92,6 +95,13 @@ def cli_main(
 
             # Needed to update the figure
             plt.pause(0.001)
+
+            n += 1
+            if time.perf_counter() - start >= 5.0:
+                elapsed = time.perf_counter() - start
+                log.info(f"Demo framerate: {n / elapsed:.2f}fps")
+                n = 0
+                start = time.perf_counter()
 
     except KeyboardInterrupt:
         log.warning("Demo interrupted by user.")
