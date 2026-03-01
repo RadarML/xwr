@@ -235,7 +235,6 @@ class BoilerplateMixins:
 
     def boilerplate_setup(self) -> None:
         """Call mandatory but irrelevant commands."""
-        self.lowPower()
         self.guiMonitor()
         self.cfarCfg(procDirection=0)
         self.cfarCfg(procDirection=1)
@@ -251,10 +250,6 @@ class BoilerplateMixins:
         self.CQSigImgMonitor()
         self.analogMonitor()
         self.calibData()
-
-    def lowPower(self, dontCare: int = 0, adcMode: int = 0) -> None:
-        """Low power mode config."""
-        self.send(f"lowPower {dontCare} {adcMode}")
 
     def guiMonitor(
         self, subFrameIdx: int = -1, detectedObjects: int = 0,
