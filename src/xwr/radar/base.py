@@ -153,6 +153,8 @@ class XWRBase:
             for line in cmd.split('\n'):
                 if line.startswith('#'):
                     self.log.debug(line)
+                elif len(line) == 0:
+                    pass
                 else:
                     self.send(line, timeout=timeout)
             self.log.debug("... done sending multi-line commands.")

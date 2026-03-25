@@ -209,9 +209,11 @@ class AWRL6844EVM(RSPTorch):
                 f"Expected (tx, rx)=4x4, got tx={tx} and rx={rx}.")
 
         tx_idx = torch.tensor(
-            [[1, 1, 0, 0], [1, 1, 0, 0], [2, 2, 3, 3], [2, 2, 3, 3]])
+            [[1, 1, 0, 0], [1, 1, 0, 0], [2, 2, 3, 3], [2, 2, 3, 3]],
+            device=rd.device)
         rx_idx = torch.tensor(
-            [[0, 3, 0, 3], [1, 2, 1, 2], [0, 3, 0, 3], [1, 2, 1, 2]])
+            [[0, 3, 0, 3], [1, 2, 1, 2], [0, 3, 0, 3], [1, 2, 1, 2]],
+            device=rd.device)
         phase = torch.tensor(
             [[-1, -1, 1, 1], [-1, -1, 1, 1], [1, 1, -1, -1], [1, 1, -1, -1]],
             dtype=torch.float32, device=rd.device)

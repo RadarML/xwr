@@ -253,7 +253,8 @@ class AWR2944(XWRBase, common.APIMixins):
             "{frameTriggerDelay}"   # Undocumented
         ).format(
             chirpStartIdx=0, chirpEndIdx=3, numLoops=frame_length,
-            numFrames=0, numAdcSamples=256, framePeriodicity=frame_period,
+            numFrames=0, numAdcSamples=adc_samples,
+            framePeriodicity=frame_period,
             triggerSelect=1, frameTriggerDelay=0.0))
 
         self.send(common.configure_channels(rx=self._RX_MASK, tx=self._TX_MASK))
