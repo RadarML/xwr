@@ -28,6 +28,7 @@ SHAPE = {
     "AWR1843Boost": (2, 4, 3, 4, 8),
     "AWR1642Boost": (2, 4, 2, 4, 8),
     "AWR2944EVM": (2, 4, 4, 4, 16),
+    "AWRL6844EVM": (2, 4, 4, 4, 16),
 }
 
 
@@ -43,6 +44,16 @@ AWR2944_PARAMS = [
     (True, {"doppler": 8}),
     (True, {"range": 16}),
     (True, {"elevation": 4}),
+    ({"range": True, "doppler": True}, {}),
+]
+
+AWRL6844_PARAMS = [
+    (False, {}),
+    (True, {}),
+    (True, {"azimuth": 8}),
+    (True, {"doppler": 8}),
+    (True, {"range": 16}),
+    (True, {"elevation": 8}),
     ({"range": True, "doppler": True}, {}),
 ]
 
@@ -83,6 +94,11 @@ def test_numpy_basic():
     data = _i_float32(SHAPE["AWR2944EVM"])
     awr2944 = rspn.AWR2944EVM(window=False, size={})
     assert awr2944(data).shape == (2, 4, 2, 12, 9)
+
+    # AWRL6844EVM: I-only input, 4x4 virtual array; range bins = 16//2+1 = 9
+    data = _i_float32(SHAPE["AWRL6844EVM"])
+    awrl6844 = rspn.AWRL6844EVM(window=False, size={})
+    assert awrl6844(data).shape == (2, 4, 4, 4, 9)
 
 
 @pytest.mark.parametrize("window,size", AWR2944_PARAMS)
@@ -166,3 +182,48 @@ def test_torch(window, size, radar):
         rsp_torch(torch.from_numpy(data)[:, :, :-1, :, :])
     with pytest.raises(ValueError):
         rsp_torch(torch.from_numpy(data)[:, :, :, :-1, :])
+
+
+@pytest.mark.parametrize("window,size", AWRL6844_PARAMS)
+def test_jax_awrl6844evm(window, size):
+    """Test jax vs numpy RSP for AWRL6844EVM (I-only data)."""
+    rsp_numpy = rspn.AWRL6844EVM(window=window, size=size)
+    rsp_jax = rspj.AWRL6844EVM(window=window, size=size)
+
+    data = _i_float32(SHAPE["AWRL6844EVM"])
+    numpy_result = rsp_numpy(data)
+    jax_result = rsp_jax(jnp.array(data))
+
+    assert np.allclose(numpy_result, np.array(jax_result), atol=1e-4)
+
+
+@pytest.mark.parametrize("window,size", AWRL6844_PARAMS)
+def test_torch_awrl6844evm(window, size):
+    """Test torch vs numpy RSP for AWRL6844EVM (I-only data)."""
+    rsp_numpy = rspn.AWRL6844EVM(window=window, size=size)
+    rsp_torch = rspt.AWRL6844EVM(window=window, size=size)
+
+    data = _i_float32(SHAPE["AWRL6844EVM"])
+    numpy_result = rsp_numpy(data)
+    torch_result = rsp_torch(torch.from_numpy(data))
+
+    assert np.allclose(numpy_result, torch_result.numpy(), atol=1e-4)
+
+    with pytest.raises(ValueError):
+        rsp_torch(torch.from_numpy(data)[:, :, :-1, :, :])
+    with pytest.raises(ValueError):
+        rsp_torch(torch.from_numpy(data)[:, :, :, :-1, :])
+
+
+def test_torch_awrl6844evm_backward():
+    """Test that gradients flow through AWRL6844EVM in torch."""
+    rng = np.random.default_rng()
+    data = torch.from_numpy(
+        rng.random(SHAPE["AWRL6844EVM"]).astype(np.float32)
+    ).requires_grad_(True)
+
+    result = rspt.AWRL6844EVM()(data)
+    result.abs().sum().backward()
+
+    assert data.grad is not None
+    assert data.grad.shape == data.shape

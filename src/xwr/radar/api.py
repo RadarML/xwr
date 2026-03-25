@@ -1,15 +1,13 @@
 """Radar sensor APIs."""
 
-from typing import Literal
-
-from . import defines
+from . import common, defines
 from .base import XWRBase
 
 # NOTE: We ignore a few naming rules to maintain consistency with TI's naming.
 # ruff: noqa: N802, N803
 
 
-class AWR1843(XWRBase):
+class AWR1843(XWRBase, common.APIMixins):
     """Interface implementation for the TI AWR1843 family.
 
     !!! info "Supported devices"
@@ -24,7 +22,9 @@ class AWR1843(XWRBase):
     """
 
     _PORT_NAME = r'(?=.*CP2105)(?=.*Enhanced)|XDS110'
+    _START_COMMAND = "sensorStart"
     _TX_MASK = 0b111
+    _RX_MASK = 0b1111
     NUM_TX = 3
     NUM_RX = 4
     BYTES_PER_SAMPLE = 2 * 2
@@ -59,24 +59,25 @@ class AWR1843(XWRBase):
         assert frame_length & (frame_length - 1) == 0
 
         self.stop()
-        self.flushCfg()
-        self.dfeDataOutputMode(defines.DFEMode.LEGACY)
-        self.adcCfg(adcOutputFmt=defines.ADCFormat.COMPLEX_1X)
-        self.adcbufCfg(adcOutputFmt=defines.ADCFormat.COMPLEX_1X)
+        self.send("flushCfg")
+        self.send("dfeDataOutputMode {modeType.value}".format(
+            modeType=defines.DFEMode.LEGACY))
+        self.send(common.configure_adc(adc_fmt=defines.ADCFormat.COMPLEX_1X))
         self.profileCfg(
             startFreq=frequency, idleTime=idle_time,
             adcStartTime=adc_start_time, rampEndTime=ramp_end_time,
             txStartTime=tx_start_time, freqSlopeConst=freq_slope,
             numAdcSamples=adc_samples, digOutSampleRate=sample_rate)
 
-        self._configure_channels(rx=0b1111, tx=self._TX_MASK)
+        self.send(common.configure_channels(rx=self._RX_MASK, tx=self._TX_MASK))
         self.frameCfg(
             numLoops=frame_length, chirpEndIdx=self.NUM_TX - 1,
             framePeriodicity=frame_period)
         self.compRangeBiasAndRxChanPhase(rx_phase = [(0, 1)] * 4 * 3)
         self.lvdsStreamCfg()
 
-        self.boilerplate_setup()
+        self.send("lowPower 0 0")
+        self.send(common.get_boilerplate())
         self.log.info("Radar setup complete.")
 
 
@@ -94,13 +95,16 @@ class AWR1843L(AWR1843):
         name: human-readable name.
     """
 
+    _PORT_NAME = r"XDS110"
+    _START_COMMAND = "sensorStart"
     _TX_MASK = 0b101
+    _RX_MASK = 0b1111
     NUM_TX = 2
     NUM_RX = 4
     BYTES_PER_SAMPLE = 2 * 2
 
 
-class AWR1642(XWRBase):
+class AWR1642(XWRBase, common.APIMixins):
     """Interface implementation for the TI AWR1642 family.
 
     !!! info "Supported devices"
@@ -114,6 +118,9 @@ class AWR1642(XWRBase):
     """
 
     _PORT_NAME = r'XDS110'
+    _START_COMMAND = "sensorStart"
+    _TX_MASK = 0b011
+    _RX_MASK = 0b1111
     NUM_TX = 2
     NUM_RX = 4
     BYTES_PER_SAMPLE = 2 * 2
@@ -148,17 +155,17 @@ class AWR1642(XWRBase):
         assert frame_length & (frame_length - 1) == 0
 
         self.stop()
-        self.flushCfg()
-        self.dfeDataOutputMode(defines.DFEMode.LEGACY)
-        self.adcCfg(adcOutputFmt=defines.ADCFormat.COMPLEX_1X)
-        self.adcbufCfg(adcOutputFmt=defines.ADCFormat.COMPLEX_1X)
+        self.send("flushCfg")
+        self.send("dfeDataOutputMode {modeType.value}".format(
+            modeType=defines.DFEMode.LEGACY))
+        self.send(common.configure_adc(adc_fmt=defines.ADCFormat.COMPLEX_1X))
         self.profileCfg(
             startFreq=frequency, idleTime=idle_time,
             adcStartTime=adc_start_time, rampEndTime=ramp_end_time,
             txStartTime=tx_start_time, freqSlopeConst=freq_slope,
             numAdcSamples=adc_samples, digOutSampleRate=sample_rate)
 
-        self._configure_channels(rx=0b1111, tx=0b011)
+        self.send(common.configure_channels(rx=self._RX_MASK, tx=self._TX_MASK))
         self.frameCfg(
             numLoops=frame_length, chirpEndIdx=self.NUM_TX - 1,
             framePeriodicity=frame_period)
@@ -166,22 +173,15 @@ class AWR1642(XWRBase):
         self.send("bpmCfg -1 0 0 1")
         self.lvdsStreamCfg()
 
-        self.boilerplate_setup()
+        # For some reason, the AWR1642 requires adcMode=1.
+        # Not sure what this does.
+        self.send("lowPower 0 1")
+
+        self.send(common.get_boilerplate())
         self.log.info("Radar setup complete.")
 
-    def lowPower(self, dontCare: int = 0, adcMode: int = 1) -> None:
-        """Low power mode config.
 
-        !!! warning
-
-            For some reason, the AWR1642 requires `adcMode=1`. Not sure what
-            this does.
-        """
-        cmd = "lowPower {} {}".format(dontCare, adcMode)
-        self.send(cmd)
-
-
-class AWR2944(XWRBase):
+class AWR2944(XWRBase, common.APIMixins):
     """Interface implementation for the TI AWR2944.
 
     !!! info "Supported devices"
@@ -195,6 +195,9 @@ class AWR2944(XWRBase):
     """
 
     _PORT_NAME = r'XDS110'
+    _START_COMMAND = "sensorStart"
+    _TX_MASK = 0b1111
+    _RX_MASK = 0b1111
     NUM_TX = 4
     NUM_RX = 4
     BYTES_PER_SAMPLE = 2
@@ -232,20 +235,29 @@ class AWR2944(XWRBase):
         self._wait_for_response()
 
         self.stop()
-        self.flushCfg()
+        self.send("flushCfg")
 
-        self.dfeDataOutputMode(defines.DFEMode.LEGACY)
-        self.adcCfg(adcOutputFmt=defines.ADCFormat.REAL)
-        self.adcbufCfg(adcOutputFmt=defines.ADCFormat.REAL)
+        self.send("dfeDataOutputMode {modeType.value}".format(
+            modeType=defines.DFEMode.LEGACY))
+
+        self.send(common.configure_adc(adc_fmt=defines.ADCFormat.REAL))
         self.profileCfg(
             startFreq=frequency, idleTime=idle_time,
             adcStartTime=adc_start_time, rampEndTime=ramp_end_time,
             txStartTime=tx_start_time, freqSlopeConst=freq_slope,
             numAdcSamples=adc_samples, digOutSampleRate=sample_rate)
-        self.frameCfg(
-            numLoops=frame_length, chirpEndIdx=3, numAdcSamples=adc_samples,
-            framePeriodicity=frame_period)
-        self._configure_channels(rx=0b1111, tx=0b1111)
+        self.send((
+            "frameCfg {chirpStartIdx} {chirpEndIdx} {numLoops} {numFrames} "
+            "{numAdcSamples} {framePeriodicity} "
+            "{triggerSelect} "      # 1 = software trigger
+            "{frameTriggerDelay}"   # Undocumented
+        ).format(
+            chirpStartIdx=0, chirpEndIdx=3, numLoops=frame_length,
+            numFrames=0, numAdcSamples=adc_samples,
+            framePeriodicity=frame_period,
+            triggerSelect=1, frameTriggerDelay=0.0))
+
+        self.send(common.configure_channels(rx=self._RX_MASK, tx=self._TX_MASK))
         self.compRangeBiasAndRxChanPhase(rx_phase = [(1, 0)] * 4 * 4)
         self.lvdsStreamCfg()
 
@@ -254,47 +266,18 @@ class AWR2944(XWRBase):
             "antGeometryCfg 1 0 1 1 1 2 1 3 0 2 0 3 0 4 0 5 1 4 1 5 1 6 1 7 "
             "1 8 1 9 1 10 1 11 0.5 0.8")
 
-        self.boilerplate_setup()
+        self.send("lowPower 0 0")
+        self.send(common.get_boilerplate())
 
         self.log.info("Radar setup complete.")
 
-    def frameCfg(  # type: ignore
-        self, chirpStartIdx: int = 0, chirpEndIdx: int = 1, numLoops: int = 16,
-        numFrames: int = 0, numAdcSamples: int = 256,
-        framePeriodicity: float = 100.0,
-        triggerSelect: int = 1, frameTriggerDelay: float = 0.0
-    ) -> None:
-        """Radar frame configuration.
 
-        !!! warning
-
-            The frame should not have more than a 50% duty cycle according to
-            the mmWave SDK documentation.
-
-        Args:
-            chirpStartIdx: chirps to use in the frame.
-            chirpEndIdx: chirps to use in the frame.
-            numLoops: number of chirps per frame; must be >= 16 based on
-                trial/error.
-            numFrames: how many frames to run before stopping; infinite if 0.
-            numAdcSamples: number of samples per chirp; must match the
-                `numAdcSamples` provided to `profileCfg`.
-            framePeriodicity: period between frames, in ms.
-            triggerSelect: only software trigger (1) is supported.
-            frameTriggerDelay: does not appear to be documented.
-        """
-        cmd = "frameCfg {} {} {} {} {} {} {} {}".format(
-            chirpStartIdx, chirpEndIdx, numLoops, numFrames, numAdcSamples,
-            framePeriodicity, triggerSelect, frameTriggerDelay)
-        self.send(cmd)
-
-
-class AWR2544(XWRBase):
-    """Interface implementation for the TI AWR2544 family.
+class AWRL6844(XWRBase):
+    """Interface implementation for the TI AWRL6844.
 
     !!! info "Supported devices"
 
-        - AWR2544LOPEVM
+        - AWRL6844EVM
 
     Args:
         port: radar control serial port; typically the lower numbered one.
@@ -303,18 +286,24 @@ class AWR2544(XWRBase):
     """
 
     _PORT_NAME = r'XDS110'
+    _START_COMMAND = "sensorStart 0 0 0 0"
+
     NUM_TX = 4
     NUM_RX = 4
-    BYTES_PER_SAMPLE = 2 * 2
+    BYTES_PER_SAMPLE = 2
 
     def __init__(
         self, port: str | None = None, baudrate: int = 115200,
-        name: str = "AWR1843"
+        name: str = "AWRL6844"
     ) -> None:
         super().__init__(port=port, baudrate=baudrate, name=name)
 
+    def stop(self) -> None:
+        self.send("sensorStop 0")
+        self.log.info("Radar Stopped.")
+
     def setup(
-        self, frequency: float = 77.0, idle_time: float = 110.0,
+        self, frequency: float = 60.0, idle_time: float = 110.0,
         adc_start_time: float = 4.0, ramp_end_time: float = 56.0,
         tx_start_time: float = 1.0, freq_slope: float = 70.006,
         adc_samples: int = 256, sample_rate: int = 5000,
@@ -323,99 +312,71 @@ class AWR2544(XWRBase):
         """Configure radar.
 
         Args:
-            frequency: frequency band, in GHz; 77.0 or 76.0.
-            idle_time: see TI chirp timing documentation; in us.
-            adc_start_time: see TI chirp timing documentation; in us.
-            ramp_end_time: see TI chirp timing documentation; in us.
-            tx_start_time: see TI chirp timing documentation; in us.
+            frequency: chirp start frequency, in GHz.
+            idle_time: chirp idle time; in us.
+            adc_start_time: ADC start offset, in us.
+            ramp_end_time: chirp ramp end time; in us.
+            tx_start_time: TX start time offset; in us.
             freq_slope: chirp frequency slope; in MHz/us.
-            adc_samples: number of samples per chirp.
+            adc_samples: number of ADC samples per chirp.
             sample_rate: ADC sampling rate; in ksps.
-            frame_length: chirps per frame per TX antenna. Must be a power of 2.
+            frame_length: bursts per frame (= chirps per TX antenna per frame).
+                Must be a power of 2.
             frame_period: time between the start of each frame; in ms.
         """
         assert frame_length & (frame_length - 1) == 0
 
-        return self.setup_from_config("test.cfg")
+        self.port.write('\n'.encode('ascii'))
+        self._wait_for_response()
 
         self.stop()
-        self.flushCfg()
-        self.dfeDataOutputMode(defines.DFEMode.LEGACY)
-        self.adcCfg(adcOutputFmt=defines.ADCFormat.COMPLEX_1X)
-        self.adcbufCfg(adcOutputFmt=defines.ADCFormat.COMPLEX_1X)
-        self.profileCfg(
-            startFreq=frequency, idleTime=idle_time,
-            adcStartTime=adc_start_time, rampEndTime=ramp_end_time,
-            txStartTime=tx_start_time, freqSlopeConst=freq_slope,
-            numAdcSamples=adc_samples, digOutSampleRate=sample_rate)
 
-        self._configure_channels(rx=0b1111, tx=0b1111)
-        self.frameCfg(
-            numLoops=frame_length, chirpEndIdx=3,
-            framePeriodicity=frame_period, numAdcSamples=adc_samples)
-        # self.lvdsStreamCfg()
+        self.send("channelCfg 153 255 0")
+        self.send("apllFreqShiftEn 0")
 
-        # self.boilerplate_setup()
-        self.lowPower()
-        self.CQRxSatMonitor()
-        self.CQSigImgMonitor()
-        self.analogMonitor()
-        self.calibData()
+        # digOutputSampRate: clock divider for the 400 MHz APLL.
+        # ADC rate (Msps) = 400 / (2 * digOutputSampRate), so:
+        # digOutputSampRate = 400_000 / (2 * sample_rate_ksps)
+        #                   = 200_000 // sample_rate
+        dig_output_samp_rate = 200_000 // sample_rate
 
-    def channelCfg(
-        self, rxChannelEn: int = 0b1111, txChannelEn: int = 0b101,
-        cascading: int = 0, ethOscClkEn: Literal[0, 1] = 0,
-        driveStrength: int = 0
-    ) -> None:
-        """Channel configuration for the radar subsystem.
+        # chirpAdcStartTime takes skip samples (int), not µs.
+        adc_start_skip = round(adc_start_time * sample_rate / 1000)
 
-        Args:
-            rxChannelEn: bit-masked rx channels to enable.
-            txChannelEn: bit-masked tx channels to enable.
-            cascading: must always be set to 0.
-            ethOscClkEn: enable 25MHz ethernet oscillator clock supply from the
-                chip; not used (`0`) by this library.
-            driveStrength: ethernet oscillator clock drive strength.
-        """
-        cmd = "channelCfg {} {} {} {} {}".format(
-            rxChannelEn, txChannelEn, cascading, ethOscClkEn, driveStrength)
-        self.send(cmd)
+        # burstPeriodus: repetition interval for one burst of NUM_TX chirps.
+        # Minimum = NUM_TX * (idle_time + ramp_end_time).
+        burst_period = self.NUM_TX * (idle_time + ramp_end_time)
 
-    def frameCfg(  # type: ignore
-        self, chirpStartIdx: int = 0, chirpEndIdx: int = 1, numLoops: int = 16,
-        numFrames: int = 0, numAdcSamples: int = 256,
-        framePeriodicity: float = 100.0,
-        triggerSelect: int = 1, frameTriggerDelay: float = 0.0
-    ) -> None:
-        """Radar frame configuration.
+        # chirpTxMimoPatSel=4 is MIMO_TDM_PATTERN (one TX per chirp, cycling).
+        self.send(
+            f"chirpComnCfg {dig_output_samp_rate} 0 0 "
+            f"{adc_samples} 1 {ramp_end_time} 0")
+        self.send(
+            f"chirpTimingCfg {idle_time} {adc_start_skip} "
+            f"{tx_start_time} {freq_slope} {frequency}")
 
-        !!! warning
+        self.send("adcDataDitherCfg  1")
 
-            The frame should not have more than a 50% duty cycle according to
-            the mmWave SDK documentation.
+        # numOfChirpsInBurst=NUM_TX cycles through all TX antennas per burst.
+        # numOfBurstsInFrame=frame_length gives frame_length chirps per TX.
+        # Constraint: (NUM_TX * frame_length) % NUM_TX == 0 always holds.
+        self.send(
+            f"frameCfg {frame_length * 4} 0 {burst_period} "
+            f"1 {frame_period} 0")
 
-        Args:
-            chirpStartIdx: chirps to use in the frame.
-            chirpEndIdx: chirps to use in the frame.
-            numLoops: number of chirps per frame; must be >= 16 based on
-                trial/error.
-            numFrames: how many frames to run before stopping; infinite if 0.
-            numAdcSamples: number of samples per chirp; must match the
-                `numAdcSamples` provided to `profileCfg`.
-            framePeriodicity: period between frames, in ms.
-            triggerSelect: only software trigger (1) is supported.
-            frameTriggerDelay: does not appear to be documented.
-        """
-        cmd = "frameCfg {} {} {} {} {} {} {} {}".format(
-            chirpStartIdx, chirpEndIdx, numLoops, numFrames, numAdcSamples,
-            framePeriodicity, triggerSelect, frameTriggerDelay)
-        self.send(cmd)
+        self.send("gpAdcMeasConfig 0 0")
+        self.send("guiMonitor 1 1 0 0 0 1")
+        self.send("cfarProcCfg 0 2 8 4 3 0 9.0 0")
+        self.send("cfarProcCfg 1 2 4 2 2 1 9.0 0")
+        self.send("cfarFovCfg 0 0.25 9.0")
+        self.send("cfarFovCfg 1 -20.16 20.16")
+        self.send("aoaProcCfg 64 64")
+        self.send("aoaFovCfg -60 60 -60 60")
+        self.send("clutterRemoval 0")
 
-    def analogMonitor(
-        self, rxSaturation: int = 0, sigImgBand: int = 0,
-        apllLdoSCMonEn: int = 0
-    ) -> None:
-        """Enable/disable monitoring."""
-        cmd = "analogMonitor {} {} {}".format(
-            rxSaturation, sigImgBand, apllLdoSCMonEn)
-        self.send(cmd)
+        self.send("runtimeCalibCfg 1")
+        self.send("antGeometryBoard xWRL6844EVM")
+        self.send("adcLogging 1")
+        self.send("lowPowerCfg 0")
+
+        self.log.info("Radar setup complete.")

@@ -238,6 +238,39 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 
     - Remove the jumper on SOP2, so only a jumper on SOP0 remains (`SOP2:0=001`).
 
+## AWRL6844EVM
+
+!!! info "Firmware"
+
+    Install the [MMWAVE-L-SDK](https://www.ti.com/tool/MMWAVE-L-SDK). You can find the demo firmware at
+    ```
+    examples/mmw_demo/mmwave_demo/prebuilt_binaries/xwrL684x-evm/mmwave_demo.release.appimage
+    ```
+
+1. Prepare for flashing.
+
+    - Plug in a USB cable to the XDS port (on the right side).
+    - Follow [this flashing guide](https://www.ti.com/lit/ug/swru636/swru636.pdf?ts=1772012346542):
+        - Set the large "flashing mode" SOP switches to 00 (labeled "flashing mode" on the PCB).
+        - Set the undocumented switches (S5) to OFF.
+        - Set all S1 switches to off except S1.2, which should be on.
+        - Set all S4 switches to off.
+
+2. Flash using [TI UniFlash](https://www.ti.com/tool/UNIFLASH).
+
+    - Select `AWRL68XX` as the device. This will not be detected automatically.
+    - Select the `mmwave_demo.release.appimage` image to flash.
+    - Choose the serial port corresponding to the radar; the serial port should have a name/description `XDS110 Class Application/User UART`.
+    - Flashing should take around 1 minute, and terminate with "Program Load completed successfully".
+
+3. Switch the radar to functional mode.
+
+    - Follow [this flashing guide](https://www.ti.com/lit/ug/swru636/swru636.pdf?ts=1772012346542):
+        - Set the large "flashing mode" SOP switches to 01 (labeled "functional mode" on the PCB).
+        - Set the undocumented switches (S5) to OFF.
+        - Set all S1 switches to off except S1.2, which should be on.
+        - Set all S4 switches to off except S4.6, which should be on.
+
 ## :construction_site: AWR2544LOPEVM
 
 !!! failure "Not yet working"
