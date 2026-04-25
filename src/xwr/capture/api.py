@@ -61,7 +61,7 @@ class DCA1000EVM:
         timeout: Config socket read timeout.
         socket_buffer: Receive socket buffer size. Ensure that `socket_buffer`
             is less than `/proc/sys/net/core/rmem_max`.
-        name: logger name; should be human-readable.
+       name: logger name; should be human-readable.
 
     Raises:
         TimeoutError: request timed out (is the device connected?).
@@ -102,7 +102,6 @@ class DCA1000EVM:
 
         self.data_socket.setsockopt(
             socket.SOL_SOCKET, socket.SO_RCVBUF, socket_buffer)
-
         self.timeout = timeout
 
         self._warn_ooo_counter = 0
@@ -199,6 +198,37 @@ class DCA1000EVM:
         size = int(np.prod(shape)) * np.dtype(np.uint16).itemsize
         self._check_bufsize(size)
 
+        try:
+            from . import _fast  # type: ignore[import]
+            self.log.debug("Using C extension for streaming.")
+            yield from self._stream_fast(_fast, size)
+        except ImportError:
+            self.log.warning(
+                "C extension not available; using pure Python streaming (this"
+                "may use around 2x more CPU resources).")
+            yield from self._stream_python(size)
+
+    def _stream_fast(self, _fast: object, size: int) -> Iterator[types.RadarFrame]:
+        """Stream frames using the C extension (recvmmsg ring-buffer path)."""
+        receiver = _fast.FrameStream(  # type: ignore[attr-defined]
+            fd=self.data_socket.fileno(),
+            frame_size=size,
+            batch_size=64,
+            ring_frames=4,
+            timeout=self.timeout,
+        )
+        while True:
+            result = receiver.next_frame()
+            if result is None:
+                return
+            ts, data, dropped = result
+            if dropped:
+                self.log.warning("Dropped {} bytes in frame.".format(dropped))
+            yield types.RadarFrame(
+                timestamp=ts, data=bytes(data), complete=(dropped == 0))
+
+    def _stream_python(self, size: int) -> Iterator[types.RadarFrame]:
+        """Stream frames using the pure-Python fallback path."""
         offset = 0
         timestamp = 0.0
         buf = bytearray()
@@ -226,13 +256,10 @@ class DCA1000EVM:
                 buf.extend(packet.data)
                 offset += len(packet.data)
 
-            # Write out if the buffer contains complete
             while len(buf) >= size:
                 yield types.RadarFrame(
                     timestamp=timestamp, data=buf[:size], complete=complete)
                 buf[:size] = b''
-
-                # Update timestamp for remainder
                 if len(buf) < size:
                     timestamp = time.time()
 

@@ -4,6 +4,9 @@ import struct
 from dataclasses import dataclass
 from typing import cast
 
+# Pre-compiled struct for the 4-byte sequence number field.
+_SEQNUM = struct.Struct('<L')
+
 from .defines import Command
 
 
@@ -86,7 +89,8 @@ class DataPacket:
         [^1]: [DCA1000EVM Data Capture Card User's Guide (Rev A)](
             https://www.ti.com/lit/ug/spruij4a/spruij4a.pdf?ts=1709104212742).
         """
-        sn, bc = struct.unpack('<LQ', packet[:10] + b'\x00\x00')
+        sn = _SEQNUM.unpack_from(packet)[0]
+        bc = int.from_bytes(packet[4:10], 'little')
         return cls(sequence_number=sn, byte_count=bc, data=packet[10:])
 
 

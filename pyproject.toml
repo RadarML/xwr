@@ -1,13 +1,16 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "setuptools", "numpy"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.hooks.custom]
+path = "hatch_build.py"
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [project]
 name = "xwr"
-version = "0.4.1"
+version = "0.4.2"
 authors = [
   { name="Tianshu Huang", email="tianshu2@andrew.cmu.edu" },
 ]

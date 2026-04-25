@@ -27,9 +27,6 @@ See our [documentation site](https://radarml.github.io/xwr/) for more details, s
 >    - AWR1642Boost
 >    - AWR2944EVM
 >    - AWRL6844EVM
->
-> WIP:
->    - AWR2544LOPEVM
 
 ## Install
 
