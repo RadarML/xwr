@@ -61,7 +61,6 @@ theme:
       icon: material/weather-night
       name: Switch to system preference
 
-
 plugins:
 - search
 - autorefs
@@ -69,6 +68,7 @@ plugins:
     default_handler: python_xref
     handlers:
       python_xref:
+        paths: [src]
         options:
           docstring_style: google
           relative_crossrefs: true

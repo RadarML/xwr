@@ -61,8 +61,7 @@ class DCA1000EVM:
         timeout: Config socket read timeout.
         socket_buffer: Receive socket buffer size. Ensure that `socket_buffer`
             is less than `/proc/sys/net/core/rmem_max`.
-        ring_buffer: Internal frame ring buffer size in frames.
-        name: logger name; should be human-readable.
+       name: logger name; should be human-readable.
 
     Raises:
         TimeoutError: request timed out (is the device connected?).
@@ -85,8 +84,7 @@ class DCA1000EVM:
     def __init__(
         self, sys_ip: str = "192.168.33.30", fpga_ip: str = "192.168.33.180",
         data_port: int = 4098, config_port: int = 4096, timeout: float = 1.0,
-        socket_buffer: int = 2048000, ring_buffer: int = 4,
-        name: str = "DCA1000EVM"
+        socket_buffer: int = 2048000, name: str = "DCA1000EVM"
     ) -> None:
         self.log: logging.Logger = logging.getLogger(name=name)
 
@@ -95,7 +93,6 @@ class DCA1000EVM:
         self.config_port = config_port
         self.data_port = data_port
         self.recording = False
-        self.ring_buffer = ring_buffer
         self.thread: threading.Thread | None = None
 
         self.config_socket: socket.socket = self._create_socket(
@@ -217,7 +214,7 @@ class DCA1000EVM:
             fd=self.data_socket.fileno(),
             frame_size=size,
             batch_size=64,
-            ring_frames=self.ring_buffer,
+            ring_frames=4,
             timeout=self.timeout,
         )
         while True:
