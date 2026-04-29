@@ -105,6 +105,9 @@ class DCA1000EVM:
         self.timeout = timeout
 
         self._warn_ooo_counter = 0
+        self._warn_dropped_total = 0
+        self._warn_dropped_count = 0
+        self._warn_dropped_last = None
 
     def flush(self) -> None:
         """Clear data receive buffers."""
@@ -165,6 +168,27 @@ class DCA1000EVM:
         if self._warn_ooo_counter == 10:
             self.log.error("Suppressing 'out of order' on the 10th trigger.")
 
+    def _warn_dropped(self, dropped: int) -> None:
+        """Dropped packet warning."""
+        self._warn_dropped_total += dropped
+        self._warn_dropped_count += 1
+
+        now = time.perf_counter()
+        last = self._warn_dropped_last
+        if last is None or now - last >= 10.0:
+            if self._warn_dropped_count == 1:
+                self.log.warning("Dropped {} bytes in frame.".format(dropped))
+            else:
+                assert last is not None
+                self.log.warning(
+                    "Dropped {} bytes in frame; {} bytes were dropped over {} "
+                    "frames in the last {:.1f}s.".format(
+                        dropped, self._warn_dropped_total,
+                        self._warn_dropped_total, now - last))
+            self._warn_dropped_total = 0
+            self._warn_dropped_count = 0
+            self._warn_dropped_last = now
+
     def _check_bufsize(self, size: int) -> None:
         """Check if the receive buffer size is sufficient."""
         bufsize = self.data_socket.getsockopt(
@@ -223,7 +247,7 @@ class DCA1000EVM:
                 return
             ts, data, dropped = result
             if dropped:
-                self.log.warning("Dropped {} bytes in frame.".format(dropped))
+                self._warn_dropped(dropped)
             yield types.RadarFrame(
                 timestamp=ts, data=bytes(data), complete=(dropped == 0))
 
@@ -247,8 +271,7 @@ class DCA1000EVM:
                 self._warn_ooo(missing)
             else:
                 if missing > 0:
-                    self.log.warning(
-                        "Dropped packets: {} bytes".format(missing))
+                    self._warn_dropped(missing)
                     buf.extend(b'\x00' * missing)
                     offset = packet.byte_count
                     complete = False
