@@ -61,7 +61,7 @@ class DCA1000EVM:
         timeout: Config socket read timeout.
         socket_buffer: Receive socket buffer size. Ensure that `socket_buffer`
             is less than `/proc/sys/net/core/rmem_max`.
-       name: logger name; should be human-readable.
+        name: logger name; should be human-readable.
 
     Raises:
         TimeoutError: request timed out (is the device connected?).
@@ -228,11 +228,13 @@ class DCA1000EVM:
             yield from self._stream_fast(_fast, size)
         except ImportError:
             self.log.warning(
-                "C extension not available; using pure Python streaming (this"
+                "C extension not available; using pure Python streaming (this "
                 "may use around 2x more CPU resources).")
             yield from self._stream_python(size)
 
-    def _stream_fast(self, _fast: object, size: int) -> Iterator[types.RadarFrame]:
+    def _stream_fast(
+        self, _fast: object, size: int
+    ) -> Iterator[types.RadarFrame]:
         """Stream frames using the C extension (recvmmsg ring-buffer path)."""
         receiver = _fast.FrameStream(  # type: ignore[attr-defined]
             fd=self.data_socket.fileno(),

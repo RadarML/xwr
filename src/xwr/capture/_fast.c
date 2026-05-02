@@ -33,6 +33,7 @@
 #include <sys/socket.h>
 #include <time.h>
 #include <stdint.h>
+#include <sys/uio.h>
 
 #define FS_MAX_PKT  2048   /* receive buffer per packet (bytes) */
 #define FS_HDR_LEN  10     /* 4-byte seqnum + 6-byte byte_count */

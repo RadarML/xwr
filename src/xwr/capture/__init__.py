@@ -12,7 +12,7 @@ paths at runtime.
     silently accumulate in the kernel socket buffer until it is full.
 
     - Check the timing of incoming frames against the configured frame rate to
-      ensure that no buffer bloat is occuring.
+      ensure that no buffer bloat is occurring.
     - Once the buffer is full, packets will be dropped until space is
       available. This is visible to the driver via the byte count included in
       the packet header, which is logged as a warning.
