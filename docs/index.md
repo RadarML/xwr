@@ -51,8 +51,6 @@
 
     This list of supported radars is expanding, and we may add support for additional radars in the future! Feel free to leave an issue if you have a specific request.
 
-    - **v0.4.0**: Added support for the AWR2944EVM!
-
 ## Install
 
 The `xwr` library can be installed from [pypi](https://pypi.org/project/xwr/) or github:
