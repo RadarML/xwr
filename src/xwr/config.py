@@ -16,6 +16,11 @@ class XWRConfig:
     https://dev.ti.com/gallery/view/mmwave/mmWaveSensingEstimator/ver/2.4.0/)
     may be helpful for creating a configuration.
 
+    !!! info
+
+        Attributes marked with *(derived)* are computed from other attributes,
+        i.e., are `@property` attributes.
+
     Attributes:
         device: radar device type, or the name of a radar device class in
             [`xwr.radar`][xwr.radar].
@@ -32,6 +37,23 @@ class XWRConfig:
         frame_period: periodicity of frames, in ms.
         port: Control serial port (usually `/dev/ttyACM0`). Use `None` to
             auto-detect; see [`XWRBase`][xwr.radar.XWRBase].
+        device_name: *(derived)* Device class name; used as constraint lookup key.
+        device_type: *(derived)* Radar device type.
+        num_tx: *(derived)* Number of TX antennas.
+        num_rx: *(derived)* Number of RX antennas.
+        shape: *(derived)* Radar data cube shape.
+        raw_shape: *(derived)* Radar IIQQ data shape.
+        frame_size: *(derived)* Radar data cube size, in bytes.
+        chirp_time: *(derived)* Per-TX antenna inter-chirp time T_c, in microseconds.
+        frame_time: *(derived)* Total radar frame time, in ms.
+        sample_time: *(derived)* Total sampling time T_s, in us.
+        bandwidth: *(derived)* Effective bandwidth, in MHz.
+        range_resolution: *(derived)* Range resolution, in m.
+        max_range: *(derived)* Maximum range, in m.
+        wavelength: *(derived)* Center wavelength, in m.
+        doppler_resolution: *(derived)* Doppler resolution, in m/s.
+        max_doppler: *(derived)* Maximum doppler velocity, in m/s.
+        throughput: *(derived)* Average throughput, in bits/sec.
     """
 
     device: type[radar.XWRBase] | str
@@ -48,8 +70,11 @@ class XWRConfig:
     port: str | None = None
 
     @property
+    def device_name(self) -> str:
+        return self.device_type.__name__
+
+    @property
     def device_type(self) -> type[radar.XWRBase]:
-        """Radar device type."""
         if isinstance(self.device, str):
             try:
                 return getattr(radar, self.device)
@@ -60,84 +85,69 @@ class XWRConfig:
 
     @property
     def num_tx(self) -> int:
-        """Number of TX antennas."""
         return self.device_type.NUM_TX
 
     @property
     def num_rx(self) -> int:
-        """Number of RX antennas."""
         return self.device_type.NUM_RX
 
     @property
     def shape(self) -> tuple[int, int, int, int]:
-        """Radar data cube shape."""
         return (
             self.frame_length, self.num_tx, self.num_rx, self.adc_samples)
 
     @property
     def raw_shape(self) -> tuple[int, int, int, int]:
-        """Radar IIQQ data shape."""
         return (
             self.frame_length, self.num_tx, self.num_rx, self.adc_samples
             * self.device_type.BYTES_PER_SAMPLE // 2)
 
     @property
     def frame_size(self) -> int:
-        """Radar data cube size, in bytes."""
         return (self.frame_length * self.num_tx * self.num_rx *
                 self.adc_samples * self.device_type.BYTES_PER_SAMPLE)
 
     @property
     def chirp_time(self) -> float:
-        """Per-TX antenna inter-chirp time T_c, in microseconds."""
         return (self.idle_time + self.ramp_end_time) * self.num_tx
 
     @property
     def frame_time(self) -> float:
-        """Total radar frame time, in ms."""
         return self.chirp_time * self.frame_length / 1e3
 
     @property
     def sample_time(self) -> float:
-        """Total sampling time T_s, in us."""
         return self.adc_samples / self.sample_rate * 1e3
 
     @property
     def bandwidth(self) -> float:
-        """Effective bandwidth, in MHz."""
         return self.freq_slope * self.sample_time
 
     @property
     def range_resolution(self) -> float:
-        """Range resolution, in m."""
         return SPEED_OF_LIGHT / (2 * self.bandwidth * 1e6)
 
     @property
     def max_range(self) -> float:
-        """Maximum range, in m."""
         return self.range_resolution * self.adc_samples
 
     @property
     def wavelength(self) -> float:
-        """Center wavelength, in m."""
         offset_time = self.adc_start_time + self.sample_time / 2
         return SPEED_OF_LIGHT / (
             self.frequency * 1e9 + self.freq_slope * (offset_time) * 1e6)
 
     @property
     def doppler_resolution(self) -> float:
-        """Doppler resolution, in m/s."""
         return (
             self.wavelength / (2 * self.frame_length * self.chirp_time * 1e-6))
 
     @property
     def max_doppler(self) -> float:
-        """Maximum doppler velocity, in m/s."""
         return self.wavelength / (4 * self.chirp_time * 1e-6)
 
     @property
     def throughput(self) -> float:
-        """Average throughput, in bits/sec."""
         return self.frame_size * 8 / self.frame_period * 1e3
 
     def as_dict(self) -> dict[str, float | int]:

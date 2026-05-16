@@ -56,8 +56,6 @@ class AWR1843(XWRBase, common.APIMixins):
             frame_length: chirps per frame per TX antenna. Must be a power of 2.
             frame_period: time between the start of each frame; in ms.
         """
-        assert frame_length & (frame_length - 1) == 0
-
         self.stop()
         self.send("flushCfg")
         self.send("dfeDataOutputMode {modeType.value}".format(
@@ -152,8 +150,6 @@ class AWR1642(XWRBase, common.APIMixins):
             frame_length: chirps per frame per TX antenna. Must be a power of 2.
             frame_period: time between the start of each frame; in ms.
         """
-        assert frame_length & (frame_length - 1) == 0
-
         self.stop()
         self.send("flushCfg")
         self.send("dfeDataOutputMode {modeType.value}".format(
@@ -229,8 +225,6 @@ class AWR2944(XWRBase, common.APIMixins):
             frame_length: chirps per frame per TX antenna. Must be a power of 2.
             frame_period: time between the start of each frame; in ms.
         """
-        assert frame_length & (frame_length - 1) == 0
-
         self.port.write('\n'.encode('ascii'))
         self._wait_for_response()
 
@@ -324,8 +318,6 @@ class AWRL6844(XWRBase):
                 Must be a power of 2.
             frame_period: time between the start of each frame; in ms.
         """
-        assert frame_length & (frame_length - 1) == 0
-
         self.port.write('\n'.encode('ascii'))
         self._wait_for_response()
 
