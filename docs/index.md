@@ -12,14 +12,14 @@
 [![CI](https://github.com/RadarML/xwr/actions/workflows/ci.yml/badge.svg)](https://github.com/RadarML/xwr/actions/workflows/ci.yml)
 ![GitHub issues](https://img.shields.io/github/issues/RadarML/xwr)
 
-`xwr` is a pure-python, linux-based real time raw data capture system for TI mmWave radars, and includes four key components:
+`xwr` is a python-based real time raw data capture system for TI mmWave radars, and includes four key components:
 
 <div class="grid cards" markdown>
 
 - [`xwr`](system.md): a high-level data capture interface
 - [`xwr.rsp`](rsp/index.md): a radar signal processing library with [Numpy](rsp/numpy.md), [Pytorch](rsp/torch.md), and [Jax](rsp/jax.md) support
 - [`xwr.radar`](radar/api.md): a parameterized python interface for the default radar firmware
-- [`xwr.capture`](dca/api.md): a pure-python, real-time interface for the DCA1000EVM
+- [`xwr.capture`](dca/api.md): a real-time interface for the DCA1000EVM
 
 </div>
 

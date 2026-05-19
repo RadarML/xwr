@@ -7,6 +7,23 @@ This module documents and enforces known constraints on radar configurations.
     These constraints are not exhaustive or guaranteed to be correct. If you
     find a missing constraint, or run into an undocumented or incorrectly
     implemented check, please open an issue!
+
+## Summary
+
+| Constraint | Description |
+|------------|-------------|
+| [`FrameDutyCycle`][.] | Active transmit time < 99% of frame period |
+| [`RFDutyCycle`][.] | RF on-time < 50% of frame period |
+| [`ExcessRampTime`][.] | ADC window must complete before ramp ends |
+| [`CubeSizeLimit`][.] | Data cube must fit in device L3 buffer |
+| [`FrameLengthPowerOfTwo`][.] | Frame length: power of 2 |
+| [`AdcSamplesPowerOfTwo`][.] | ADC samples: power of 2 |
+| [`MaxSampleRate`][.] | ADC sample rate ≤ device maximum |
+| [`MinSampleRate`][.] | ADC sample rate ≥ device minimum |
+| [`FrequencyRange`][.] | Start/end frequency within device RF band |
+| [`MaxBandwidth`][.] | Chirp bandwidth ≤ device RF maximum |
+| [`NetworkUtilization`][.] | Radar throughput < 80% of capture |
+| [`ReceiveBuffer`][.] | Receive buffer must hold ≥ 2 radar frames |
 """
 
 import logging
