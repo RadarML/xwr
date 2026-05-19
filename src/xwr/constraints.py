@@ -9,6 +9,7 @@ This module documents and enforces known constraints on radar configurations.
     implemented check, please open an issue!
 """
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import ClassVar
@@ -44,7 +45,7 @@ class ConstraintCheck:
     detail: str
 
 
-class DutyCycle(Constraint):
+class FrameDutyCycle(Constraint):
     """Active frame time must not exceed the frame period.
 
     The fraction of each period spent actively transmitting must stay
@@ -60,10 +61,31 @@ class DutyCycle(Constraint):
     def check(radar, capture=None):
         duty_cycle = 100 * radar.frame_time / radar.frame_period
         passed = duty_cycle < 99
-        detail = f"duty cycle = {duty_cycle:.1f}%"
+        detail = f"frame duty cycle = {duty_cycle:.1f}%"
         if not passed:
             detail += " (must be < 99%)"
-        return ConstraintCheck(DutyCycle, passed, detail)
+        return ConstraintCheck(FrameDutyCycle, passed, detail)
+
+
+class RFDutyCycle(Constraint):
+    """RF transmitter on-time must not exceed 50% of the frame period.
+
+    Counts only the time the RF ramp is active (`ramp_end_time` per TX
+    per chirp), excluding idle time and the inter-frame gap:
+
+        ramp_end_time × num_tx × frame_length / (frame_period × 1000) < 50%
+    """
+
+    @staticmethod
+    def check(radar, capture=None):
+        rf_on_us = radar.ramp_end_time * radar.num_tx * radar.frame_length
+        period_us = radar.frame_period * 1e3
+        duty_cycle = 100 * rf_on_us / period_us
+        passed = duty_cycle < 50
+        detail = f"RF duty cycle = {duty_cycle:.1f}%"
+        if not passed:
+            detail += " (should be < 50%)"
+        return ConstraintCheck(RFDutyCycle, passed, detail)
 
 
 class ExcessRampTime(Constraint):
@@ -234,17 +256,71 @@ class MinSampleRate(Constraint):
         return ConstraintCheck(MinSampleRate, passed, detail)
 
 
+class FrequencyRange(Constraint):
+    """Start and end frequencies must lie within the device RF band.
+
+    Both the start frequency and the end frequency
+    (`start_freq + bandwidth / 1000`) are checked against per-device limits:
+
+    | Device   | Min (GHz) | Max (GHz) |
+    |----------|-----------|-----------|
+    | AWR1642  | 76        | 81        |
+    | AWR1843  | 76        | 81        |
+    | AWR2944  | 76        | 81        |
+    | AWRL6844 | 57        | 64        |
+    """
+
+    _LIMITS: ClassVar[dict[str, tuple[float, float]]] = {
+        "AWR1642":  (76.0, 81.0),
+        "AWR1843":  (76.0, 81.0),
+        "AWR1843L": (76.0, 81.0),
+        "AWR2944":  (76.0, 81.0),
+        "AWRL6844": (57.0, 64.0),
+    }
+
+    @staticmethod
+    def check(radar, capture=None):
+        limits = FrequencyRange._LIMITS.get(radar.device_name)
+        if limits is None:
+            return ConstraintCheck(
+                FrequencyRange, None,
+                f"not checked for {radar.device_name}")
+        min_freq, max_freq = limits
+        start = radar.frequency
+        end = radar.frequency + radar.bandwidth / 1000
+        if start < min_freq:
+            return ConstraintCheck(
+                FrequencyRange, False,
+                f"start frequency {start:.3f} GHz < device minimum {min_freq} GHz")
+        if end > max_freq:
+            return ConstraintCheck(
+                FrequencyRange, False,
+                f"end frequency {end:.3f} GHz > device maximum {max_freq} GHz")
+        return ConstraintCheck(
+            FrequencyRange, True,
+            f"frequency range {start:.3f}–{end:.3f} GHz "
+            f"(device band {min_freq}–{max_freq} GHz)")
+
+
 class MaxBandwidth(Constraint):
     """Effective chirp bandwidth must not exceed the device RF limit.
 
     Bandwidth is computed as `freq_slope × T_s` (see
     [`XWRConfig.bandwidth`][xwr.config.XWRConfig]).
 
-    | Device | Maximum |
-    |--------|---------|
+    | Device   | Maximum  |
+    |----------|----------|
+    | AWR1642  | 4000 MHz |
+    | AWR1843  | 4000 MHz |
+    | AWR2944  | 4000 MHz |
     """
 
-    _LIMITS: ClassVar[dict[str, float]] = {}
+    _LIMITS: ClassVar[dict[str, float]] = {
+        "AWR1642":  4000.0,
+        "AWR1843":  4000.0,
+        "AWR1843L": 4000.0,
+        "AWR2944":  4000.0,
+    }
 
     @staticmethod
     def check(radar, capture=None):
@@ -254,11 +330,11 @@ class MaxBandwidth(Constraint):
                 MaxBandwidth, None,
                 f"not checked for {radar.device_name}")
         passed = radar.bandwidth <= limit
-        detail = f"bandwidth = {radar.bandwidth:.1f} MHz, maximum = {limit:.1f} MHz"
+        detail = f"bandwidth = {radar.bandwidth:.1f} MHz, maximum = {limit:.0f} MHz"
         if not passed:
             detail = (
                 f"bandwidth = {radar.bandwidth:.1f} MHz "
-                f"> device maximum {limit:.1f} MHz")
+                f"> device maximum {limit:.0f} MHz")
         return ConstraintCheck(MaxBandwidth, passed, detail)
 
 
@@ -317,6 +393,7 @@ class ReceiveBuffer(Constraint):
 def check_config(
     radar: XWRConfig,
     capture: DCAConfig | None = None,
+    log: bool = True,
 ) -> list[ConstraintCheck]:
     """Run all constraints against a configuration.
 
@@ -324,20 +401,35 @@ def check_config(
         radar: radar configuration.
         capture: capture card configuration; cross-config constraints are
             skipped if not provided.
+        log: if `True`, log each result at INFO level (pass/skip) or WARNING
+            level (fail) using the `xwr/constraints` logger.
 
     Returns:
         All constraint results, including passed and skipped checks.
     """
     CONSTRAINTS: list[type[Constraint]] = [
-        DutyCycle,
+        FrameDutyCycle,
+        RFDutyCycle,
         ExcessRampTime,
         CubeSizeLimit,
         FrameLengthPowerOfTwo,
         AdcSamplesPowerOfTwo,
         MaxSampleRate,
         MinSampleRate,
+        FrequencyRange,
         MaxBandwidth,
         NetworkUtilization,
         ReceiveBuffer,
     ]
-    return [C.check(radar, capture) for C in CONSTRAINTS]
+    results = [C.check(radar, capture) for C in CONSTRAINTS]
+    if log:
+        logger = logging.getLogger("xwr/constraints")
+        for r in results:
+            name = r.constraint.__name__
+            if r.passed is False:
+                logger.warning(f"Possibly invalid - {name}: {r.detail}")
+            else:
+                logger.info(
+                    f"{'skipped' if r.passed is None else 'pass'}"
+                    f" | {name}: {r.detail}")
+    return results

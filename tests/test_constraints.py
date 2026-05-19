@@ -9,13 +9,15 @@ from xwr.constraints import (
     AdcSamplesPowerOfTwo,
     ConstraintCheck,
     CubeSizeLimit,
-    DutyCycle,
     ExcessRampTime,
+    FrameDutyCycle,
     FrameLengthPowerOfTwo,
+    FrequencyRange,
     MaxBandwidth,
     MaxSampleRate,
     MinSampleRate,
     NetworkUtilization,
+    RFDutyCycle,
     ReceiveBuffer,
     check_config,
 )
@@ -74,16 +76,37 @@ def assert_skipped(r: ConstraintCheck):
 
 
 # ---------------------------------------------------------------------------
-# DutyCycle
+# FrameDutyCycle
 # ---------------------------------------------------------------------------
 
-def test_duty_cycle_pass(radar):
-    assert_passed(DutyCycle.check(radar))
+def test_frame_duty_cycle_pass(radar):
+    assert_passed(FrameDutyCycle.check(radar))
 
 
-def test_duty_cycle_fail(radar):
+def test_frame_duty_cycle_fail(radar):
     # frame_period barely less than frame_time → duty cycle > 99%
-    assert_failed(DutyCycle.check(replace(radar, frame_period=30.0)))
+    assert_failed(FrameDutyCycle.check(replace(radar, frame_period=30.0)))
+
+
+# ---------------------------------------------------------------------------
+# RFDutyCycle
+# ---------------------------------------------------------------------------
+
+def test_rf_duty_cycle_pass(radar):
+    # RF duty = 56 * 3 * 64 / (100 * 1000) = 10.75%
+    assert_passed(RFDutyCycle.check(radar))
+
+
+def test_rf_duty_cycle_fail(radar):
+    # ramp_end_time=300 → RF duty = 300 * 3 * 64 / (100 * 1000) = 57.6%
+    assert_failed(RFDutyCycle.check(replace(radar, ramp_end_time=300.0)))
+
+
+def test_rf_duty_cycle_at_boundary(radar):
+    # RF duty exactly 50% should fail (< 50% required)
+    # ramp_end_time = 0.5 * frame_period * 1000 / (num_tx * frame_length)
+    # = 0.5 * 100000 / (3 * 64) = 260.4167us → RF = 50.0%
+    assert_failed(RFDutyCycle.check(replace(radar, ramp_end_time=260.42)))
 
 
 # ---------------------------------------------------------------------------
@@ -198,13 +221,79 @@ def test_min_sample_rate_applies_to_awr1843l(radar):
 
 
 # ---------------------------------------------------------------------------
+# FrequencyRange
+# ---------------------------------------------------------------------------
+
+def test_frequency_range_pass(radar):
+    # start=77.0, end=77.0 + 3584/1000 = 80.584 GHz, within 76-81
+    assert_passed(FrequencyRange.check(radar))
+
+
+def test_frequency_range_fail_start_too_low(radar):
+    assert_failed(FrequencyRange.check(replace(radar, frequency=75.0)))
+
+
+def test_frequency_range_fail_end_too_high(radar):
+    # freq_slope=80 → bandwidth = 80 * 51.2 = 4096 MHz → end = 77 + 4.096 = 81.096 GHz
+    assert_failed(FrequencyRange.check(replace(radar, freq_slope=80.0)))
+
+
+def test_frequency_range_skip_unknown_device(radar):
+    class CustomRadar(AWR1843):
+        pass
+    assert_skipped(FrequencyRange.check(replace(radar, device=CustomRadar)))
+
+
+def test_frequency_range_awrl6844_pass(radar):
+    # AWRL6844 band: 57-64 GHz; end = 60.0 + 3.584 = 63.584 GHz
+    cfg = replace(radar, device=AWRL6844, frequency=60.0)
+    assert_passed(FrequencyRange.check(cfg))
+
+
+def test_frequency_range_awrl6844_fail_start_too_low(radar):
+    cfg = replace(radar, device=AWRL6844, frequency=56.0)
+    assert_failed(FrequencyRange.check(cfg))
+
+
+def test_frequency_range_awrl6844_fail_end_too_high(radar):
+    # frequency=62.0, freq_slope=80 → end = 62.0 + 4.096 = 66.096 GHz > 64
+    cfg = replace(radar, device=AWRL6844, frequency=62.0, freq_slope=80.0)
+    assert_failed(FrequencyRange.check(cfg))
+
+
+def test_frequency_range_all_76ghz_devices(radar):
+    # AWR1642, AWR1843, AWR2944 all use the 76-81 GHz band
+    for device in [AWR1642, AWR1843, AWR1843L, AWR2944]:
+        assert_passed(FrequencyRange.check(replace(radar, device=device)))
+
+
+# ---------------------------------------------------------------------------
 # MaxBandwidth
 # ---------------------------------------------------------------------------
 
-def test_max_bandwidth_skip_all(radar):
-    # _LIMITS is empty — all devices skip
-    for device in [AWR1642, AWR1843, AWR1843L, AWR2944, AWRL6844]:
-        assert_skipped(MaxBandwidth.check(replace(radar, device=device)))
+def test_max_bandwidth_pass(radar):
+    # bandwidth = 70 * 51.2 = 3584 MHz < 4000 MHz
+    assert_passed(MaxBandwidth.check(radar))
+
+
+def test_max_bandwidth_fail(radar):
+    # freq_slope=80 → bandwidth = 80 * 51.2 = 4096 MHz > 4000 MHz
+    assert_failed(MaxBandwidth.check(replace(radar, freq_slope=80.0)))
+
+
+def test_max_bandwidth_at_limit(radar):
+    # freq_slope = 4000 / 51.2 = 78.125 → bandwidth exactly 4000 MHz (pass)
+    assert_passed(MaxBandwidth.check(replace(radar, freq_slope=78.125)))
+
+
+def test_max_bandwidth_skip_awrl6844(radar):
+    # AWRL6844 has no MaxBandwidth entry; FrequencyRange enforces its limits
+    assert_skipped(MaxBandwidth.check(replace(radar, device=AWRL6844)))
+
+
+def test_max_bandwidth_applies_to_awr1642(radar):
+    cfg = replace(radar, device=AWR1642, freq_slope=80.0)
+    assert_failed(MaxBandwidth.check(cfg))
 
 
 # ---------------------------------------------------------------------------
@@ -247,20 +336,34 @@ def test_receive_buffer_skip_no_capture(radar):
 # ---------------------------------------------------------------------------
 
 def test_check_config_all_pass(radar, capture):
-    results = check_config(radar, capture)
+    results = check_config(radar, capture, log=False)
     failures = [r for r in results if r.passed is False]
     assert not failures, f"Unexpected failures: {failures}"
 
 
 def test_check_config_returns_all_constraints(radar, capture):
-    results = check_config(radar, capture)
-    assert len(results) == 10  # one per constraint class
+    results = check_config(radar, capture, log=False)
+    assert len(results) == 12  # one per constraint class
     assert all(isinstance(r, ConstraintCheck) for r in results)
 
 
 def test_check_config_no_capture_skips_cross_config(radar):
-    results = check_config(radar, capture=None)
+    results = check_config(radar, capture=None, log=False)
     cross_config = {NetworkUtilization, ReceiveBuffer}
     for r in results:
         if r.constraint in cross_config:
             assert r.passed is None
+
+
+def test_check_config_no_log(radar, capture, caplog):
+    import logging
+    with caplog.at_level(logging.DEBUG, logger="xwr/constraints"):
+        check_config(radar, capture, log=False)
+    assert not caplog.records
+
+
+def test_check_config_log(radar, capture, caplog):
+    import logging
+    with caplog.at_level(logging.DEBUG, logger="xwr/constraints"):
+        check_config(radar, capture, log=True)
+    assert caplog.records

@@ -10,6 +10,7 @@ import numpy as np
 
 from .capture import DCA1000EVM, types
 from .config import DCAConfig, XWRConfig
+from .constraints import check_config
 from .radar import XWRBase
 
 TRadar = TypeVar("TRadar", bound=XWRBase)
@@ -79,18 +80,11 @@ class XWRSystem(Generic[TRadar]):
         self.fps: float = 1000.0 / radar.frame_period
 
     def _check_config(self, radar: XWRConfig, capture: DCAConfig) -> None:
-        """Check config, and warn if potentially invalid."""
-        from .constraints import check_config
+        """Check config, and raise if strict mode is enabled and invalid."""
         for r in check_config(radar, capture):
-            name = r.constraint.__name__
-            if r.passed is False:
-                if self.strict:
-                    raise ValueError(
-                        f"Invalid configuration - {name}: {r.detail}")
-                self.log.warning(f"Invalid configuration - {name}: {r.detail}")
-            else:
-                self.log.debug(f"{'Skipped' if r.passed is None else 'Passed'}"
-                               f" - {name}: {r.detail}")
+            if r.passed is False and self.strict:
+                raise ValueError(
+                    f"Invalid configuration | {r.constraint.__name__}: {r.detail}")
 
     def stream(self) -> Iterator[types.RadarFrame]:
         """Iterator which yields successive frames.
