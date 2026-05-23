@@ -183,6 +183,11 @@ class FrameLengthPowerOfTwo(Constraint):
     @staticmethod
     def check(radar, capture=None):
         fl = radar.frame_length
+        if fl == 0:
+            return ConstraintCheck(
+                FrameLengthPowerOfTwo, False,
+                "frame_length = 0 (must be nonzero)")
+
         passed = fl & (fl - 1) == 0
         detail = f"frame_length = {fl}"
         if not passed:
@@ -202,6 +207,11 @@ class AdcSamplesPowerOfTwo(Constraint):
     @staticmethod
     def check(radar, capture=None):
         n = radar.adc_samples
+        if n == 0:
+            return ConstraintCheck(
+                AdcSamplesPowerOfTwo, False,
+                "adc_samples = 0 (must be nonzero)")
+
         passed = n & (n - 1) == 0
         detail = f"adc_samples = {n}"
         if not passed:
@@ -399,11 +409,11 @@ class ReceiveBuffer(Constraint):
             return ConstraintCheck(
                 ReceiveBuffer, None, "no capture config provided")
         ratio = capture.socket_buffer / radar.frame_size
-        passed = ratio > 2.0
+        passed = ratio >= 2.0
         detail = (
             f"recv buffer = {capture.socket_buffer} bytes "
             f"= {ratio:.2f} frames (1 frame = {radar.frame_size} bytes)"
-            + (" (must be > 2)" if not passed else ""))
+            + (" (should be >= 2)" if not passed else ""))
         return ConstraintCheck(ReceiveBuffer, passed, detail)
 
 
