@@ -67,7 +67,7 @@ sudo chmod 777 /dev/ttyACM0  # or whatever port the radar is on.
 
 The high level interface for `xwr` includes a capture card configuration ([`DCAConfig`][xwr.DCAConfig]) and a radar configuration ([`XWRConfig`][xwr.XWRConfig]).
 
-While the capture card configuration can be [left as default][xwr.DCAConfig], the radar requires a valid modulation to be configured; see [`XWRConfig`][xwr.XWRConfig] for details.
+While the capture card configuration can be [left as default][xwr.DCAConfig], the radar requires a valid modulation to be configured; see [`XWRConfig`][xwr.XWRConfig] and the [known constraints](./constraints.md) for details.
 
 !!! tip
 
@@ -75,7 +75,7 @@ While the capture card configuration can be [left as default][xwr.DCAConfig], th
 
 As a general guideline:
 
-1. Select a range/doppler resolution in bins; there appears to be an effective limitation on the total range-Doppler frame size of `2^14` (i.e., `128x128`, `64x256`, etc is the maximum size).
+1. Select a range/doppler resolution in bins.
     - The number of range bins is the `adc_samples`.
     - The number of doppler bins is the `frame_length`.
 

@@ -10,6 +10,7 @@ import numpy as np
 
 from .capture import DCA1000EVM, types
 from .config import DCAConfig, XWRConfig
+from .constraints import check_config
 from .radar import XWRBase
 
 TRadar = TypeVar("TRadar", bound=XWRBase)
@@ -41,19 +42,9 @@ class XWRSystem(Generic[TRadar]):
 
     !!! info "Known Constraints"
 
-        The `XWRSystem` will check for certain known constraints, and warn if
-        these are violated via a logger:
-
-        - Radar data throughput is greater than 80% of the capture card
-            theoretical network throughput.
-        - Receive buffer size (in the linux networking stack) can hold less
-            than 2 full frames.
-        - The duty cycle (active frame time / frame period) of the radar is
-            greater than 99%.
-        - The ADC is still sampling when the ramp ends.
-        - The range-Doppler frame size is greater than 2^14.
-        - The number of samples per chirp (i.e., range resolution) or chirps
-            per frame (i.e., doppler resolution) is not a power of 2.
+        The `XWRSystem` will check for known constraints on initialization,
+        and warn or raise if any are violated. See
+        [`xwr.constraints`][xwr.constraints] for the full list.
 
     Type Parameters:
         - `TRadar`: radar type (subclass of [`XWRBase`][xwr.radar.])
@@ -88,47 +79,12 @@ class XWRSystem(Generic[TRadar]):
         self.config = radar
         self.fps: float = 1000.0 / radar.frame_period
 
-    def _assert(self, cond: bool, desc: str) -> None:
-        """Check a condition and log (or raise) a warning if it is not met."""
-        if not cond:
-            if self.strict:
-                raise ValueError(f"Potentially invalid configuration: {desc}")
-            self.log.warning(f"Invalid radar configuration: {desc}")
-        else:
-            self.log.debug(f"Passed check: {desc}")
-
     def _check_config(self, radar: XWRConfig, capture: DCAConfig) -> None:
-        """Check config, and warn if potentially invalid."""
-        util = 100 * radar.throughput / capture.throughput
-        self.log.info(
-            f"Radar/Capture card throughput: {int(radar.throughput / 1e6)} "
-            f"Mbps / {int(capture.throughput / 1e6)} Mbps ({util:.1f}%)")
-        self._assert(util < 80, f"Network utilization > 80%: {util:.1f}%")
-
-        ratio = capture.socket_buffer / radar.frame_size
-        self.log.info("Recv buffer size: {:.2f} frames".format(ratio))
-        self._assert(ratio > 2.0,
-            f"Recv buffer < 2 frames: {capture.socket_buffer} "
-            f"(1 frame = {radar.frame_size})")
-
-        duty_cycle = 100 * radar.frame_time / radar.frame_period
-        self.log.info(f"Radar duty cycle: {duty_cycle:.1f}%")
-        self._assert(duty_cycle < 99, f"Duty cycle > 99%: {duty_cycle:.1f}%")
-
-        excess = radar.ramp_end_time - radar.adc_start_time - radar.sample_time
-        self.log.info(f"Excess ramp time: {excess:.1f}us")
-        self._assert(excess >= 0, f"Excess ramp time < 0: {excess:.1f}us")
-
-        frame_size = radar.frame_length * radar.adc_samples
-        self.log.info(
-            f"Range-Doppler size: {radar.frame_length} x "
-            f"{radar.adc_samples} = {frame_size}")
-        self._assert(frame_size <= 2**14,
-            f"Range-doppler frame size > 2^14: {frame_size}")
-        self._assert(radar.frame_length & (radar.frame_length - 1) == 0,
-            f"Frame length not a power of 2: {radar.frame_length}")
-        self._assert(radar.adc_samples & (radar.adc_samples - 1) == 0,
-            f"ADC samples not a power of 2: {radar.adc_samples}")
+        """Check config, and raise if strict mode is enabled and invalid."""
+        for r in check_config(radar, capture):
+            if r.passed is False and self.strict:
+                raise ValueError(
+                    f"Invalid configuration | {r.constraint.__name__}: {r.detail}")
 
     def stream(self) -> Iterator[types.RadarFrame]:
         """Iterator which yields successive frames.

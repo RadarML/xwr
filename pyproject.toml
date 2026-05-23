@@ -10,7 +10,7 @@ allow-direct-references = true
 
 [project]
 name = "xwr"
-version = "0.4.2"
+version = "0.4.3"
 authors = [
   { name="Tianshu Huang", email="tianshu2@andrew.cmu.edu" },
 ]
@@ -24,6 +24,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Typing :: Typed",
     "Operating System :: POSIX :: Linux",
 ]

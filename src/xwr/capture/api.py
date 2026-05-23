@@ -86,7 +86,7 @@ class DCA1000EVM:
         data_port: int = 4098, config_port: int = 4096, timeout: float = 1.0,
         socket_buffer: int = 2048000, name: str = "DCA1000EVM"
     ) -> None:
-        self.log: logging.Logger = logging.getLogger(name=name)
+        self.log: logging.Logger = logging.getLogger(name=f"xwr/{name}")
 
         self.sys_ip = sys_ip
         self.fpga_ip = fpga_ip

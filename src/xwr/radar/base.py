@@ -76,7 +76,7 @@ class XWRBase:
         self, port: str | None = None, baudrate: int = 115200,
         name: str = "AWR1843"
     ) -> None:
-        self.log: logging.Logger = logging.getLogger(name=name)
+        self.log: logging.Logger = logging.getLogger(name=f"xwr/{name}")
 
         if port is None:
             port = self.__detect_port()

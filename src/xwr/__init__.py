@@ -15,7 +15,11 @@ beartype_this_package()
 # ruff: noqa: E402
 from . import capture, radar, rsp
 from .config import DCAConfig, XWRConfig
+from .constraints import Constraint, ConstraintCheck, check_config
 from .system import XWRSystem
 
 __all__ = [
-    "capture", "radar", "rsp", "XWRConfig", "XWRSystem", "DCAConfig"]
+    "capture", "radar", "rsp",
+    "XWRConfig", "XWRSystem", "DCAConfig",
+    "Constraint", "ConstraintCheck", "check_config",
+]
