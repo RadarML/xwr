@@ -20,15 +20,18 @@ class RSPNumpy(RSP[np.ndarray], ABC):
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
             If an axis is not spacified, it is not padded.
+        sample_swap: if `True`, swap the I and Q components when
+            un-interleaving IIQQ data.
     """
 
     def __init__(
         self, window: bool | Mapping[
             Literal["range", "doppler", "azimuth", "elevation"], bool] = False,
         size: Mapping[
-            Literal["range", "doppler", "azimuth", "elevation"], int] = {}
+            Literal["range", "doppler", "azimuth", "elevation"], int] = {},
+        sample_swap: bool = False,
     ) -> None:
-        super().__init__(window=window, size=size)
+        super().__init__(window=window, size=size, sample_swap=sample_swap)
         self._fft_cache: dict[
             tuple[tuple[int, ...], tuple[int, ...], np.dtype], FFTW] = {}
 
@@ -101,6 +104,8 @@ class AWR1843AOP(RSPNumpy):
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
             If an axis is not specified, it is not padded.
+        sample_swap: if `True`, swap the I and Q components when
+            un-interleaving IIQQ data.
     """
 
     def mimo_virtual_array(
@@ -132,6 +137,8 @@ class AWR1843Boost(RSPNumpy):
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
             If an axis is not spacified, it is not padded.
+        sample_swap: if `True`, swap the I and Q components when
+            un-interleaving IIQQ data.
     """
 
     def mimo_virtual_array(
@@ -166,6 +173,8 @@ class AWR1642Boost(RSPNumpy):
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
             If an axis is not spacified, it is not padded.
+        sample_swap: if `True`, swap the I and Q components when
+            un-interleaving IIQQ data.
     """
 
     def mimo_virtual_array(

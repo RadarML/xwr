@@ -18,7 +18,9 @@ class RSPTorch(RSP[Tensor], ABC):
             is applied to all axes. If `dict`, specify per axis with keys
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
-            If an axis is not spacified, it is not padded.
+            If an axis is not specified, it is not padded.
+        sample_swap: if `True`, swap the I and Q components when
+            un-interleaving IIQQ data.
     """
 
     def fft(
@@ -82,6 +84,8 @@ class AWR1843AOP(RSPTorch):
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
             If an axis is not specified, it is not padded.
+        sample_swap: if `True`, swap the I and Q components when
+            un-interleaving IIQQ data.
     """
 
     def mimo_virtual_array(
@@ -112,7 +116,9 @@ class AWR1843Boost(RSPTorch):
             is applied to all axes. If `dict`, specify per axis with keys
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
-            If an axis is not spacified, it is not padded.
+            If an axis is not specified, it is not padded.
+        sample_swap: if `True`, swap the I and Q components when
+            un-interleaving IIQQ data.
     """
 
     def mimo_virtual_array(
@@ -146,7 +152,9 @@ class AWR1642Boost(RSPTorch):
             is applied to all axes. If `dict`, specify per axis with keys
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
-            If an axis is not spacified, it is not padded.
+            If an axis is not specified, it is not padded.
+        sample_swap: if `True`, swap the I and Q components when
+            un-interleaving IIQQ data.
     """
 
     def mimo_virtual_array(
@@ -238,7 +246,7 @@ class AWR2944EVM(RSPTorch):
             is applied to all axes. If `dict`, specify per axis with keys
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
-            If an axis is not spacified, it is not padded.
+            If an axis is not specified, it is not padded.
     """
 
     SAMPLE_TYPE = "I"

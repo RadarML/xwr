@@ -5,6 +5,15 @@
     Elevation and azimuth axes are in "image order": increasing index is
     down and to the right, respectively.
 
+??? question "Byte order: when do I `sample_swap`?"
+
+    If you are using the `xwr` stack, use the default `sample_swap=False`,
+    which corresponds to [`MSB_LSB_IQ`][xwr.radar.defines.SampleSwap], the only
+    option supported by the source-available TI firmware. If processing data
+    collected using other systems (in particular, mmWave studio, which has its
+    own closed-source firmware which supports `MSB_LSB_QI`), you may need to
+    set `sample_swap=True` if this option was enabled.
+
 To use the RSP:
 
 1. Pick your backend. Currently, we support numpy, jax, and pytorch.

@@ -17,6 +17,8 @@ class RSPJax(RSP[Array], ABC):
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
             If an axis is not spacified, it is not padded.
+        sample_swap: if `True`, swap the I and Q components when
+            un-interleaving IIQQ data.
     """
 
     def fft(
@@ -100,6 +102,8 @@ class AWR1843AOP(RSPJax):
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
             If an axis is not specified, it is not padded.
+        sample_swap: if `True`, swap the I and Q components when
+            un-interleaving IIQQ data.
     """
 
     def mimo_virtual_array(
@@ -131,6 +135,8 @@ class AWR1843Boost(RSPJax):
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
             If an axis is not spacified, it is not padded.
+        sample_swap: if `True`, swap the I and Q components when
+            un-interleaving IIQQ data.
     """
 
     def mimo_virtual_array(
@@ -161,7 +167,7 @@ class AWR1843Boost(RSPJax):
             Estimated elevation angle of arrival (AoA) in radians for each
                 range-Doppler bin.
         """
-        iq = iq_from_iiqq(iq)
+        iq = iq_from_iiqq(iq, sample_swap=self.sample_swap)
         rd = self.doppler_range(iq)
         mimo = self.mimo_virtual_array(rd)[:, :, :, 2:-2]
 
@@ -189,6 +195,8 @@ class AWR1642Boost(RSPJax):
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
             If an axis is not spacified, it is not padded.
+        sample_swap: if `True`, swap the I and Q components when
+            un-interleaving IIQQ data.
     """
 
     def mimo_virtual_array(

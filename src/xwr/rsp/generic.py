@@ -60,7 +60,8 @@ TArray = TypeVar("TArray", bound=ArrayLike)
 
 
 def iqiq_from_iiqq(
-    iiqq: Int16[TArray, "... n"]
+    iiqq: Int16[TArray, "... n"],
+    sample_swap: bool = False,
 ) -> Int16[TArray, "... n/2 2"]:
     """Un-interleave IIQQ data.
 
@@ -70,21 +71,23 @@ def iqiq_from_iiqq(
 
     Args:
         iiqq: interleaved IIQQ data; see [`RadarFrame`][xwr.capture.types.].
+        sample_swap: if `True`, swap the I and Q components in the output.
 
     Returns:
         IQ data in an uninterleaved format with a trailing I/Q axis.
     """
     shape = (*iiqq.shape[:-1], iiqq.shape[-1] // 2)
+    i_idx, q_idx = (1, 0) if sample_swap else (0, 1)
 
     backend = _check_backend(iiqq)
     if backend == "numpy":
         assert isinstance(iiqq, np.ndarray)
 
         iq = np.zeros((*shape, 2), dtype=np.int16)
-        iq[..., 0::2, 1] = iiqq[..., 0::4]
-        iq[..., 1::2, 1] = iiqq[..., 1::4]
-        iq[..., 0::2, 0] = iiqq[..., 2::4]
-        iq[..., 1::2, 0] = iiqq[..., 3::4]
+        iq[..., 0::2, q_idx] = iiqq[..., 0::4]
+        iq[..., 1::2, q_idx] = iiqq[..., 1::4]
+        iq[..., 0::2, i_idx] = iiqq[..., 2::4]
+        iq[..., 1::2, i_idx] = iiqq[..., 3::4]
         return cast(Int16[TArray, "... n/2 2"], iq)
 
     elif backend == "jax":
@@ -93,10 +96,10 @@ def iqiq_from_iiqq(
 
         iq = jnp.zeros(
             (*shape, 2), dtype=jnp.int16
-        ).at[..., 0::2, 1].set(iiqq[..., 0::4]
-        ).at[..., 1::2, 1].set(iiqq[..., 1::4]
-        ).at[..., 0::2, 0].set(iiqq[..., 2::4]
-        ).at[..., 1::2, 0].set(iiqq[..., 3::4])
+        ).at[..., 0::2, q_idx].set(iiqq[..., 0::4]
+        ).at[..., 1::2, q_idx].set(iiqq[..., 1::4]
+        ).at[..., 0::2, i_idx].set(iiqq[..., 2::4]
+        ).at[..., 1::2, i_idx].set(iiqq[..., 3::4])
         return cast(Int16[TArray, "... n/2 2"], iq)
 
     else:  # backend == "torch"
@@ -104,17 +107,27 @@ def iqiq_from_iiqq(
         assert isinstance(iiqq, torch.Tensor)
 
         iq = torch.zeros((*shape, 2), dtype=torch.int16, device=iiqq.device)
-        iq[..., 0::2, 1] = iiqq[..., 0::4]
-        iq[..., 1::2, 1] = iiqq[..., 1::4]
-        iq[..., 0::2, 0] = iiqq[..., 2::4]
-        iq[..., 1::2, 0] = iiqq[..., 3::4]
+        iq[..., 0::2, q_idx] = iiqq[..., 0::4]
+        iq[..., 1::2, q_idx] = iiqq[..., 1::4]
+        iq[..., 0::2, i_idx] = iiqq[..., 2::4]
+        iq[..., 1::2, i_idx] = iiqq[..., 3::4]
         return cast(Int16[TArray, "... n/2 2"], iq)
 
 
 def iq_from_iiqq(
     iiqq: Int16[TArray, "... n"] | Complex64[TArray, "... _n"],
+    sample_swap: bool = False,
 ) -> Complex64[TArray, "... n2"]:
     """Un-interleave IIQQ data.
+
+    !!! info
+
+        The default `sample_swap = False` corresponds to the
+        [`MSB_LSB_IQ`][xwr.radar.defines.SampleSwap] byte order used by `xwr`.
+
+        In this case, `MSB_LSB_IQ` means that I is the MSB and Q is the LSB.
+        However, the data stream is little-endian, which means Q actually comes
+        before I, leading to the actual physical layout being QQII and so on.
 
     Type Parameters:
         - `TArray`: This function is multi-backend, and supports numpy
@@ -123,6 +136,8 @@ def iq_from_iiqq(
     Args:
         iiqq: interleaved IIQQ data; see [`RadarFrame`][xwr.capture.types.].
             If already complex, leave it as is.
+        sample_swap: if `True`, swap the I and Q components so that the
+            output is `Q + j*I` instead of `I + j*Q`.
 
     Returns:
         Complex IQ data.
@@ -136,8 +151,12 @@ def iq_from_iiqq(
         if iiqq.dtype == np.complex64:
             return iiqq
         iq = np.zeros(shape, dtype=np.complex64)
-        iq[..., 0::2] = 1j * iiqq[..., 0::4] + iiqq[..., 2::4]
-        iq[..., 1::2] = 1j * iiqq[..., 1::4] + iiqq[..., 3::4]
+        if sample_swap:
+            iq[..., 0::2] = iiqq[..., 0::4] + 1j * iiqq[..., 2::4]
+            iq[..., 1::2] = iiqq[..., 1::4] + 1j * iiqq[..., 3::4]
+        else:
+            iq[..., 0::2] = 1j * iiqq[..., 0::4] + iiqq[..., 2::4]
+            iq[..., 1::2] = 1j * iiqq[..., 1::4] + iiqq[..., 3::4]
         return cast(Complex64[TArray, "... n/2"], iq)
 
     elif backend == "jax":
@@ -146,10 +165,16 @@ def iq_from_iiqq(
 
         if iiqq.dtype == jnp.complex64:
             return iiqq
-        iq = jnp.zeros(
-            shape, dtype=jnp.complex64
-        ).at[..., 0::2].set(1j * iiqq[..., 0::4] + iiqq[..., 2::4]
-        ).at[..., 1::2].set(1j * iiqq[..., 1::4] + iiqq[..., 3::4])
+        if sample_swap:
+            iq = jnp.zeros(
+                shape, dtype=jnp.complex64
+            ).at[..., 0::2].set(iiqq[..., 0::4] + 1j * iiqq[..., 2::4]
+            ).at[..., 1::2].set(iiqq[..., 1::4] + 1j * iiqq[..., 3::4])
+        else:
+            iq = jnp.zeros(
+                shape, dtype=jnp.complex64
+            ).at[..., 0::2].set(1j * iiqq[..., 0::4] + iiqq[..., 2::4]
+            ).at[..., 1::2].set(1j * iiqq[..., 1::4] + iiqq[..., 3::4])
         return cast(Complex64[TArray, "... n/2"], iq)
 
     else: # backend == "torch"
@@ -159,8 +184,12 @@ def iq_from_iiqq(
         if iiqq.dtype == torch.complex64:
             return iiqq
         iq = torch.zeros(shape, dtype=torch.complex64, device=iiqq.device)
-        iq[..., 0::2] = 1j * iiqq[..., 0::4] + iiqq[..., 2::4]
-        iq[..., 1::2] = 1j * iiqq[..., 1::4] + iiqq[..., 3::4]
+        if sample_swap:
+            iq[..., 0::2] = iiqq[..., 0::4] + 1j * iiqq[..., 2::4]
+            iq[..., 1::2] = iiqq[..., 1::4] + 1j * iiqq[..., 3::4]
+        else:
+            iq[..., 0::2] = 1j * iiqq[..., 0::4] + iiqq[..., 2::4]
+            iq[..., 1::2] = 1j * iiqq[..., 1::4] + iiqq[..., 3::4]
         return cast(Complex64[TArray, "... n/2"], iq)
 
 
@@ -199,6 +228,8 @@ class RSP(ABC, Generic[TArray]):
             "range", "doppler", "azimuth", and "elevation".
         size: target size for each axis after zero-padding, specified by axis.
             If an axis is not spacified, it is not padded.
+        sample_swap: if `True`, swap the I and Q components when
+            un-interleaving IIQQ data.
     """
 
     SAMPLE_TYPE: Literal["IQ", "I"] = "IQ"
@@ -207,7 +238,8 @@ class RSP(ABC, Generic[TArray]):
         self, window: bool | Mapping[
             Literal["range", "doppler", "azimuth", "elevation"], bool] = False,
         size: Mapping[
-            Literal["range", "doppler", "azimuth", "elevation"], int] = {}
+            Literal["range", "doppler", "azimuth", "elevation"], int] = {},
+        sample_swap: bool = False,
     ) -> None:
         self.window: dict[
             Literal["range", "doppler", "azimuth", "elevation"], bool]
@@ -222,6 +254,7 @@ class RSP(ABC, Generic[TArray]):
             self._default_window = False
 
         self.size = size
+        self.sample_swap = sample_swap
 
     @abstractmethod
     def fft(
@@ -348,7 +381,7 @@ class RSP(ABC, Generic[TArray]):
             Computed doppler-elevation-azimuth-range spectrum.
         """
         if self.SAMPLE_TYPE == "IQ":
-            x = iq_from_iiqq(x)
+            x = iq_from_iiqq(x, sample_swap=self.sample_swap)
         else:
             x = _to_float32(x)
 
