@@ -86,7 +86,13 @@ class XWRBase:
 
         # Only linux supports low latency mode.
         if hasattr(self.port, 'set_low_latency_mode'):
-            self.port.set_low_latency_mode(True)
+            try:
+                self.port.set_low_latency_mode(True)
+            except ValueError as exc:
+                self.log.warning(
+                    "Low latency mode is not supported by this serial device: %s",
+                    exc,
+                )
         else:
             self.log.warning(
                 "Low latency mode is only supported on linux. This may cause "
