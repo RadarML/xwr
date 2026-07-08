@@ -101,6 +101,6 @@ def test_representations(RepClass, out_channels):
     # Note: resize inside representation preserves shape (crops/pads)
     # Output: (1, 4, 2, 2, 4, out_channels)
     expected_aug_shape = (1, 4, 2, 2, 4, out_channels)
-    
+
     out_aug = rep(data_np, aug=aug)
     assert out_aug.shape == expected_aug_shape

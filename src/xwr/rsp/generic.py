@@ -380,6 +380,11 @@ class RSP(ABC, Generic[TArray]):
         Returns:
             Computed doppler-elevation-azimuth-range spectrum.
         """
+        for i, size in enumerate(x.shape):
+            if size == 0:
+                raise ValueError(
+                    f"Input array has zero-length dimension {i}: {x.shape}")
+
         if self.SAMPLE_TYPE == "IQ":
             x = iq_from_iiqq(x, sample_swap=self.sample_swap)
         else:
