@@ -90,7 +90,7 @@ class XWRBase:
                 self.port.set_low_latency_mode(True)
             except ValueError as exc:
                 self.log.warning(
-                    "Low latency mode is not supported by this serial device: %s",
+                    "Low latency mode is not supported by the OS or serial port driver: %s",
                     exc,
                 )
         else:
