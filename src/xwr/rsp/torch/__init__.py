@@ -2,7 +2,10 @@
 
 !!! info
 
-    This module mirrors the functionality of [`xwr.rsp.numpy`][xwr.rsp.numpy].
+    In addition to mirroring the functionality of
+    [`xwr.rsp.numpy`][xwr.rsp.numpy], this module also provides a range of
+    point cloud processing algorithms, mirroring
+    [`xwr.rsp.jax`][xwr.rsp.jax].
 
 !!! warning
 
@@ -25,6 +28,7 @@
 from jaxtyping import install_import_hook
 
 with install_import_hook("xwr.rsp.torch", "beartype.beartype"):
+    from .aoa import PointCloud  # noqa: I001
     from .rsp import (
         AWR1843AOP,
         AWR2944EVM,
@@ -33,7 +37,7 @@ with install_import_hook("xwr.rsp.torch", "beartype.beartype"):
         AWR1843Boost,
         RSPTorch,
     )
-
+    from .spectrum import CFAR, CFARCASO
 
 __all__ = [
     "AWR1642Boost",
@@ -42,4 +46,7 @@ __all__ = [
     "AWR2944EVM",
     "AWRL6844EVM",
     "RSPTorch",
+    "CFAR",
+    "CFARCASO",
+    "PointCloud"
 ]

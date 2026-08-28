@@ -18,6 +18,7 @@ rerun = [
     "tqdm >= 4.67.1",
     "abstract-dataloader >= 0.4.0",
     "jax[cuda12] >= 0.4.0",
+    "torch >= 2.0",
     "roverd[video]@git+https://github.com/RadarML/red-rover.git#subdirectory=format"
 ]
 
