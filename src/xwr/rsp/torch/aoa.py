@@ -17,8 +17,8 @@ class PointCloud:
     the angle
     ```
     angles = torch.arcsin(
-        torch.linspace(-torch.pi, torch.pi, bin_size)
-        / (2 * torch.pi * antenna_spacing)
+        (torch.linspace(-1.0, 1.0, bin_size) / (2 * antenna_spacing))
+        .clamp(-1.0, 1.0)
     )
     ```
     where the *corrected* antenna spacing is calculated by
@@ -59,8 +59,10 @@ class PointCloud:
         antenna_spacing: antenna spacing in terms of wavelength (default 0.5
             for a half-wavelength grid). Sets the sin-space to angle mapping;
             when the chirp center frequency differs from the antenna design
-            frequency, it must be corrected using the formula above. A wrong
-            value gives systematically wrong angles, not an error.
+            frequency, it must be corrected using the formula above. Must be
+            positive; a non-positive value raises `ValueError`, while a wrong
+            (but positive) value gives systematically wrong angles, not an
+            error.
     """
 
     def __init__(
