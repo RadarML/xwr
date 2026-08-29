@@ -2,7 +2,6 @@
 
 from collections.abc import Sequence
 
-import jax
 from jax import numpy as jnp
 from jaxtyping import Array, Bool, Float32, Int
 
@@ -17,8 +16,8 @@ class PointCloud:
     the angle
     ```
     angles = jnp.arcsin(
-        jnp.linspace(-jnp.pi, jnp.pi, bin_size)
-        / (2 * jnp.pi * antenna_spacing)
+        jnp.clip(jnp.linspace(-1.0, 1.0, bin_size) / (2 * antenna_spacing),
+                 -1.0, 1.0)
     )
     ```
     where the *corrected* antenna spacing is calculated by
@@ -59,8 +58,10 @@ class PointCloud:
         antenna_spacing: antenna spacing in terms of wavelength (default 0.5
             for a half-wavelength grid). Sets the sin-space to angle mapping;
             when the chirp center frequency differs from the antenna design
-            frequency, it must be corrected using the formula above. A wrong
-            value gives systematically wrong angles, not an error.
+            frequency, it must be corrected using the formula above. Must be
+            positive; a non-positive value raises `ValueError`, while a wrong
+            (but positive) value gives systematically wrong angles, not an
+            error.
     """
 
     def __init__(
@@ -76,23 +77,27 @@ class PointCloud:
         assert len(angle_fov) == 2 and len(angle_size) == 2, (
             "angle_fov and angle_size must be a sequence of length 2."
         )
+        if antenna_spacing <= 0:
+            raise ValueError("antenna_spacing must be > 0")
         self.el_fov = jnp.deg2rad(angle_fov[0])
         self.az_fov = jnp.deg2rad(angle_fov[1])
-        self.el_angles = jnp.arcsin(
-            jnp.linspace(-jnp.pi, jnp.pi, angle_size[0])
-            / (2 * jnp.pi * antenna_spacing)
-        )
-        self.az_angles = jnp.arcsin(
-            jnp.linspace(-jnp.pi, jnp.pi, angle_size[1])
-            / (2 * jnp.pi * antenna_spacing)
-        )
+        el_sin = jnp.clip(
+            jnp.linspace(-1.0, 1.0, angle_size[0]) / (2 * antenna_spacing),
+            -1.0, 1.0)
+        az_sin = jnp.clip(
+            jnp.linspace(-1.0, 1.0, angle_size[1]) / (2 * antenna_spacing),
+            -1.0, 1.0)
+        self.el_angles = jnp.arcsin(el_sin)
+        self.az_angles = jnp.arcsin(az_sin)
 
     @staticmethod
-    def _argmax_aoa(ang_sptr: Float32[Array, "el az"]) -> tuple[Array, ...]:
+    def _argmax_aoa(ang_sptr: Float32[Array, "... el az"]) -> Int[
+        Array, "... 2"
+    ]:
         """Get the (elevation, azimuth) index of the spectrum peak."""
-        idx = jnp.argmax(ang_sptr)
-        idx2d = jnp.unravel_index(idx, ang_sptr.shape)
-        return idx2d
+        el, az = ang_sptr.shape[-2:]
+        idx = jnp.argmax(ang_sptr.reshape(*ang_sptr.shape[:-2], el * az), -1)
+        return jnp.stack((idx // az, idx % az), axis=-1)
 
     def aoa(
         self, cube: Float32[Array, "batch range doppler el az"]
@@ -116,10 +121,7 @@ class PointCloud:
             ang: detect angle index for every range doppler bin, as
                 `(elevation, azimuth)` along the trailing axis.
         """
-        el, az = cube.shape[-2:]
-        flat = cube.reshape(*cube.shape[:-2], el * az)
-        idx = jnp.argmax(flat, axis=-1)
-        return jnp.stack((idx // az, idx % az), axis=-1)
+        return self._argmax_aoa(cube)
 
     def __call__(
         self,

@@ -19,8 +19,8 @@ TRSP = TypeVar("TRSP", bound=RSPJax)
 class CFAR:
     """Cell-averaging CFAR.
 
-    Expects a 2d input, with the `guard` and `window` sizes corresponding to
-    the respective input axes.
+    Expects a batch of range-doppler cubes, with the `guard` and `window`
+    sizes corresponding to the (range, doppler) axes.
 
     ```
         ┌─────────────────┐ ▲ window[0]
@@ -32,67 +32,115 @@ class CFAR:
     guard[1] ◄──► ◄───────► window[1]
     ```
 
-    !!! note
+    !!! info
 
-        The user is responsible for applying the desired thresholding.
-        For example, when using a gaussian model, the threshold should be
-        calculated using an inverse normal CDF (e.g. `scipy.stats.norm.isf`):
-
-        ```python
-        cfar = CFAR(guard=(2, 2), window=(4, 4))
-        thresholds = cfar(jnp.abs(range_doppler))
-        mask = (thresholds > scipy.stats.norm.isf(0.01))
-        ```
+        The noise floor is the mean of the training cells in the 2D ring,
+        which tests the cell under test once; contrast
+        [`CFARCASO`][xwr.rsp.jax.CFARCASO], which tests the range and doppler
+        axes separately and requires **both** to fire.
 
     Args:
         guard: size of guard cells (excluded from noise estimation).
         window: total CFAR window size.
+        snr_thresh: signal to noise ratio threshold, as a **linear power
+            ratio** (not dB). A cell is detected when its integrated power
+            exceeds `snr_thresh * noise`. Raising it gives fewer false alarms
+            and a lower probability of detection.
+        discard_range: range bins (close, far) to discard around DC. The
+            closest bins are dominated by TX to RX leakage and DC, and the
+            furthest are past useful SNR; discarded bins are forced to
+            non-detect and assigned unit noise.
     """
 
     def __init__(
-        self, guard: tuple[int, int] = (2, 2), window: tuple[int, int] = (4, 4)
+        self,
+        guard: tuple[int, int] = (2, 2),
+        window: tuple[int, int] = (4, 4),
+        snr_thresh: float = 5.0,
+        discard_range: Sequence[int] = (10, 20),
     ) -> None:
+        if len(discard_range) != 2:
+            raise ValueError(
+                f"Discard range {discard_range} must be length 2.")
+
+        self.snr_thresh = snr_thresh
+        # discard detect object around DC
+        self.discard_r = discard_range
+
         w0, w1 = window
         g0, g1 = guard
+        if g0 > w0 or g1 > w1:
+            raise ValueError(
+                f"Guard {guard} must be <= window {window} on each axis.")
 
         mask = np.ones((2 * w0 + 1, 2 * w1 + 1), dtype=np.float32)
         mask[w0 - g0 : w0 + g0 + 1, w1 - g1 : w1 + g1 + 1] = 0.0
+        if mask.sum() == 0:
+            raise ValueError(
+                f"CFAR mask is empty; check guard={guard} and window={window}.")
         self.mask: Array = jnp.array(mask)
 
-    def _cfar(
-        self, x: Float[Array, "range doppler"]
+    def _noise(
+        self, signal: Float[Array, "range doppler"]
     ) -> Float[Array, "range doppler"]:
-        """Get CFAR scores for a single range-doppler image."""
+        """Get the ring-averaged noise floor for a range-doppler image."""
         # Jax currently only supports 'fill', but this should be changed to
-        # 'wrap' if they ever decide to add support.
-        valid = convolve2d(jnp.ones_like(x), self.mask, mode="same")
-        mu = convolve2d(x, self.mask, mode="same") / valid
-        second_moment = convolve2d(x**2, self.mask, mode="same") / valid
-        sigma = jnp.sqrt(second_moment - mu**2)
+        # 'wrap' if they ever decide to add support; the training cell count
+        # is normalized out to compensate at the edges.
+        valid = convolve2d(jnp.ones_like(signal), self.mask, mode="same")
+        return convolve2d(signal, self.mask, mode="same") / valid
 
-        return (x - mu) / sigma
+    def _cfar(
+        self, signal_cube: Float[Array, "batch doppler tx rx range"]
+    ) -> tuple[
+        Bool[Array, "batch range doppler"],
+        Float[Array, "batch range doppler"],
+        Float[Array, "batch range doppler"],
+    ]:
+        """Run 2D cell-averaging CFAR on a batch of radar cubes."""
+        # non-coherent signal combination along the antenna array
+        signal = jnp.sum(signal_cube**2, axis=(2, 3)).transpose(0, 2, 1) + 1
+        _, s_r, _ = signal.shape
+
+        noise_r = jax.vmap(self._noise)(signal)
+
+        near, far = self.discard_r[0], self.discard_r[1]
+        # 1 outside the discarded band, so the reported SNR there is the raw
+        # signal rather than a division by zero.
+        noise = jnp.ones_like(signal).at[:, near : s_r - far].set(
+            noise_r[:, near : s_r - far])
+
+        snr = signal / noise
+        obj_mask = jnp.zeros(signal.shape, dtype=bool).at[
+            :, near : s_r - far].set(snr[:, near : s_r - far] > self.snr_thresh)
+
+        return obj_mask, signal, snr
 
     def __call__(
         self, signal_cube: Float[Array, "batch doppler tx rx range"]
-    ) -> Float[Array, "batch range doppler"]:
-        """Get CFAR scores.
+    ) -> tuple[
+        Bool[Array, "batch range doppler"],
+        Float[Array, "batch range doppler"],
+        Float[Array, "batch range doppler"],
+    ]:
+        """Run 2D cell-averaging CFAR.
+
+        !!! note
+
+            The transmit and receive antenna axes are combined
+            non-coherently, so their relative order does not matter.
 
         Args:
             signal_cube: batch of post range doppler FFT radar cubes in
                 amplitude.
 
         Returns:
-            CFAR z-scores, i.e. the number of standard deviations each cell
-                lies above its local mean. This is not a threshold level and
-                not a boolean mask; see the note above on applying a
-                threshold.
+            cfar detected object mask.
+            non-coherently integrated power across the virtual array, i.e.
+                the range-doppler spectrum used for detection.
+            signal to noise ratio, as a linear power ratio.
         """
-        b, d, _, _, r = signal_cube.shape
-        # Combine along the antenna array, and reorder to (range, doppler).
-        range_dopp = signal_cube.transpose(0, 4, 1, 2, 3).reshape(b, r, d, -1)
-        x = jnp.mean(range_dopp, axis=-1)
-
-        return jax.vmap(self._cfar)(x)
+        return self._cfar(signal_cube)
 
 
 class CFARCASO:
@@ -210,7 +258,7 @@ class CFARCASO:
 
         # non-coherent signal combination along the antenna array
         signal = jnp.sum(range_dopp**2, axis=-1) + 1
-        sig_discard = signal[self.discard_r[0] : -self.discard_r[1]]
+        sig_discard = signal[self.discard_r[0] : s_r - self.discard_r[1]]
         sig_pad_r = jnp.concat(
             (
                 sig_discard[: self.pad_r],
