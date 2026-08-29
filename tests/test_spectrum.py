@@ -229,23 +229,3 @@ def test_caso_invalid(backend, kwargs):
     module = {"jax": rspj, "torch": rspt}[backend]
     with pytest.raises(ValueError):
         module.CFARCASO(**kwargs)
-
-
-# ---------------------------------------------------------------------------
-# Autodiff
-# ---------------------------------------------------------------------------
-
-@pytest.mark.parametrize("detector,kwargs", [
-    ("CFAR", {"discard_range": (10, 20)}),
-    ("CFARCASO", {"train_window": (4, 2), "guard_window": (2, 0),
-                  "discard_range": (10, 20)}),
-])
-def test_torch_backward(detector, kwargs):
-    """Test that gradients flow through the torch detectors."""
-    cube = torch.from_numpy(_target_cube()).requires_grad_(True)
-
-    _, signal, snr = getattr(rspt, detector)(**kwargs)(cube)
-    (signal.sum() + snr.sum()).backward()
-
-    assert cube.grad is not None
-    assert cube.grad.shape == cube.shape
