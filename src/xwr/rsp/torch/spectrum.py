@@ -62,9 +62,15 @@ class CFAR:
 
         w0, w1 = window
         g0, g1 = guard
+        if g0 > w0 or g1 > w1:
+            raise ValueError(
+                f"Guard {guard} must be <= window {window} on each axis.")
 
         mask = np.ones((2 * w0 + 1, 2 * w1 + 1), dtype=np.float32)
         mask[w0 - g0 : w0 + g0 + 1, w1 - g1 : w1 + g1 + 1] = 0.0
+        if mask.sum() == 0:
+            raise ValueError(
+                f"CFAR mask is empty; check guard={guard} and window={window}.")
         self.mask: Tensor = torch.from_numpy(mask)[None, None]
 
     def _to(self, device: torch.device, dtype: torch.dtype) -> None:
