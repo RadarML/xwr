@@ -29,7 +29,7 @@ class CFAR:
 
         The noise floor is the mean of the training cells in the 2D ring,
         which tests the cell under test once; contrast
-        [`CFARCASO`][xwr.rsp.torch.], which tests the range and doppler axes
+        [`CFARCASO`][xwr.rsp.torch.CFARCASO], which tests the range and doppler axes
         separately and requires **both** to fire.
 
     Args:
