@@ -76,16 +76,18 @@ class PointCloud:
         assert len(angle_fov) == 2 and len(angle_size) == 2, (
             "angle_fov and angle_size must be a sequence of length 2."
         )
+        if antenna_spacing <= 0:
+            raise ValueError("antenna_spacing must be > 0")
         self.el_fov = torch.deg2rad(torch.tensor(angle_fov[0]))
         self.az_fov = torch.deg2rad(torch.tensor(angle_fov[1]))
-        self.el_angles = torch.arcsin(
-            torch.linspace(-torch.pi, torch.pi, angle_size[0])
-            / (2 * torch.pi * antenna_spacing)
-        )
-        self.az_angles = torch.arcsin(
-            torch.linspace(-torch.pi, torch.pi, angle_size[1])
-            / (2 * torch.pi * antenna_spacing)
-        )
+        el_sin = (
+            torch.linspace(-1.0, 1.0, angle_size[0]) / (2 * antenna_spacing)
+        ).clamp(-1.0, 1.0)
+        az_sin = (
+            torch.linspace(-1.0, 1.0, angle_size[1]) / (2 * antenna_spacing)
+        ).clamp(-1.0, 1.0)
+        self.el_angles = torch.arcsin(el_sin)
+        self.az_angles = torch.arcsin(az_sin)
 
     def _to(self, device: torch.device) -> None:
         """Move the bin-to-angle lookup tables to `device`, if needed."""
