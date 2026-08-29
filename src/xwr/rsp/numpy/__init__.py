@@ -1,5 +1,12 @@
 """Radar Signal Processing in Numpy.
 
+!!! info
+
+    In addition to mirroring the functionality of
+    [`xwr.rsp.jax`][xwr.rsp.jax] and [`xwr.rsp.torch`][xwr.rsp.torch], this
+    module also provides a range of point cloud processing algorithms,
+    mirroring both.
+
 !!! tip
 
     We use [pyfftw](https://pyfftw.readthedocs.io/en/latest/index.html)
@@ -25,6 +32,7 @@
 from jaxtyping import install_import_hook
 
 with install_import_hook("xwr.rsp.numpy", "beartype.beartype"):
+    from .aoa import PointCloud  # noqa: I001
     from .rsp import (
         AWR1843AOP,
         AWR2944EVM,
@@ -33,6 +41,7 @@ with install_import_hook("xwr.rsp.numpy", "beartype.beartype"):
         AWR1843Boost,
         RSPNumpy,
     )
+    from .spectrum import CFAR, CFARCASO
 
 
 __all__ = [
@@ -42,4 +51,7 @@ __all__ = [
     "AWR2944EVM",
     "AWRL6844EVM",
     "RSPNumpy",
+    "CFAR",
+    "CFARCASO",
+    "PointCloud",
 ]

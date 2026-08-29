@@ -16,7 +16,7 @@ from tqdm import tqdm
 from xwr.config import XWRConfig
 from xwr.rsp import RSP, iq_from_iiqq
 
-Backend = Literal["torch", "jax"]
+Backend = Literal["torch", "jax", "numpy"]
 
 
 def _torch_backend(
@@ -92,6 +92,36 @@ def _jax_backend(
     return sig_process, to_input, np.asarray, str(jax.devices()[0])
 
 
+def _numpy_backend(
+    rsp_args: dict, radar_cfg: XWRConfig, device: str | None
+) -> tuple[Any, Any, Any, str]:
+    """Set up the numpy RSP pipeline; `device` is ignored.
+
+    Returns:
+        The per-frame signal processing function, a raw IIQQ to device-array
+            converter, an array to numpy converter, and the device name.
+    """
+    from xwr.rsp.numpy import CFARCASO, AWR1843Boost, PointCloud
+
+    rsp: RSP = AWR1843Boost(**rsp_args)
+    cfar = CFARCASO()
+    radar_pc = PointCloud(radar_cfg)
+
+    def sig_process(iq):
+        cube_rd = rsp.doppler_range(iq)
+        cube = rsp.elevation_azimuth(cube_rd)
+
+        rd_mask, sig, snr = cfar(np.abs(cube_rd))
+        pc_mask, pc = radar_pc(np.abs(cube), rd_mask)
+
+        return rd_mask, cube_rd, pc_mask, pc
+
+    def to_input(iiqq):
+        return iq_from_iiqq(iiqq)
+
+    return sig_process, to_input, lambda x: x, "cpu"
+
+
 def main(
     path: str, /,
     trace: str = "bike/bloomfield.back",
@@ -111,9 +141,9 @@ def main(
     Args:
         path: base folder of the dataset.
         trace: trace name to visualize.
-        backend: RSP backend to run the pipeline on. Both produce the same
-            point cloud; see [`xwr.rsp.torch`][xwr.rsp.torch] and
-            [`xwr.rsp.jax`][xwr.rsp.jax].
+        backend: RSP backend to run the pipeline on. All three produce the
+            same point cloud; see [`xwr.rsp.torch`][xwr.rsp.torch],
+            [`xwr.rsp.jax`][xwr.rsp.jax], and [`xwr.rsp.numpy`][xwr.rsp.numpy].
         gain: a fixed value to normalize radar spectrum for visualization
         azimuth_size: azimuth fft size.
         elevation_size: elevation fft size.
@@ -129,7 +159,8 @@ def main(
         start: index of the first radar frame to render.
         device: `torch` device to run the RSP on; defaults to `cuda` when
             available, and `cpu` otherwise. Ignored by the `jax` backend,
-            which uses whichever device jax selects.
+            which uses whichever device jax selects, and by the `numpy`
+            backend, which always runs on `cpu`.
 
     """
     traces = [os.path.join(path, trace)]
@@ -151,7 +182,9 @@ def main(
         "size": {"azimuth": azimuth_size, "elevation": elevation_size},
         "window": {"range": True, "doppler": True},
     }
-    setup = _torch_backend if backend == "torch" else _jax_backend
+    setup = {
+        "torch": _torch_backend, "jax": _jax_backend, "numpy": _numpy_backend,
+    }[backend]
     sig_process, to_input, to_numpy, dev_name = setup(
         rsp_args, radar_cfg, device)
     print(f"Running the {backend} RSP on {dev_name}.")
