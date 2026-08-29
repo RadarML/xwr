@@ -116,9 +116,10 @@ class PointCloud:
             ang: detect angle index for every range doppler bin, as
                 `(elevation, azimuth)` along the trailing axis.
         """
-        idxs = jax.vmap(jax.vmap(jax.vmap(self._argmax_aoa)))(cube)
-        ang = jnp.stack((idxs), axis=-1)
-        return ang
+        el, az = cube.shape[-2:]
+        flat = cube.reshape(*cube.shape[:-2], el * az)
+        idx = jnp.argmax(flat, axis=-1)
+        return jnp.stack((idx // az, idx % az), axis=-1)
 
     def __call__(
         self,
