@@ -212,6 +212,23 @@ def test_antenna_spacing_must_be_positive(backend, config):
 
 
 # ---------------------------------------------------------------------------
+# Angle size validation
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_angle_size_mismatch_raises(backend, config):
+    """A cube whose (el, az) shape doesn't match `angle_size` is rejected.
+
+    Otherwise the argmax bin index would silently be looked up in a
+    differently-sized angle table, yielding wrong angles instead of an
+    error.
+    """
+    bad_cube = np.zeros((BATCH, DOPPLER, EL + 1, AZ, RANGE), dtype=np.float32)
+    with pytest.raises(ValueError):
+        _point_cloud(backend, config, bad_cube)
+
+
+# ---------------------------------------------------------------------------
 # Cross-backend parity
 # ---------------------------------------------------------------------------
 

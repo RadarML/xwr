@@ -52,8 +52,8 @@ class PointCloud:
             `size={"elevation": ..., "azimuth": ...}` the
             [`RSP`][xwr.rsp.] was constructed with**: the bin-to-angle lookup
             tables are built at this length, then indexed by the argmax over
-            the cube's angle axes. A mismatch silently yields wrong angles
-            rather than an error.
+            the cube's angle axes. A mismatch raises a `ValueError` when
+            [`__call__`][xwr.rsp.torch.PointCloud.__call__] is invoked.
         antenna_spacing: antenna spacing in terms of wavelength (default 0.5
             for a half-wavelength grid). Sets the sin-space to angle mapping;
             when the chirp center frequency differs from the antenna design
@@ -158,6 +158,13 @@ class PointCloud:
                 and that `x` is the boresight direction at zero angle.
         """
         self._to(cube.device)
+
+        _, _, el, az, _ = cube.shape
+        if el != len(self.el_angles) or az != len(self.az_angles):
+            raise ValueError(
+                f"Cube angle shape (el={el}, az={az}) does not match "
+                f"angle_size=({len(self.el_angles)}, {len(self.az_angles)}) "
+                "used to construct this PointCloud.")
 
         _, r_size, d_size = mask.shape
         range_v = torch.arange(
