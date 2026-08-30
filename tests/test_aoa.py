@@ -51,7 +51,6 @@ def _point_cloud(backend, config, cube, mask=None, **kwargs):
     if mask is None:
         mask = np.ones((BATCH, RANGE, DOPPLER), dtype=bool)
 
-    kwargs.setdefault("angle_size", (EL, AZ))
     if backend == "jax":
         pc = rspj.PointCloud(config, **kwargs)
         pc_mask, points = pc(jnp.array(cube), jnp.array(mask))
@@ -67,16 +66,10 @@ def _point_cloud(backend, config, cube, mask=None, **kwargs):
 
 def _angles(backend, config, **kwargs):
     """Get the (elevation, azimuth) lookup tables as numpy arrays."""
-    kwargs.setdefault("angle_size", (EL, AZ))
-    if backend == "jax":
-        pc = rspj.PointCloud(config, **kwargs)
-        return np.asarray(pc.el_angles), np.asarray(pc.az_angles)
-    elif backend == "torch":
-        pc = rspt.PointCloud(config, **kwargs)
-        return pc.el_angles.numpy(), pc.az_angles.numpy()
+    module = {"jax": rspj, "torch": rspt, "numpy": rspn}[backend]
+    pc = module.PointCloud(config, **kwargs)
+    return pc.angle_table(EL), pc.angle_table(AZ)
 
-    pc = rspn.PointCloud(config, **kwargs)
-    return pc.el_angles, pc.az_angles
 
 
 # ---------------------------------------------------------------------------
@@ -213,20 +206,24 @@ def test_antenna_spacing_must_be_positive(backend, config):
 
 
 # ---------------------------------------------------------------------------
-# Angle size validation
+# Varying angle size
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("backend", BACKENDS)
-def test_angle_size_mismatch_raises(backend, config):
-    """A cube whose (el, az) shape doesn't match `angle_size` is rejected.
+@pytest.mark.parametrize("el,az", [(EL, AZ), (EL, AZ + 8), (EL + 8, AZ)])
+def test_varying_angle_size(backend, config, el, az):
+    """One instance handles cubes of differing angle sizes.
 
-    Otherwise the argmax bin index would silently be looked up in a
-    differently-sized angle table, yielding wrong angles instead of an
-    error.
+    The bin-to-angle tables come from the cube's own angle axes, so nothing
+    has to be declared up front and nothing can disagree with the cube.
     """
-    bad_cube = np.zeros((BATCH, DOPPLER, EL + 1, AZ, RANGE), dtype=np.float32)
-    with pytest.raises(ValueError):
-        _point_cloud(backend, config, bad_cube)
+    cube = np.zeros((BATCH, DOPPLER, el, az, RANGE), dtype=np.float32)
+    cube[:, :, el // 2, az // 2, :] = 1.0
+
+    pc_mask, points = _point_cloud(backend, config, cube)
+
+    assert points.shape == (BATCH, RANGE, DOPPLER, 4)
+    assert pc_mask.shape == (BATCH, RANGE, DOPPLER)
 
 
 # ---------------------------------------------------------------------------
@@ -292,11 +289,11 @@ def test_end_to_end_parity(config, detector):
     assert np.asarray(mask_j).any(), "no detections; test would be vacuous"
 
     pc_mask_j, points_j = rspj.PointCloud(
-        config, angle_size=(el, az))(cube_j, mask_j)
+        config)(cube_j, mask_j)
     pc_mask_t, points_t = rspt.PointCloud(
-        config, angle_size=(el, az))(cube_t, mask_t)
+        config)(cube_t, mask_t)
     pc_mask_n, points_n = rspn.PointCloud(
-        config, angle_size=(el, az))(cube_n, mask_n)
+        config)(cube_n, mask_n)
 
     assert np.array_equal(np.asarray(pc_mask_j), pc_mask_t.numpy())
     assert np.array_equal(np.asarray(pc_mask_j), pc_mask_n)
