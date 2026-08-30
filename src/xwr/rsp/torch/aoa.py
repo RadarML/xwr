@@ -1,7 +1,5 @@
 """Angle of Arrival Estimation and Point Cloud Module using Pytorch."""
 
-from collections.abc import Sequence
-
 import torch
 from jaxtyping import Bool, Float32, Int
 from torch import Tensor
@@ -68,16 +66,13 @@ class PointCloud:
     def __init__(
         self,
         config: XWRConfig,
-        angle_fov: Sequence[float] = (20.0, 80.0),
-        angle_size: Sequence[int] = (128, 128),
+        angle_fov: tuple[float, float] = (20.0, 80.0),
+        angle_size: tuple[int, int] = (128, 128),
         antenna_spacing: float = 0.5,
     ) -> None:
         self.range_res = config.range_resolution
         self.doppler_res = config.doppler_resolution
 
-        assert len(angle_fov) == 2 and len(angle_size) == 2, (
-            "angle_fov and angle_size must be a sequence of length 2."
-        )
         if antenna_spacing <= 0:
             raise ValueError("antenna_spacing must be > 0")
         self.el_fov = torch.deg2rad(torch.tensor(angle_fov[0]))

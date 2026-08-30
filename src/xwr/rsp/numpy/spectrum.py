@@ -1,7 +1,5 @@
 """Calibrated Spectrum Processing."""
 
-from collections.abc import Sequence
-
 import numpy as np
 from jaxtyping import Bool, Float
 from scipy.signal import convolve2d, correlate
@@ -10,17 +8,17 @@ from scipy.signal import convolve2d, correlate
 class CFAR:
     """Cell-averaging CFAR.
 
-    Expects a batch of range-doppler cubes, with the `guard` and `window`
+    Expects a batch of range-doppler cubes, with the `guard` and `train`
     sizes corresponding to the (range, doppler) axes.
 
     ```
-        ┌─────────────────┐ ▲ window[0]
+        ┌─────────────────┐ ▲ guard[0]+train[0]
         │    ┌───────┐    │ │
         │    │  ┌─┐  │    │ ▼
         │    │  └─┘  │    │ ▲ guard[0]
         │    └───────┘    │ ▼
         └─────────────────┘
-    guard[1] ◄──► ◄───────► window[1]
+    guard[1] ◄──► ◄───────► guard[1]+train[1]
     ```
 
     !!! info
@@ -31,8 +29,12 @@ class CFAR:
         doppler axes separately and requires **both** to fire.
 
     Args:
-        guard: size of guard cells (excluded from noise estimation).
-        window: total CFAR window size.
+        guard: number of guard cells on **each** side of the cell under test,
+            for (range, doppler); these sit between the cell under test and
+            the training cells and are excluded from the noise estimate.
+        train: number of training cells on **each** side of the guard region,
+            for (range, doppler); the window half-width on each axis is
+            `guard + train`.
         snr_thresh: signal to noise ratio threshold, as a **linear power
             ratio** (not dB). A cell is detected when its integrated power
             exceeds `snr_thresh * noise`. Raising it gives fewer false alarms
@@ -46,29 +48,22 @@ class CFAR:
     def __init__(
         self,
         guard: tuple[int, int] = (2, 2),
-        window: tuple[int, int] = (4, 4),
+        train: tuple[int, int] = (2, 2),
         snr_thresh: float = 5.0,
-        discard_range: Sequence[int] = (10, 20),
+        discard_range: tuple[int, int] = (10, 20),
     ) -> None:
-        if len(discard_range) != 2:
-            raise ValueError(
-                f"Discard range {discard_range} must be length 2.")
-
         self.snr_thresh = snr_thresh
         # discard detect object around DC
         self.discard_r = discard_range
 
-        w0, w1 = window
         g0, g1 = guard
-        if g0 > w0 or g1 > w1:
-            raise ValueError(
-                f"Guard {guard} must be <= window {window} on each axis.")
+        w0, w1 = g0 + train[0], g1 + train[1]
 
         mask = np.ones((2 * w0 + 1, 2 * w1 + 1), dtype=np.float32)
         mask[w0 - g0 : w0 + g0 + 1, w1 - g1 : w1 + g1 + 1] = 0.0
         if mask.sum() == 0:
             raise ValueError(
-                f"CFAR mask is empty; check guard={guard} and window={window}.")
+                f"CFAR mask is empty; check guard={guard} and train={train}.")
         self.mask: np.ndarray = mask
 
     def _noise(
@@ -134,8 +129,8 @@ class CFAR:
 class CFARCASO:
     """Cell-averaging Smallest of CFAR.
 
-    Expects a batch of range-doppler cubes, with the `train_window` and
-    `guard_window` sizes corresponding to the (range, doppler) axes.
+    Expects a batch of range-doppler cubes, with the `guard` and
+    `train` sizes corresponding to the (range, doppler) axes.
 
     !!! info
 
@@ -144,7 +139,7 @@ class CFARCASO:
         if the SNR exceeds the specified threshold on either axis.
 
     ```
-               ┌─┐       ▲ window[0]
+               ┌─┐       ▲ train[0]
                │ │       │
                ├─┤       ▼
          ┌───┬─┼─┼─┬───┐
@@ -152,22 +147,22 @@ class CFARCASO:
                ├─┤       ▼
                │ │
                └─┘
-    guard[1] ◄─►   ◄───► window[1]
+    guard[1] ◄─►   ◄───► train[1]
     ```
 
     Args:
-        train_window: number of training cells on **each** side of the cell
-            under test, for (range, doppler). Rather than averaging both
-            sides, CASO ("smallest of") takes the **minimum** of the two
-            one-sided means, so a strong target on one side cannot inflate
-            the noise floor and mask a weaker target on the other.
-        guard_window: number of guard cells on **each** side of the cell
+        guard: number of guard cells on **each** side of the cell
             under test, for (range, doppler); these sit between the cell
             under test and the training cells and are excluded from the noise
             estimate. They absorb target energy spread by FFT sidelobes and
             windowing, which would otherwise raise the target's own noise
             floor. The asymmetric default reflects that range leakage is
             broad while doppler needs no guard.
+        train: number of training cells on **each** side of the guard region,
+            for (range, doppler). Rather than averaging both sides, CASO
+            ("smallest of") takes the **minimum** of the two one-sided means,
+            so a strong target on one side cannot inflate the noise floor
+            and mask a weaker target on the other.
         snr_thresh: signal to noise ratio threshold for (range, doppler), as
             a **linear power ratio** (not dB). A cell is detected on an axis
             when its integrated power exceeds `snr_thresh * noise`, and a
@@ -181,41 +176,31 @@ class CFARCASO:
 
     def __init__(
         self,
-        train_window: Sequence[int] = (8, 4),
-        guard_window: Sequence[int] = (8, 0),
-        snr_thresh: Sequence[float] = (5.0, 3.0),
-        discard_range: Sequence[int] = (10, 20),
+        guard: tuple[int, int] = (8, 0),
+        train: tuple[int, int] = (8, 4),
+        snr_thresh: tuple[float, float] = (5.0, 3.0),
+        discard_range: tuple[int, int] = (10, 20),
     ):
-        if len(train_window) != 2:
-            raise ValueError(f"Train window {train_window} must be length 2.")
-        if len(guard_window) != 2:
-            raise ValueError(f"Guard window {guard_window} must be length 2.")
-        if len(discard_range) != 2:
-            raise ValueError(
-                f"Discard range {discard_range} must be length 2.")
-        if len(snr_thresh) != 2:
-            raise ValueError(f"SNR thresh {snr_thresh} must be length 2.")
-
         # discard detect object around DC
         self.discard_r = discard_range
         self.snr_r, self.snr_d = snr_thresh
 
-        self.pad_r = train_window[0] + guard_window[0]
-        self.pad_d = train_window[1] + guard_window[1]
+        self.pad_r = train[0] + guard[0]
+        self.pad_d = train[1] + guard[1]
 
         # caso
-        def make_caso_kernels(train, pad):
+        def make_caso_kernels(n_train, pad):
             ker = np.zeros((2 * pad + 1), dtype=np.float32)
             ker_a, ker_b = ker.copy(), ker.copy()
-            ker_a[:train], ker_b[-train:] = 1, 1
+            ker_a[:n_train], ker_b[-n_train:] = 1, 1
             ker_a /= ker_a.sum()
             ker_b /= ker_b.sum()
             return ker_a, ker_b
 
         self.r_ker_a, self.r_ker_b = make_caso_kernels(
-            train_window[0], self.pad_r)
+            train[0], self.pad_r)
         self.d_ker_a, self.d_ker_b = make_caso_kernels(
-            train_window[1], self.pad_d)
+            train[1], self.pad_d)
 
     @staticmethod
     def _caso(

@@ -8,9 +8,10 @@ import torch
 from xwr.config import XWRConfig
 from xwr.radar import AWR1843
 from xwr.rsp import jax as rspj
+from xwr.rsp import numpy as rspn
 from xwr.rsp import torch as rspt
 
-BACKENDS = ["jax", "torch"]
+BACKENDS = ["jax", "torch", "numpy"]
 
 # Odd angle sizes, so `linspace(-1, 1, n)` has an exact 0 at the center bin
 # and boresight is exactly representable.
@@ -54,10 +55,13 @@ def _point_cloud(backend, config, cube, mask=None, **kwargs):
         pc = rspj.PointCloud(config, **kwargs)
         pc_mask, points = pc(jnp.array(cube), jnp.array(mask))
         return np.asarray(pc_mask), np.asarray(points)
+    elif backend == "torch":
+        pc = rspt.PointCloud(config, **kwargs)
+        pc_mask, points = pc(torch.from_numpy(cube), torch.from_numpy(mask))
+        return pc_mask.numpy(), points.numpy()
 
-    pc = rspt.PointCloud(config, **kwargs)
-    pc_mask, points = pc(torch.from_numpy(cube), torch.from_numpy(mask))
-    return pc_mask.numpy(), points.numpy()
+    pc = rspn.PointCloud(config, **kwargs)
+    return pc(cube, mask)
 
 
 def _angles(backend, config, **kwargs):
@@ -66,9 +70,12 @@ def _angles(backend, config, **kwargs):
     if backend == "jax":
         pc = rspj.PointCloud(config, **kwargs)
         return np.asarray(pc.el_angles), np.asarray(pc.az_angles)
+    elif backend == "torch":
+        pc = rspt.PointCloud(config, **kwargs)
+        return pc.el_angles.numpy(), pc.az_angles.numpy()
 
-    pc = rspt.PointCloud(config, **kwargs)
-    return pc.el_angles.numpy(), pc.az_angles.numpy()
+    pc = rspn.PointCloud(config, **kwargs)
+    return pc.el_angles, pc.az_angles
 
 
 # ---------------------------------------------------------------------------
@@ -198,7 +205,7 @@ def test_antenna_spacing_is_clamped(backend, config, spacing):
 @pytest.mark.parametrize("backend", BACKENDS)
 def test_antenna_spacing_must_be_positive(backend, config):
     """A non-positive antenna spacing is rejected at construction."""
-    module = {"jax": rspj, "torch": rspt}[backend]
+    module = {"jax": rspj, "torch": rspt, "numpy": rspn}[backend]
     for spacing in (0.0, -0.5):
         with pytest.raises(ValueError):
             module.PointCloud(config, antenna_spacing=spacing)
@@ -210,26 +217,29 @@ def test_antenna_spacing_must_be_positive(backend, config):
 
 @pytest.mark.parametrize("spacing", [0.5, 0.4])
 def test_angle_table_parity(config, spacing):
-    """Both backends build identical bin-to-angle lookup tables."""
-    el_j, az_j = _angles("jax", config, antenna_spacing=spacing)
-    el_t, az_t = _angles("torch", config, antenna_spacing=spacing)
-
-    assert np.allclose(el_j, el_t, atol=1e-6)
-    assert np.allclose(az_j, az_t, atol=1e-6)
+    """All backends build identical bin-to-angle lookup tables."""
+    angles = {b: _angles(b, config, antenna_spacing=spacing) for b in BACKENDS}
+    el0, az0 = angles[BACKENDS[0]]
+    for backend in BACKENDS[1:]:
+        el, az = angles[backend]
+        assert np.allclose(el0, el, atol=1e-6)
+        assert np.allclose(az0, az, atol=1e-6)
 
 
 def test_point_cloud_parity(config):
-    """Both backends produce the same point cloud from the same cube."""
+    """All backends produce the same point cloud from the same cube."""
     rng = np.random.default_rng(0)
     cube = rng.random(
         (BATCH, DOPPLER, EL, AZ, RANGE)).astype(np.float32)
     mask = rng.random((BATCH, RANGE, DOPPLER)) > 0.5
 
-    mask_j, points_j = _point_cloud("jax", config, cube, mask=mask)
-    mask_t, points_t = _point_cloud("torch", config, cube, mask=mask)
-
-    assert np.array_equal(mask_j, mask_t)
-    assert np.allclose(points_j, points_t, atol=1e-4)
+    results = {
+        b: _point_cloud(b, config, cube, mask=mask) for b in BACKENDS}
+    mask0, points0 = results[BACKENDS[0]]
+    for backend in BACKENDS[1:]:
+        mask_b, points_b = results[backend]
+        assert np.array_equal(mask0, mask_b)
+        assert np.allclose(points0, points_b, atol=1e-4)
 
 
 # ---------------------------------------------------------------------------
@@ -244,26 +254,33 @@ def test_end_to_end_parity(config, detector):
     iq = (rng.random(shape) + 1j * rng.random(shape)).astype(np.complex64)
 
     kwargs = (
-        {"guard": (2, 2), "window": (4, 4), "snr_thresh": 1.2,
+        {"guard": (2, 2), "train": (2, 2), "snr_thresh": 1.2,
          "discard_range": (2, 2)}
         if detector == "CFAR" else
-        {"train_window": (4, 2), "guard_window": (2, 0),
+        {"train": (4, 2), "guard": (2, 0),
          "snr_thresh": (1.2, 1.1), "discard_range": (2, 2)})
 
     cube_j = jnp.abs(rspj.AWR1843Boost(window=False, size={})(jnp.array(iq)))
     cube_t = torch.abs(
         rspt.AWR1843Boost(window=False, size={})(torch.from_numpy(iq)))
+    cube_n = np.abs(rspn.AWR1843Boost(window=False, size={})(iq))
     _, _, el, az, _ = cube_j.shape
 
     mask_j, _, _ = getattr(rspj, detector)(**kwargs)(cube_j)
     mask_t, _, _ = getattr(rspt, detector)(**kwargs)(cube_t)
+    mask_n, _, _ = getattr(rspn, detector)(**kwargs)(cube_n)
     assert np.array_equal(np.asarray(mask_j), mask_t.numpy())
+    assert np.array_equal(np.asarray(mask_j), mask_n)
     assert np.asarray(mask_j).any(), "no detections; test would be vacuous"
 
     pc_mask_j, points_j = rspj.PointCloud(
         config, angle_size=(el, az))(cube_j, mask_j)
     pc_mask_t, points_t = rspt.PointCloud(
         config, angle_size=(el, az))(cube_t, mask_t)
+    pc_mask_n, points_n = rspn.PointCloud(
+        config, angle_size=(el, az))(cube_n, mask_n)
 
     assert np.array_equal(np.asarray(pc_mask_j), pc_mask_t.numpy())
+    assert np.array_equal(np.asarray(pc_mask_j), pc_mask_n)
     assert np.allclose(np.asarray(points_j), points_t.numpy(), atol=1e-4)
+    assert np.allclose(np.asarray(points_j), points_n, atol=1e-4)

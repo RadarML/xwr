@@ -6,6 +6,7 @@ import pytest
 import torch
 
 from xwr.rsp import jax as rspj
+from xwr.rsp import numpy as rspn
 from xwr.rsp import torch as rspt
 
 # (batch, doppler, tx, rx, range) of the synthetic cubes used here.
@@ -62,34 +63,39 @@ def _numpy(*arrays):
 
 def _run(backend, detector, cube: np.ndarray, **kwargs):
     """Run a detector on `cube` in the given backend, returning numpy."""
-    module = {"jax": rspj, "torch": rspt}[backend]
-    data = jnp.array(cube) if backend == "jax" else torch.from_numpy(cube)
+    module = {"jax": rspj, "torch": rspt, "numpy": rspn}[backend]
+    if backend == "jax":
+        data = jnp.array(cube)
+    elif backend == "torch":
+        data = torch.from_numpy(cube)
+    else:
+        data = cube
     return _numpy(*getattr(module, detector)(**kwargs)(data))
 
 
-BACKENDS = ["jax", "torch"]
+BACKENDS = ["jax", "torch", "numpy"]
 
 CFAR_PARAMS = [
-    {"guard": (2, 2), "window": (4, 4), "snr_thresh": 5.0,
+    {"guard": (2, 2), "train": (2, 2), "snr_thresh": 5.0,
      "discard_range": (10, 20)},
-    {"guard": (1, 1), "window": (3, 2), "snr_thresh": 2.0,
+    {"guard": (1, 1), "train": (2, 1), "snr_thresh": 2.0,
      "discard_range": (4, 6)},
     # far=0: `signal[near:-far]` would slice to empty; regression for the
     # jax/torch divergence.
-    {"guard": (2, 2), "window": (4, 4), "snr_thresh": 5.0,
+    {"guard": (2, 2), "train": (2, 2), "snr_thresh": 5.0,
      "discard_range": (4, 0)},
-    {"guard": (0, 0), "window": (2, 2), "snr_thresh": 3.0,
+    {"guard": (0, 0), "train": (2, 2), "snr_thresh": 3.0,
      "discard_range": (0, 0)},
 ]
 
 CASO_PARAMS = [
-    {"train_window": (8, 4), "guard_window": (8, 0), "snr_thresh": (5.0, 3.0),
+    {"train": (8, 4), "guard": (8, 0), "snr_thresh": (5.0, 3.0),
      "discard_range": (10, 20)},
-    {"train_window": (4, 2), "guard_window": (2, 0), "snr_thresh": (2.0, 1.5),
+    {"train": (4, 2), "guard": (2, 0), "snr_thresh": (2.0, 1.5),
      "discard_range": (4, 6)},
-    {"train_window": (4, 2), "guard_window": (2, 0), "snr_thresh": (5.0, 3.0),
+    {"train": (4, 2), "guard": (2, 0), "snr_thresh": (5.0, 3.0),
      "discard_range": (4, 0)},
-    {"train_window": (4, 2), "guard_window": (2, 0), "snr_thresh": (5.0, 3.0),
+    {"train": (4, 2), "guard": (2, 0), "snr_thresh": (5.0, 3.0),
      "discard_range": (0, 0)},
 ]
 
@@ -100,26 +106,28 @@ CASO_PARAMS = [
 
 @pytest.mark.parametrize("kwargs", CFAR_PARAMS)
 def test_cfar_parity(kwargs):
-    """Jax and torch CFAR must agree; they mirror the same algorithm."""
+    """All backends' CFAR must agree; they mirror the same algorithm."""
     cube = _target_cube()
-    mask_j, signal_j, snr_j = _run("jax", "CFAR", cube, **kwargs)
-    mask_t, signal_t, snr_t = _run("torch", "CFAR", cube, **kwargs)
-
-    assert np.array_equal(mask_j, mask_t)
-    assert np.allclose(signal_j, signal_t, atol=1e-4)
-    assert np.allclose(snr_j, snr_t, rtol=1e-4)
+    results = {b: _run(b, "CFAR", cube, **kwargs) for b in BACKENDS}
+    mask0, signal0, snr0 = results[BACKENDS[0]]
+    for backend in BACKENDS[1:]:
+        mask, signal, snr = results[backend]
+        assert np.array_equal(mask0, mask)
+        assert np.allclose(signal0, signal, atol=1e-4)
+        assert np.allclose(snr0, snr, rtol=1e-4)
 
 
 @pytest.mark.parametrize("kwargs", CASO_PARAMS)
 def test_caso_parity(kwargs):
-    """Jax and torch CFAR CASO must agree."""
+    """All backends' CFAR CASO must agree."""
     cube = _target_cube()
-    mask_j, signal_j, snr_j = _run("jax", "CFARCASO", cube, **kwargs)
-    mask_t, signal_t, snr_t = _run("torch", "CFARCASO", cube, **kwargs)
-
-    assert np.array_equal(mask_j, mask_t)
-    assert np.allclose(signal_j, signal_t, atol=1e-4)
-    assert np.allclose(snr_j, snr_t, rtol=1e-4)
+    results = {b: _run(b, "CFARCASO", cube, **kwargs) for b in BACKENDS}
+    mask0, signal0, snr0 = results[BACKENDS[0]]
+    for backend in BACKENDS[1:]:
+        mask, signal, snr = results[backend]
+        assert np.array_equal(mask0, mask)
+        assert np.allclose(signal0, signal, atol=1e-4)
+        assert np.allclose(snr0, snr, rtol=1e-4)
 
 
 # ---------------------------------------------------------------------------
@@ -132,10 +140,10 @@ def test_detects_only_the_target(backend, detector):
     """An isolated strong target is the one and only detection."""
     cube = _target_cube()
     kwargs = (
-        {"guard": (2, 2), "window": (4, 4), "snr_thresh": 5.0,
+        {"guard": (2, 2), "train": (2, 2), "snr_thresh": 5.0,
          "discard_range": (10, 20)}
         if detector == "CFAR" else
-        {"train_window": (4, 2), "guard_window": (2, 0),
+        {"train": (4, 2), "guard": (2, 0),
          "snr_thresh": (5.0, 3.0), "discard_range": (10, 20)})
 
     mask, _, snr = _run(backend, detector, cube, **kwargs)
@@ -154,7 +162,7 @@ def test_integrated_signal(backend, detector):
     cube = _target_cube()
     kwargs = (
         {"discard_range": (10, 20)} if detector == "CFAR" else
-        {"train_window": (4, 2), "guard_window": (2, 0),
+        {"train": (4, 2), "guard": (2, 0),
          "discard_range": (10, 20)})
 
     _, signal, _ = _run(backend, detector, cube, **kwargs)
@@ -173,7 +181,7 @@ def test_discard_band(backend, detector):
     cube[:, TARGET[1], :, :, near - 1] = 50.0
     kwargs = (
         {"discard_range": (near, far)} if detector == "CFAR" else
-        {"train_window": (4, 2), "guard_window": (2, 0),
+        {"train": (4, 2), "guard": (2, 0),
          "discard_range": (near, far)})
 
     mask, signal, snr = _run(backend, detector, cube, **kwargs)
@@ -189,11 +197,12 @@ def test_discard_band(backend, detector):
 @pytest.mark.parametrize("backend", BACKENDS)
 def test_cfar_noise_floor(backend):
     """The CFAR ring noise floor matches an explicit numpy reference."""
-    guard, window = (1, 1), (2, 2)
+    guard, train = (1, 1), (1, 1)
+    window = (guard[0] + train[0], guard[1] + train[1])
     cube = _target_cube()
     # No discarded band, so every bin exercises the ring average.
     _, signal, snr = _run(
-        backend, "CFAR", cube, guard=guard, window=window,
+        backend, "CFAR", cube, guard=guard, train=train,
         discard_range=(0, 0))
 
     expected = _ring_noise(_signal(cube)[0], guard, window)
@@ -206,26 +215,41 @@ def test_cfar_noise_floor(backend):
 
 @pytest.mark.parametrize("backend", BACKENDS)
 @pytest.mark.parametrize("kwargs", [
-    {"guard": (4, 4), "window": (2, 2)},        # guard exceeds window
-    {"guard": (2, 2), "window": (2, 2)},        # no training cells left
+    {"train": (0, 0)},                          # no training cells left
+    {"guard": (2, 2, 2)},                       # wrong length
+    {"train": (2, 2, 2)},                       # wrong length
     {"discard_range": (1, 2, 3)},               # wrong length
 ])
 def test_cfar_invalid(backend, kwargs):
-    """Bad CFAR parameters are rejected at construction."""
-    module = {"jax": rspj, "torch": rspt}[backend]
-    with pytest.raises(ValueError):
+    """Bad CFAR parameters are rejected at construction.
+
+    !!! note
+
+        `guard`/`train`/`discard_range` are all typed `tuple[int, int]`, so
+        a wrong-length value is rejected by beartype with a `TypeError`;
+        `train=(0, 0)` is a manual `ValueError` (empty CFAR mask).
+    """
+    module = {"jax": rspj, "torch": rspt, "numpy": rspn}[backend]
+    with pytest.raises((ValueError, TypeError)):
         module.CFAR(**kwargs)
 
 
 @pytest.mark.parametrize("backend", BACKENDS)
 @pytest.mark.parametrize("kwargs", [
-    {"train_window": (8, 4, 2)},
-    {"guard_window": (8, 0, 1)},
+    {"train": (8, 4, 2)},
+    {"guard": (8, 0, 1)},
     {"discard_range": (1, 2, 3)},
     {"snr_thresh": (5.0, 3.0, 1.0)},
 ])
 def test_caso_invalid(backend, kwargs):
-    """Bad CFAR CASO parameters are rejected at construction."""
-    module = {"jax": rspj, "torch": rspt}[backend]
-    with pytest.raises(ValueError):
+    """Bad CFAR CASO parameters are rejected at construction.
+
+    !!! note
+
+        `train`, `guard`, `snr_thresh`, and `discard_range`
+        are all typed as fixed-length tuples, so a wrong-length value is
+        rejected by beartype with a `TypeError`.
+    """
+    module = {"jax": rspj, "torch": rspt, "numpy": rspn}[backend]
+    with pytest.raises((ValueError, TypeError)):
         module.CFARCASO(**kwargs)
