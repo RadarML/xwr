@@ -53,12 +53,10 @@ class PointCloud(ABC, Generic[TArray]):
     cube's angle axes. A mismatch raises a `ValueError` when
     [`__call__`][xwr.rsp.PointCloud.__call__] is invoked.
 
-    !!! info "Angular field of view"
-
-        `angle_fov` is applied as a symmetric `±fov` bound, and points
-        falling outside it are excluded from the returned mask. This rejects
-        estimates near the edge of the array's sin-space, where a sparse MIMO
-        array has little real resolving power and grating lobes appear.
+    `angle_fov` is applied as a symmetric `±fov` bound, and points falling
+    outside it are excluded from the returned mask. This rejects estimates
+    near the edge of the array's sin-space, where a sparse MIMO array has
+    little real resolving power and grating lobes appear.
 
     Type Parameters:
         - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
