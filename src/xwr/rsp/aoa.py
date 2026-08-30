@@ -47,11 +47,9 @@ class PointCloud(ABC, Generic[TArray]):
     positive; a non-positive value raises `ValueError`, while a wrong (but
     positive) value gives systematically wrong angles rather than an error.
 
-    `angle_size` **must match the `size={"elevation": ..., "azimuth": ...}`
-    the [`RSP`][xwr.rsp.] was constructed with**: the bin-to-angle lookup
-    tables are built at this length, then indexed by the argmax over the
-    cube's angle axes. A mismatch raises a `ValueError` when
-    [`__call__`][xwr.rsp.PointCloud.__call__] is invoked.
+    The bin-to-angle lookup tables are derived from the cube's own angle axes
+    on each call, so no angle size has to be declared up front and one
+    instance handles cubes of differing angle sizes.
 
     `angle_fov` is applied as a symmetric `±fov` bound, and points falling
     outside it are excluded from the returned mask. This rejects estimates
@@ -66,7 +64,6 @@ class PointCloud(ABC, Generic[TArray]):
         config: radar configuration; see [`XWRConfig`][xwr.config.].
         angle_fov: angle field of view **in degrees**, for
             (elevation, azimuth).
-        angle_size: angle fft size for (elevation, azimuth).
         antenna_spacing: antenna spacing in terms of wavelength (default 0.5
             for a half-wavelength grid).
     """
@@ -75,7 +72,6 @@ class PointCloud(ABC, Generic[TArray]):
         self,
         config: XWRConfig,
         angle_fov: tuple[float, float] = (20.0, 80.0),
-        angle_size: tuple[int, int] = (128, 128),
         antenna_spacing: float = 0.5,
     ) -> None:
         self.range_res = config.range_resolution
@@ -83,26 +79,33 @@ class PointCloud(ABC, Generic[TArray]):
 
         if antenna_spacing <= 0:
             raise ValueError("antenna_spacing must be > 0")
+        self.antenna_spacing = antenna_spacing
         self.el_fov = float(np.deg2rad(angle_fov[0]))
         self.az_fov = float(np.deg2rad(angle_fov[1]))
-        el_sin = np.clip(
-            np.linspace(-1.0, 1.0, angle_size[0]) / (2 * antenna_spacing),
-            -1.0, 1.0)
-        az_sin = np.clip(
-            np.linspace(-1.0, 1.0, angle_size[1]) / (2 * antenna_spacing),
-            -1.0, 1.0)
-        self.el_angles: Float[TArray, " el"] = self._asarray(
-            np.arcsin(el_sin).astype(np.float32))
-        self.az_angles: Float[TArray, " az"] = self._asarray(
-            np.arcsin(az_sin).astype(np.float32))
 
-    @staticmethod
+    def angle_table(self, n: int) -> Float32[np.ndarray, " n"]:
+        """Bin-to-angle lookup for an angle axis of length `n`.
+
+        Args:
+            n: length of the angle axis, i.e. the angle fft size.
+
+        Returns:
+            Angle in radians for each bin, ascending.
+        """
+        sin = np.clip(
+            np.linspace(-1.0, 1.0, n) / (2 * self.antenna_spacing), -1.0, 1.0)
+        return np.arcsin(sin).astype(np.float32)
+
     @abstractmethod
-    def _asarray(x: Float[np.ndarray, "..."]) -> Float[TArray, "..."]:
+    def _asarray(
+        self, x: Float[np.ndarray, "..."], like: Float32[TArray, "..."]
+    ) -> Float[TArray, "..."]:
         """Convert a numpy array to this backend's array type.
 
         Args:
             x: numpy array to convert.
+            like: array whose device the result should live on, where the
+                backend has a notion of one.
 
         Returns:
             The same values, as a backend array.
@@ -124,19 +127,6 @@ class PointCloud(ABC, Generic[TArray]):
             Peak index, as `(elevation, azimuth)` along the trailing axis.
         """
         ...
-
-    def _prepare(self, cube: Float32[TArray, "..."]) -> None:
-        """Hook called at the top of `__call__`, before any validation.
-
-        Backends which carry device state (e.g. torch) override this to move
-        the bin-to-angle lookup tables to the input's device. The default is
-        a no-op.
-
-        Args:
-            cube: the input passed to
-                [`__call__`][xwr.rsp.PointCloud.__call__].
-        """
-        return
 
     @abstractmethod
     def _point_cloud(
@@ -165,8 +155,8 @@ class PointCloud(ABC, Generic[TArray]):
         """Angle of arrival estimation.
 
         Takes the argmax over the (elevation, azimuth) angle spectrum of each
-        range-doppler bin, yielding **bin indices** into the `el_angles` and
-        `az_angles` lookup tables rather than angles.
+        range-doppler bin, yielding **bin indices** into the
+        [`angle_table`][xwr.rsp.PointCloud.] lookups rather than angles.
 
         !!! warning
 
@@ -213,14 +203,4 @@ class PointCloud(ABC, Generic[TArray]):
                 `z = r sin(el)`; note that the azimuth angle is **negated**,
                 and that `x` is the boresight direction at zero angle.
         """
-        self._prepare(cube)
-
-        _, _, el, az, _ = cube.shape
-        n_el, n_az = self.el_angles.shape[0], self.az_angles.shape[0]
-        if el != n_el or az != n_az:
-            raise ValueError(
-                f"Cube angle shape (el={el}, az={az}) does not match "
-                f"angle_size=({n_el}, {n_az}) "
-                "used to construct this PointCloud.")
-
         return self._point_cloud(cube, mask)
