@@ -90,32 +90,6 @@ class CFAR:
         valid = convolve2d(jnp.ones_like(signal), self.mask, mode="same")
         return convolve2d(signal, self.mask, mode="same") / valid
 
-    def _cfar(
-        self, signal_cube: Float[Array, "batch doppler tx rx range"]
-    ) -> tuple[
-        Bool[Array, "batch range doppler"],
-        Float[Array, "batch range doppler"],
-        Float[Array, "batch range doppler"],
-    ]:
-        """Run 2D cell-averaging CFAR on a batch of radar cubes."""
-        # non-coherent signal combination along the antenna array
-        signal = jnp.sum(signal_cube**2, axis=(2, 3)).transpose(0, 2, 1) + 1
-        _, s_r, _ = signal.shape
-
-        noise_r = jax.vmap(self._noise)(signal)
-
-        near, far = self.discard_r[0], self.discard_r[1]
-        # 1 outside the discarded band, so the reported SNR there is the raw
-        # signal rather than a division by zero.
-        noise = jnp.ones_like(signal).at[:, near : s_r - far].set(
-            noise_r[:, near : s_r - far])
-
-        snr = signal / noise
-        obj_mask = jnp.zeros(signal.shape, dtype=bool).at[
-            :, near : s_r - far].set(snr[:, near : s_r - far] > self.snr_thresh)
-
-        return obj_mask, signal, snr
-
     def __call__(
         self, signal_cube: Float[Array, "batch doppler tx rx range"]
     ) -> tuple[
@@ -140,7 +114,23 @@ class CFAR:
                 the range-doppler spectrum used for detection.
             signal to noise ratio, as a linear power ratio.
         """
-        return self._cfar(signal_cube)
+        # non-coherent signal combination along the antenna array
+        signal = jnp.sum(signal_cube**2, axis=(2, 3)).transpose(0, 2, 1) + 1
+        _, s_r, _ = signal.shape
+
+        noise_r = jax.vmap(self._noise)(signal)
+
+        near, far = self.discard_r[0], self.discard_r[1]
+        # 1 outside the discarded band, so the reported SNR there is the raw
+        # signal rather than a division by zero.
+        noise = jnp.ones_like(signal).at[:, near : s_r - far].set(
+            noise_r[:, near : s_r - far])
+
+        snr = signal / noise
+        obj_mask = jnp.zeros(signal.shape, dtype=bool).at[
+            :, near : s_r - far].set(snr[:, near : s_r - far] > self.snr_thresh)
+
+        return obj_mask, signal, snr
 
 
 class CFARCASO:
@@ -207,91 +197,57 @@ class CFARCASO:
                 f"Discard range {discard_range} must be length 2.")
         if len(snr_thresh) != 2:
             raise ValueError(f"SNR thresh {snr_thresh} must be length 2.")
+        if any(t < 1 for t in train_window):
+            raise ValueError(
+                f"Train window {train_window} must be >= 1 on each axis.")
 
         # discard detect object around DC
         self.discard_r = discard_range
         self.snr_r, self.snr_d = snr_thresh
 
+        self.train_r, self.train_d = train_window
         self.pad_r = train_window[0] + guard_window[0]
         self.pad_d = train_window[1] + guard_window[1]
 
-        # caso
-        def make_caso_kernels(train, pad):
-            ker = np.zeros((2 * pad + 1), dtype=np.float32)
-            ker_a, ker_b = ker.copy(), ker.copy()
-            ker_a[:train], ker_b[-train:] = 1, 1
-            ker_a /= ker_a.sum()
-            ker_b /= ker_b.sum()
-            return jnp.asarray(ker_a), jnp.asarray(ker_b)
-
-        self.r_ker_a, self.r_ker_b = make_caso_kernels(
-            train_window[0], self.pad_r)
-        self.d_ker_a, self.d_ker_b = make_caso_kernels(
-            train_window[1], self.pad_d)
-
     @staticmethod
     def _caso(
-        signal: Float[Array, "n"],
-        ker_a: Float[Array, "w"],
-        ker_b: Float[Array, "w"],
-        snr: float,
+        signal: Float[Array, "..."],
+        axis: int,
+        train: int,
         pad: int,
-    ) -> tuple[Bool[Array, "m"], Float[Array, "m"]]:
-        """Run 1D CFAR CASO, returning a detection mask and noise level."""
-        cor_a = jnp.correlate(signal, ker_a, mode="valid")
-        cor_b = jnp.correlate(signal, ker_b, mode="valid")
-        noise = jnp.minimum(cor_a, cor_b)
-        detect = signal[pad:-pad] > snr * noise
-        return detect, noise
+        snr: float,
+    ) -> tuple[Bool[Array, "..."], Float[Array, "..."]]:
+        """Run 1D CFAR CASO along `axis` of an arbitrarily batched array.
 
-    def _cfar(
-        self, signal_cube: Float[Array, "doppler tx rx range"]
-    ) -> tuple[
-        Bool[Array, "range doppler"],
-        Float[Array, "range doppler"],
-        Float[Array, "range doppler"],
-    ]:
-        """Run 2D CFAR CASO on a single radar cube."""
-        signal_cube = signal_cube.transpose(3, 0, 1, 2)
-        s_r, s_d, _, _ = signal_cube.shape
-        range_dopp = signal_cube.reshape(s_r, s_d, -1)
+        The training cells are a contiguous box on each side of the cell under
+        test, so the leading and trailing one-sided means are accumulated
+        directly from shifted slices rather than correlated against a mostly
+        zero kernel. `train` is a static Python int, so the sum unrolls at
+        trace time.
 
-        # non-coherent signal combination along the antenna array
-        signal = jnp.sum(range_dopp**2, axis=-1) + 1
-        sig_discard = signal[self.discard_r[0] : s_r - self.discard_r[1]]
-        sig_pad_r = jnp.concat(
-            (
-                sig_discard[: self.pad_r],
-                sig_discard,
-                sig_discard[-self.pad_r :],
-            ),
-            axis=0,
-        )
-        sig_pad_d = jnp.pad(
-            signal, ((0, 0), (self.pad_d, self.pad_d)), mode="wrap"
-        )
+        Args:
+            signal: signal, already padded by `pad` on both ends of `axis`.
+            axis: axis to run CFAR along.
+            train: number of training cells on each side.
+            pad: number of training plus guard cells on each side.
+            snr: signal to noise ratio threshold, as a linear power ratio.
 
-        # detection
-        detect_r, noise = jax.vmap(
-            self._caso, in_axes=(1, None, None, None, None)
-        )(sig_pad_r, self.r_ker_a, self.r_ker_b, self.snr_r, self.pad_r)
-        detect_r, noise = detect_r.swapaxes(0, 1), noise.swapaxes(0, 1)
-        detect_r = jnp.pad(
-            detect_r, ((self.discard_r[0], self.discard_r[1]), (0, 0))
-        )
-        noise = jnp.pad(
-            noise,
-            ((self.discard_r[0], self.discard_r[1]), (0, 0)),
-            constant_values=1,
-        )
-        detect_d, _ = jax.vmap(self._caso, in_axes=(0, None, None, None, None))(
-            sig_pad_d, self.d_ker_a, self.d_ker_b, self.snr_d, self.pad_d
-        )
+        Returns:
+            detection mask and noise level, with `axis` trimmed by `2 * pad`
+                back to the unpadded length.
+        """
+        size = signal.shape[axis] - 2 * pad
 
-        snr = signal / noise
-        obj_mask = jnp.logical_and(detect_r, detect_d)
+        def one_sided(start: int) -> Float[Array, "..."]:
+            acc = jax.lax.slice_in_dim(signal, start, start + size, axis=axis)
+            for i in range(1, train):
+                acc = acc + jax.lax.slice_in_dim(
+                    signal, start + i, start + i + size, axis=axis)
+            return acc / train
 
-        return obj_mask, signal, snr
+        noise = jnp.minimum(one_sided(0), one_sided(2 * pad + 1 - train))
+        cut = jax.lax.slice_in_dim(signal, pad, pad + size, axis=axis)
+        return cut > snr * noise, noise
 
     def __call__(
         self, signal_cube: Float[Array, "batch doppler tx rx range"]
@@ -317,7 +273,39 @@ class CFARCASO:
                 the range-doppler spectrum used for detection.
             signal to noise ratio, as a linear power ratio.
         """
-        return jax.vmap(self._cfar)(signal_cube)
+        # non-coherent signal combination along the antenna array
+        signal = jnp.sum(signal_cube**2, axis=(2, 3)).transpose(0, 2, 1) + 1
+        _, s_r, _ = signal.shape
+
+        near, far = self.discard_r[0], self.discard_r[1]
+        sig_discard = signal[:, near : s_r - far]
+        sig_pad_r = jnp.concat(
+            (
+                sig_discard[:, : self.pad_r],
+                sig_discard,
+                sig_discard[:, -self.pad_r :],
+            ),
+            axis=1,
+        )
+        sig_pad_d = jnp.pad(
+            signal, ((0, 0), (0, 0), (self.pad_d, self.pad_d)), mode="wrap"
+        )
+
+        # detection
+        detect_r, noise_r = self._caso(
+            sig_pad_r, 1, self.train_r, self.pad_r, self.snr_r)
+        detect_r = jnp.pad(detect_r, ((0, 0), (near, far), (0, 0)))
+        # 1 outside the discarded band, so the reported SNR there is the raw
+        # signal rather than a division by zero.
+        noise = jnp.pad(
+            noise_r, ((0, 0), (near, far), (0, 0)), constant_values=1)
+        detect_d, _ = self._caso(
+            sig_pad_d, 2, self.train_d, self.pad_d, self.snr_d)
+
+        snr = signal / noise
+        obj_mask = jnp.logical_and(detect_r, detect_d)
+
+        return obj_mask, signal, snr
 
 
 class CalibratedSpectrum(Generic[TRSP]):
