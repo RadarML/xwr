@@ -35,7 +35,8 @@ dependencies = [
     "pyserial >= 3.5",
     "types-pyserial >= 3.5",
     "jaxtyping >= 0.3.2",
-    "pyFFTW >= 0.15.0"
+    "pyFFTW >= 0.15.0",
+    "scipy >= 1.10"
 ]
 
 [project.optional-dependencies]
