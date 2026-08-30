@@ -11,15 +11,10 @@ from xwr.rsp import aoa as base
 class PointCloud(base.PointCloud[Tensor]):
     """Get radar point cloud from post FFT cube."""
 
-    @staticmethod
-    def _asarray(x: Float[np.ndarray, "..."]) -> Float[Tensor, "..."]:
-        return torch.from_numpy(x)
-
-    def _prepare(self, cube: Float32[Tensor, "..."]) -> None:
-        """Move the bin-to-angle lookup tables to the cube's device."""
-        if self.el_angles.device != cube.device:
-            self.el_angles = self.el_angles.to(cube.device)
-            self.az_angles = self.az_angles.to(cube.device)
+    def _asarray(
+        self, x: Float[np.ndarray, "..."], like: Float32[Tensor, "..."]
+    ) -> Float[Tensor, "..."]:
+        return torch.from_numpy(x).to(like.device)
 
     @staticmethod
     def _argmax_aoa(ang_sptr: Float32[Tensor, "... el az"]) -> Int[
@@ -37,6 +32,9 @@ class PointCloud(base.PointCloud[Tensor]):
         Bool[Tensor, "batch range doppler"],
         Float32[Tensor, "batch range doppler 4"],
     ]:
+        el_angles = self._asarray(self.angle_table(cube.shape[2]), cube)
+        az_angles = self._asarray(self.angle_table(cube.shape[3]), cube)
+
         _, r_size, d_size = mask.shape
         range_v = torch.arange(
             r_size, device=cube.device, dtype=cube.dtype) * self.range_res
@@ -47,8 +45,8 @@ class PointCloud(base.PointCloud[Tensor]):
         r_grid, d_grid = torch.meshgrid(range_v, doppler_v, indexing="ij")
 
         angle_idx = self.aoa(cube.permute(0, 4, 1, 2, 3))
-        ang_e = self.el_angles[angle_idx[..., 0]]
-        ang_a = self.az_angles[angle_idx[..., 1]]
+        ang_e = el_angles[angle_idx[..., 0]]
+        ang_a = az_angles[angle_idx[..., 1]]
         mask_e = torch.logical_and(ang_e < self.el_fov, ang_e > -self.el_fov)
         mask_a = torch.logical_and(ang_a < self.az_fov, ang_a > -self.az_fov)
         mask_ang = torch.logical_and(mask_a, mask_e)
