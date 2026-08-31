@@ -27,10 +27,7 @@ class PointCloud(base.PointCloud[Tensor]):
         self,
         cube: Float32[Tensor, "batch doppler el az range"],
         mask: Bool[Tensor, "batch range doppler"],
-    ) -> tuple[
-        Bool[Tensor, "batch range doppler"],
-        Float32[Tensor, "batch range doppler 4"],
-    ]:
+    ) -> base.DensePoints[Tensor]:
         el_angles = self._asarray(self._angle_table(cube.shape[2]), cube)
         az_angles = self._asarray(self._angle_table(cube.shape[3]), cube)
 
@@ -58,4 +55,4 @@ class PointCloud(base.PointCloud[Tensor]):
         pc_mask = torch.logical_and(mask, mask_ang)
         pc = torch.stack((x, y, z, v), dim=-1)
 
-        return pc_mask, pc
+        return base.DensePoints(pc_mask, pc)
