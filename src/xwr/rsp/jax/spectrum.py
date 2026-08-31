@@ -16,22 +16,6 @@ from .rsp import RSPJax
 TRSP = TypeVar("TRSP", bound=RSPJax)
 
 
-def _integrate(
-    signal_cube: Float[Array, "batch doppler channel range"]
-) -> Float[Array, "batch range doppler"]:
-    """Combine the channel axis non-coherently into a range-doppler image.
-
-    Args:
-        signal_cube: batch of post range doppler FFT radar cubes in amplitude,
-            flattened to a single channel axis.
-
-    Returns:
-        Integrated power, offset by 1 so that an empty cell has unit power
-            instead of dividing by zero downstream.
-    """
-    return jnp.sum(signal_cube**2, axis=2).transpose(0, 2, 1) + 1
-
-
 class CFAR(base.CFAR[Array]):
     """Cell-averaging CFAR."""
 
@@ -56,7 +40,9 @@ class CFAR(base.CFAR[Array]):
         Float[Array, "batch range doppler"],
         Float[Array, "batch range doppler"],
     ]:
-        signal = _integrate(signal_cube)
+        # Non-coherent integration over the channel axis, offset by 1 so
+        # that an empty cell has unit power instead of dividing by zero.
+        signal = jnp.sum(signal_cube**2, axis=2).transpose(0, 2, 1) + 1
         _, s_r, _ = signal.shape
 
         noise_r = jax.vmap(self._noise)(signal)
@@ -87,11 +73,13 @@ class CFARCASO(base.CFARCASO[Array]):
     ) -> tuple[Bool[Array, "..."], Float[Array, "..."]]:
         """Run 1D CFAR CASO along `axis` of an arbitrarily batched array.
 
-        The training cells are a contiguous box on each side of the cell under
-        test, so the leading and trailing one-sided means are accumulated
-        directly from shifted slices rather than correlated against a mostly
-        zero kernel. `train` is a static Python int, so the sum unrolls at
-        trace time.
+        Implementation notes:
+
+        - The training cells are a contiguous box on each side of the cell
+            under test, so the leading and trailing one-sided means are
+            accumulated directly from shifted slices, rather than correlated
+            against a mostly zero kernel.
+        - `train` is a static Python int, so the sum unrolls at trace time.
 
         Args:
             signal: signal, already padded by `pad` on both ends of `axis`.
@@ -124,7 +112,9 @@ class CFARCASO(base.CFARCASO[Array]):
         Float[Array, "batch range doppler"],
         Float[Array, "batch range doppler"],
     ]:
-        signal = _integrate(signal_cube)
+        # Non-coherent integration over the channel axis, offset by 1 so
+        # that an empty cell has unit power instead of dividing by zero.
+        signal = jnp.sum(signal_cube**2, axis=2).transpose(0, 2, 1) + 1
         _, s_r, _ = signal.shape
 
         near, far = self.discard_r[0], self.discard_r[1]

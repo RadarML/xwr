@@ -1,19 +1,13 @@
 """Angle of Arrival Estimation and Point Cloud Module using JAX."""
 
-import numpy as np
 from jax import numpy as jnp
-from jaxtyping import Array, Bool, Float, Float32, Int
+from jaxtyping import Array, Bool, Float32, Int
 
 from xwr.rsp import aoa as base
 
 
 class PointCloud(base.PointCloud[Array]):
     """Get radar point cloud from post FFT cube."""
-
-    def _asarray(
-        self, x: Float[np.ndarray, "..."], like: Float32[Array, "..."]
-    ) -> Float[Array, "..."]:
-        return jnp.asarray(x)
 
     def aoa(
         self, cube: Float32[Array, "batch range doppler el az"]
@@ -30,15 +24,16 @@ class PointCloud(base.PointCloud[Array]):
         Bool[Array, "batch range doppler"],
         Float32[Array, "batch range doppler 4"],
     ]:
-        el_angles = self._asarray(self._angle_table(cube.shape[2]), cube)
-        az_angles = self._asarray(self._angle_table(cube.shape[3]), cube)
+        el_angles = jnp.asarray(self._angle_table(cube.shape[2]))
+        az_angles = jnp.asarray(self._angle_table(cube.shape[3]))
 
         _, r_size, d_size = mask.shape
         range_v = jnp.arange(r_size) * self.range_res
         doppler_v = (jnp.arange(d_size) - d_size // 2) * self.doppler_res
         r_grid, d_grid = jnp.meshgrid(range_v, doppler_v, indexing="ij")
 
-        angle_idx = self.aoa(cube.transpose(0, 4, 1, 2, 3))
+        # (batch doppler el az range) -> (batch range doppler el az)
+        angle_idx = self.aoa(jnp.moveaxis(cube, -1, 1))
         ang_e = el_angles[angle_idx[..., 0]]
         ang_a = az_angles[angle_idx[..., 1]]
         mask_e = jnp.logical_and(ang_e < self.el_fov, ang_e > -self.el_fov)
