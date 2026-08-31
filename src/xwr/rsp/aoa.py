@@ -83,7 +83,7 @@ class PointCloud(ABC, Generic[TArray]):
         self.el_fov = float(np.deg2rad(angle_fov[0]))
         self.az_fov = float(np.deg2rad(angle_fov[1]))
 
-    def angle_table(self, n: int) -> Float32[np.ndarray, " n"]:
+    def _angle_table(self, n: int) -> Float32[np.ndarray, " n"]:
         """Bin-to-angle lookup for an angle axis of length `n`.
 
         Args:
@@ -103,8 +103,8 @@ class PointCloud(ABC, Generic[TArray]):
         """Angle of arrival estimation.
 
         Takes the argmax over the (elevation, azimuth) angle spectrum of each
-        range-doppler bin, yielding **bin indices** into the
-        [`angle_table`][xwr.rsp.PointCloud.] lookups rather than angles.
+        range-doppler bin, yielding **bin indices** into the angle axes
+        rather than angles.
 
         !!! warning
 
