@@ -47,9 +47,9 @@ def _torch_backend(
         cube = rsp.elevation_azimuth(cube_rd)
 
         detection = cfar(torch.abs(cube_rd))
-        points = radar_pc(torch.abs(cube), detection.mask)
+        dense_points = radar_pc(torch.abs(cube), detection.mask)
 
-        return detection, points
+        return detection, dense_points
 
     def to_input(iiqq):
         # Move to the device before un-interleaving, so the int16 -> complex64
@@ -84,9 +84,9 @@ def _jax_backend(
         cube = rsp.elevation_azimuth(cube_rd)
 
         detection = cfar(jnp.abs(cube_rd))
-        points = radar_pc(jnp.abs(cube), detection.mask)
+        dense_points = radar_pc(jnp.abs(cube), detection.mask)
 
-        return detection, points
+        return detection, dense_points
 
     def to_input(iiqq):
         return jnp.asarray(iq_from_iiqq(iiqq))
@@ -115,9 +115,9 @@ def _numpy_backend(
         cube = rsp.elevation_azimuth(cube_rd)
 
         detection = cfar(np.abs(cube_rd))
-        points = radar_pc(np.abs(cube), detection.mask)
+        dense_points = radar_pc(np.abs(cube), detection.mask)
 
-        return detection, points
+        return detection, dense_points
 
     def to_input(iiqq):
         return iq_from_iiqq(iiqq)
@@ -214,8 +214,8 @@ def main(
 
         iq = to_input(data["radar"].iq.squeeze(1))
 
-        detection, points = sig_process(iq)
-        pc = to_numpy(points.points[points.mask])
+        detection, dense_points = sig_process(iq)
+        pc = to_numpy(dense_points.points[dense_points.mask])
         rd_mask = to_numpy(detection.mask)[0]
 
         # `signal` is the integrated power the detector ran on; back to an
