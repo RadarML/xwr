@@ -16,15 +16,14 @@ class PointCloud(base.PointCloud[Tensor]):
     ) -> Float[Tensor, "..."]:
         return torch.from_numpy(x).to(like.device)
 
-    @staticmethod
-    def _argmax_aoa(ang_sptr: Float32[Tensor, "... el az"]) -> Int[
-        Tensor, "... 2"
-    ]:
-        el, az = ang_sptr.shape[-2:]
-        idx = torch.argmax(ang_sptr.reshape(*ang_sptr.shape[:-2], el * az), -1)
+    def aoa(
+        self, cube: Float32[Tensor, "batch range doppler el az"]
+    ) -> Int[Tensor, "batch range doppler 2"]:
+        el, az = cube.shape[-2:]
+        idx = torch.argmax(cube.reshape(*cube.shape[:-2], el * az), -1)
         return torch.stack((idx // az, idx % az), dim=-1)
 
-    def _point_cloud(
+    def __call__(
         self,
         cube: Float32[Tensor, "batch doppler el az range"],
         mask: Bool[Tensor, "batch range doppler"],
