@@ -210,6 +210,73 @@ def test_cfar_noise_floor(backend):
 
 
 # ---------------------------------------------------------------------------
+# Input shapes
+# ---------------------------------------------------------------------------
+
+DEFAULT_PARAMS = {
+    "CFAR": {"guard": (2, 2), "train": (2, 2), "snr_thresh": 5.0,
+             "discard_range": (10, 20)},
+    "CFARCASO": {"train": (4, 2), "guard": (2, 0),
+                 "snr_thresh": (5.0, 3.0), "discard_range": (10, 20)},
+}
+
+
+def _assert_same(ref, got):
+    """The two `(mask, signal, snr)` triples must match."""
+    mask0, signal0, snr0 = ref
+    mask, signal, snr = got
+    assert np.array_equal(mask0, mask)
+    assert np.allclose(signal0, signal, atol=1e-4)
+    assert np.allclose(snr0, snr, rtol=1e-4)
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.mark.parametrize("detector", ["CFAR", "CFARCASO"])
+def test_angle_cube(backend, detector):
+    """An angle spectrum is integrated like a virtual array cube.
+
+    The axes between doppler and range are flattened, so how the channels are
+    split across them cannot matter: the same values as `3 x 4` virtual
+    elements or `2 x 6` angle bins must detect identically.
+    """
+    cube = _target_cube()
+    kwargs = DEFAULT_PARAMS[detector]
+    angle = cube.reshape(SHAPE[0], SHAPE[1], 2, 6, SHAPE[4])
+
+    _assert_same(
+        _run(backend, detector, cube, **kwargs),
+        _run(backend, detector, angle, **kwargs))
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.mark.parametrize("detector", ["CFAR", "CFARCASO"])
+def test_range_doppler_image(backend, detector):
+    """A range-doppler image is treated as a single-channel cube."""
+    image = _target_cube()[:, :, 0, 0]
+    kwargs = DEFAULT_PARAMS[detector]
+
+    ref = _run(backend, detector, image[:, :, None, None], **kwargs)
+    got = _run(backend, detector, image, **kwargs)
+
+    _assert_same(ref, got)
+    assert got[0][0, TARGET[0], TARGET[1]]
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.mark.parametrize("shape", [
+    (SHAPE[1], SHAPE[4]),                       # unbatched image
+    (SHAPE[1], SHAPE[2], SHAPE[3], SHAPE[4]),   # unbatched cube
+    (*SHAPE, 2),                                # one axis too many
+])
+def test_invalid_rank(backend, shape):
+    """Only 3 and 5 axis inputs match one of the accepted shapes."""
+    with pytest.raises(TypeError):
+        _run(
+            backend, "CFAR", np.zeros(shape, dtype=np.float32),
+            discard_range=(2, 2))
+
+
+# ---------------------------------------------------------------------------
 # Constructor validation
 # ---------------------------------------------------------------------------
 
