@@ -25,10 +25,7 @@ class PointCloud(base.PointCloud[np.ndarray]):
         self,
         cube: Float32[np.ndarray, "batch doppler el az range"],
         mask: Bool[np.ndarray, "batch range doppler"],
-    ) -> tuple[
-        Bool[np.ndarray, "batch range doppler"],
-        Float32[np.ndarray, "batch range doppler 4"],
-    ]:
+    ) -> base.DensePoints[np.ndarray]:
         el_angles = self._asarray(self._angle_table(cube.shape[2]), cube)
         az_angles = self._asarray(self._angle_table(cube.shape[3]), cube)
 
@@ -52,4 +49,4 @@ class PointCloud(base.PointCloud[np.ndarray]):
         pc_mask = np.logical_and(mask, mask_ang)
         pc = np.stack((x, y, z, v), axis=-1).astype(np.float32)
 
-        return pc_mask, pc
+        return base.DensePoints(pc_mask, pc)
