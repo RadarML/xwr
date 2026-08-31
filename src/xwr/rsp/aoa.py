@@ -43,9 +43,7 @@ class PointCloud(ABC, Generic[TArray]):
         resolutions of `1.0`, the point cloud is in range/doppler bins instead
         of meters and meters/second.
     - `antenna_spacing` sets the sin-space to angle mapping and must be
-        positive; a non-positive value raises `ValueError`, while a wrong
-        (but positive) value gives systematically wrong angles rather than an
-        error.
+        positive; a non-positive value raises `ValueError`.
     - The bin-to-angle lookup tables are derived from the cube's own angle
         axes on each call, so no angle size has to be declared up front and
         one instance handles cubes of differing angle sizes.
@@ -142,6 +140,13 @@ class PointCloud(ABC, Generic[TArray]):
             yields a point, and the caller is expected to gather the valid
             ones using the returned mask (e.g. `pc[pc_mask]`).
 
+        Implementation notes:
+
+        - Return points are multiplied by `range_res` and `doppler_res` to convert
+            from bins to meters and meters/second, respectively.
+        - Points position compute as `x = r cos(-az) cos(el)`,
+            `y = r sin(-az) cos(el)`, and `z = r sin(el)`
+
         Args:
             cube: batch of post fft spectrum amplitudes.
             mask: CFAR detection mask.
@@ -150,12 +155,6 @@ class PointCloud(ABC, Generic[TArray]):
             mask of valid points, i.e. the CFAR detection mask combined with
                 the angular bounds set by `angle_fov`.
             all possible radar points, where the trailing axis holds
-                `(x, y, z, v)`: position in meters and signed radial velocity
-                in meters/second (in range/doppler bins if `range_res` and
-                `doppler_res` are left at their default of `1.0`). Position is
-                computed as
-                `x = r cos(-az) cos(el)`, `y = r sin(-az) cos(el)`, and
-                `z = r sin(el)`; note that the azimuth angle is **negated**,
-                and that `x` is the boresight direction at zero angle.
+                `(x, y, z, v)`.
         """
         ...
