@@ -39,6 +39,11 @@ def config():
     )
 
 
+def _res(config: XWRConfig) -> tuple[float, float]:
+    """`PointCloud` range/doppler resolution args for a configuration."""
+    return config.range_resolution, config.doppler_resolution
+
+
 def _peak_cube(el: int, az: int) -> np.ndarray:
     """Cube whose angle spectrum peaks at `(el, az)` for every bin."""
     cube = np.zeros((BATCH, DOPPLER, EL, AZ, RANGE), dtype=np.float32)
@@ -52,22 +57,22 @@ def _point_cloud(backend, config, cube, mask=None, **kwargs):
         mask = np.ones((BATCH, RANGE, DOPPLER), dtype=bool)
 
     if backend == "jax":
-        pc = rspj.PointCloud(config, **kwargs)
+        pc = rspj.PointCloud(*_res(config), **kwargs)
         pc_mask, points = pc(jnp.array(cube), jnp.array(mask))
         return np.asarray(pc_mask), np.asarray(points)
     elif backend == "torch":
-        pc = rspt.PointCloud(config, **kwargs)
+        pc = rspt.PointCloud(*_res(config), **kwargs)
         pc_mask, points = pc(torch.from_numpy(cube), torch.from_numpy(mask))
         return pc_mask.numpy(), points.numpy()
 
-    pc = rspn.PointCloud(config, **kwargs)
+    pc = rspn.PointCloud(*_res(config), **kwargs)
     return pc(cube, mask)
 
 
 def _angles(backend, config, **kwargs):
     """Get the (elevation, azimuth) lookup tables as numpy arrays."""
     module = {"jax": rspj, "torch": rspt, "numpy": rspn}[backend]
-    pc = module.PointCloud(config, **kwargs)
+    pc = module.PointCloud(*_res(config), **kwargs)
     return pc._angle_table(EL), pc._angle_table(AZ)
 
 
@@ -202,7 +207,7 @@ def test_antenna_spacing_must_be_positive(backend, config):
     module = {"jax": rspj, "torch": rspt, "numpy": rspn}[backend]
     for spacing in (0.0, -0.5):
         with pytest.raises(ValueError):
-            module.PointCloud(config, antenna_spacing=spacing)
+            module.PointCloud(*_res(config), antenna_spacing=spacing)
 
 
 # ---------------------------------------------------------------------------
@@ -289,11 +294,11 @@ def test_end_to_end_parity(config, detector):
     assert np.asarray(mask_j).any(), "no detections; test would be vacuous"
 
     pc_mask_j, points_j = rspj.PointCloud(
-        config)(cube_j, mask_j)
+        *_res(config))(cube_j, mask_j)
     pc_mask_t, points_t = rspt.PointCloud(
-        config)(cube_t, mask_t)
+        *_res(config))(cube_t, mask_t)
     pc_mask_n, points_n = rspn.PointCloud(
-        config)(cube_n, mask_n)
+        *_res(config))(cube_n, mask_n)
 
     assert np.array_equal(np.asarray(pc_mask_j), pc_mask_t.numpy())
     assert np.array_equal(np.asarray(pc_mask_j), pc_mask_n)

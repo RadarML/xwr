@@ -38,7 +38,8 @@ def _torch_backend(
 
     rsp: RSP = AWR1843Boost(**rsp_args)
     cfar = CFARCASO()
-    radar_pc = PointCloud(radar_cfg)
+    radar_pc = PointCloud(
+        radar_cfg.range_resolution, radar_cfg.doppler_resolution)
 
     @torch.no_grad()
     def sig_process(iq):
@@ -74,7 +75,8 @@ def _jax_backend(
 
     rsp: RSP = AWR1843Boost(**rsp_args)
     cfar = CFARCASO()
-    radar_pc = PointCloud(radar_cfg)
+    radar_pc = PointCloud(
+        radar_cfg.range_resolution, radar_cfg.doppler_resolution)
 
     @jax.jit
     def sig_process(iq):
@@ -105,7 +107,8 @@ def _numpy_backend(
 
     rsp: RSP = AWR1843Boost(**rsp_args)
     cfar = CFARCASO()
-    radar_pc = PointCloud(radar_cfg)
+    radar_pc = PointCloud(
+        radar_cfg.range_resolution, radar_cfg.doppler_resolution)
 
     def sig_process(iq):
         cube_rd = rsp.doppler_range(iq)
