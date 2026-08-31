@@ -1,9 +1,15 @@
 """Angle of Arrival Estimation and Point Cloud Module using JAX."""
 
+import jax
 from jax import numpy as jnp
 from jaxtyping import Array, Bool, Float32, Int
 
 from xwr.rsp import aoa as base
+
+jax.tree_util.register_dataclass(
+    base.DensePoints, data_fields=["mask", "points"], meta_fields=[])
+"""Register [`DensePoints`][xwr.rsp.] as a pytree, so that it can be
+returned from a `jax.jit`-ed function."""
 
 
 class PointCloud(base.PointCloud[Array]):
@@ -20,10 +26,7 @@ class PointCloud(base.PointCloud[Array]):
         self,
         cube: Float32[Array, "batch doppler el az range"],
         mask: Bool[Array, "batch range doppler"],
-    ) -> tuple[
-        Bool[Array, "batch range doppler"],
-        Float32[Array, "batch range doppler 4"],
-    ]:
+    ) -> base.DensePoints[Array]:
         el_angles = jnp.asarray(self._angle_table(cube.shape[2]))
         az_angles = jnp.asarray(self._angle_table(cube.shape[3]))
 
@@ -48,4 +51,4 @@ class PointCloud(base.PointCloud[Array]):
         pc_mask = jnp.logical_and(mask, mask_ang)
         pc = jnp.stack((x, y, z, v), axis=-1)
 
-        return pc_mask, pc
+        return base.DensePoints(pc_mask, pc)
