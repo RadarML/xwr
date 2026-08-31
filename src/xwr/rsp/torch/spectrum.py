@@ -10,18 +10,19 @@ from xwr.rsp import spectrum as base
 
 
 def _integrate(
-    signal_cube: Float[Tensor, "batch doppler tx rx range"]
+    signal_cube: Float[Tensor, "batch doppler channel range"]
 ) -> Float[Tensor, "batch range doppler"]:
-    """Combine the virtual array non-coherently into a range-doppler image.
+    """Combine the channel axis non-coherently into a range-doppler image.
 
     Args:
-        signal_cube: batch of post range doppler FFT radar cubes in amplitude.
+        signal_cube: batch of post range doppler FFT radar cubes in amplitude,
+            flattened to a single channel axis.
 
     Returns:
         Integrated power, offset by 1 so that an empty cell has unit power
             instead of dividing by zero downstream.
     """
-    return (signal_cube**2).sum(dim=(2, 3)).transpose(1, 2) + 1
+    return (signal_cube**2).sum(dim=2).transpose(1, 2) + 1
 
 
 class CFAR(base.CFAR[Tensor]):
@@ -37,7 +38,7 @@ class CFAR(base.CFAR[Tensor]):
             self.mask = self.mask.to(device=device, dtype=dtype)
 
     def _cfar(
-        self, signal_cube: Float[Tensor, "batch doppler tx rx range"]
+        self, signal_cube: Float[Tensor, "batch doppler channel range"]
     ) -> tuple[
         Bool[Tensor, "batch range doppler"],
         Float[Tensor, "batch range doppler"],
@@ -121,7 +122,7 @@ class CFARCASO(base.CFARCASO[Tensor]):
         return detect, noise
 
     def _cfar(
-        self, signal_cube: Float[Tensor, "batch doppler tx rx range"]
+        self, signal_cube: Float[Tensor, "batch doppler channel range"]
     ) -> tuple[
         Bool[Tensor, "batch range doppler"],
         Float[Tensor, "batch range doppler"],
