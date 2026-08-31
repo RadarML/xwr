@@ -30,8 +30,8 @@ class PointCloud(base.PointCloud[Array]):
         Bool[Array, "batch range doppler"],
         Float32[Array, "batch range doppler 4"],
     ]:
-        el_angles = self._asarray(self.angle_table(cube.shape[2]), cube)
-        az_angles = self._asarray(self.angle_table(cube.shape[3]), cube)
+        el_angles = self._asarray(self._angle_table(cube.shape[2]), cube)
+        az_angles = self._asarray(self._angle_table(cube.shape[3]), cube)
 
         _, r_size, d_size = mask.shape
         range_v = jnp.arange(r_size) * self.range_res
