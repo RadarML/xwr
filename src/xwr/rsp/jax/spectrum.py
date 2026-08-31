@@ -15,6 +15,11 @@ from .rsp import RSPJax
 
 TRSP = TypeVar("TRSP", bound=RSPJax)
 
+jax.tree_util.register_dataclass(
+    base.Detection, data_fields=["mask", "signal", "snr"], meta_fields=[])
+"""Register [`Detection`][xwr.rsp.] as a pytree, so that it can be returned
+from a `jax.jit`-ed function."""
+
 
 class CFAR(base.CFAR[Array]):
     """Cell-averaging CFAR."""
@@ -35,11 +40,7 @@ class CFAR(base.CFAR[Array]):
 
     def _cfar(
         self, signal_cube: Float[Array, "batch doppler channel range"]
-    ) -> tuple[
-        Bool[Array, "batch range doppler"],
-        Float[Array, "batch range doppler"],
-        Float[Array, "batch range doppler"],
-    ]:
+    ) -> base.Detection[Array]:
         # Non-coherent integration over the channel axis, offset by 1 so
         # that an empty cell has unit power instead of dividing by zero.
         signal = jnp.sum(signal_cube**2, axis=2).transpose(0, 2, 1) + 1
@@ -57,7 +58,7 @@ class CFAR(base.CFAR[Array]):
         obj_mask = jnp.zeros(signal.shape, dtype=bool).at[
             :, near : s_r - far].set(snr[:, near : s_r - far] > self.snr_thresh)
 
-        return obj_mask, signal, snr
+        return base.Detection(obj_mask, signal, snr)
 
 
 class CFARCASO(base.CFARCASO[Array]):
@@ -107,11 +108,7 @@ class CFARCASO(base.CFARCASO[Array]):
 
     def _cfar(
         self, signal_cube: Float[Array, "batch doppler channel range"]
-    ) -> tuple[
-        Bool[Array, "batch range doppler"],
-        Float[Array, "batch range doppler"],
-        Float[Array, "batch range doppler"],
-    ]:
+    ) -> base.Detection[Array]:
         # Non-coherent integration over the channel axis, offset by 1 so
         # that an empty cell has unit power instead of dividing by zero.
         signal = jnp.sum(signal_cube**2, axis=2).transpose(0, 2, 1) + 1
@@ -145,7 +142,7 @@ class CFARCASO(base.CFARCASO[Array]):
         snr = signal / noise
         obj_mask = jnp.logical_and(detect_r, detect_d)
 
-        return obj_mask, signal, snr
+        return base.Detection(obj_mask, signal, snr)
 
 
 class CalibratedSpectrum(Generic[TRSP]):

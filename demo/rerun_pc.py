@@ -62,10 +62,11 @@ def main(
         cube_rd = rsp.doppler_range(iq)
         cube = rsp.elevation_azimuth(cube_rd)
 
-        rd_mask, sig, snr = cfar.__call__(jnp.abs(cube_rd.squeeze()))
-        pc_mask, pc = radar_pc.__call__(jnp.abs(cube.squeeze()), rd_mask)
+        detection = cfar.__call__(jnp.abs(cube_rd.squeeze()))
+        pc_mask, pc = radar_pc.__call__(
+            jnp.abs(cube.squeeze()), detection.mask)
 
-        return rd_mask, cube_rd.squeeze(), pc_mask, pc
+        return detection.mask, cube_rd.squeeze(), pc_mask, pc
 
     cmap = plt.get_cmap("hot")
     rr.init("radar_vis")
