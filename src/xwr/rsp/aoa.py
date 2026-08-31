@@ -6,8 +6,6 @@ from typing import Generic
 import numpy as np
 from jaxtyping import Bool, Float32, Int
 
-from xwr.config import XWRConfig
-
 from .generic import TArray
 
 
@@ -37,13 +35,13 @@ class PointCloud(ABC, Generic[TArray]):
 
     Implementation notes:
 
-    - Only the derived `range_resolution` and `doppler_resolution` are taken
-        from the [`XWRConfig`][xwr.config.]. Range bins are mapped to meters
-        by `bin * range_resolution`, so bin `0` is zero range. Doppler bins
-        are mapped to *signed* radial velocity by
-        `(bin - doppler // 2) * doppler_resolution`, so the middle bin is
-        zero velocity; this assumes the doppler axis has already been
-        `fftshift`ed, which [`doppler_range`][xwr.rsp.RSP.] does.
+    - Range bins are mapped by `bin * range_res`, so bin `0` is zero range.
+        Doppler bins are mapped to a *signed* value by
+        `(bin - doppler // 2) * doppler_res`, so the middle bin is zero
+        velocity; this assumes the doppler axis has already been `fftshift`ed,
+        which [`doppler_range`][xwr.rsp.RSP.] does. With the default
+        resolutions of `1.0`, the point cloud is in range/doppler bins instead
+        of meters and meters/second.
     - `antenna_spacing` sets the sin-space to angle mapping and must be
         positive; a non-positive value raises `ValueError`, while a wrong
         (but positive) value gives systematically wrong angles rather than an
@@ -61,7 +59,12 @@ class PointCloud(ABC, Generic[TArray]):
             torch `Tensor`.
 
     Args:
-        config: radar configuration; see [`XWRConfig`][xwr.config.].
+        range_res: range resolution, i.e. meters per range bin; see
+            [`XWRConfig.range_resolution`][xwr.config.]. Defaults to `1.0`,
+            which leaves the range axis in bins.
+        doppler_res: doppler resolution, i.e. meters/second per doppler bin;
+            see [`XWRConfig.doppler_resolution`][xwr.config.]. Defaults to
+            `1.0`, which leaves the doppler axis in bins.
         angle_fov: angle field of view **in degrees**, for
             (elevation, azimuth).
         antenna_spacing: antenna spacing in terms of wavelength (default 0.5
@@ -70,12 +73,13 @@ class PointCloud(ABC, Generic[TArray]):
 
     def __init__(
         self,
-        config: XWRConfig,
+        range_res: float = 1.0,
+        doppler_res: float = 1.0,
         angle_fov: tuple[float, float] = (20.0, 80.0),
         antenna_spacing: float = 0.5,
     ) -> None:
-        self.range_res = config.range_resolution
-        self.doppler_res = config.doppler_resolution
+        self.range_res = range_res
+        self.doppler_res = doppler_res
 
         if antenna_spacing <= 0:
             raise ValueError("antenna_spacing must be > 0")
@@ -147,7 +151,9 @@ class PointCloud(ABC, Generic[TArray]):
                 the angular bounds set by `angle_fov`.
             all possible radar points, where the trailing axis holds
                 `(x, y, z, v)`: position in meters and signed radial velocity
-                in meters/second. Position is computed as
+                in meters/second (in range/doppler bins if `range_res` and
+                `doppler_res` are left at their default of `1.0`). Position is
+                computed as
                 `x = r cos(-az) cos(el)`, `y = r sin(-az) cos(el)`, and
                 `z = r sin(el)`; note that the azimuth angle is **negated**,
                 and that `x` is the boresight direction at zero angle.
