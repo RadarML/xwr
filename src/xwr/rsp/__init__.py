@@ -47,8 +47,8 @@ To use the RSP:
 from jaxtyping import install_import_hook
 
 with install_import_hook("xwr.rsp", "beartype.beartype"):
-    from .generic import RSP, iq_from_iiqq, iqiq_from_iiqq  # noqa: I001
     from .aoa import PointCloud
+    from .generic import RSP, iq_from_iiqq, iqiq_from_iiqq
     from .spectrum import CFAR, CFARCASO, Detector
 
 
