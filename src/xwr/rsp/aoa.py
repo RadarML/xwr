@@ -96,43 +96,7 @@ class PointCloud(ABC, Generic[TArray]):
             np.linspace(-1.0, 1.0, n) / (2 * self.antenna_spacing), -1.0, 1.0)
         return np.arcsin(sin).astype(np.float32)
 
-    @staticmethod
     @abstractmethod
-    def _argmax_aoa(
-        ang_sptr: Float32[TArray, "... el az"]
-    ) -> Int[TArray, "... 2"]:
-        """Get the (elevation, azimuth) index of the spectrum peak.
-
-        Args:
-            ang_sptr: post fft angle spectrum amplitudes, with the angle axes
-                trailing.
-
-        Returns:
-            Peak index, as `(elevation, azimuth)` along the trailing axis.
-        """
-        ...
-
-    @abstractmethod
-    def _point_cloud(
-        self,
-        cube: Float32[TArray, "batch doppler el az range"],
-        mask: Bool[TArray, "batch range doppler"],
-    ) -> tuple[
-        Bool[TArray, "batch range doppler"],
-        Float32[TArray, "batch range doppler 4"],
-    ]:
-        """Compute the dense point cloud for a validated cube and mask.
-
-        Args:
-            cube: batch of post fft spectrum amplitudes.
-            mask: CFAR detection mask.
-
-        Returns:
-            The same two values as
-                [`__call__`][xwr.rsp.PointCloud.__call__].
-        """
-        ...
-
     def aoa(
         self, cube: Float32[TArray, "batch range doppler el az"]
     ) -> Int[TArray, "batch range doppler 2"]:
@@ -155,8 +119,9 @@ class PointCloud(ABC, Generic[TArray]):
             ang: detect angle index for every range doppler bin, as
                 `(elevation, azimuth)` along the trailing axis.
         """
-        return self._argmax_aoa(cube)
+        ...
 
+    @abstractmethod
     def __call__(
         self,
         cube: Float32[TArray, "batch doppler el az range"],
@@ -187,4 +152,4 @@ class PointCloud(ABC, Generic[TArray]):
                 `z = r sin(el)`; note that the azimuth angle is **negated**,
                 and that `x` is the boresight direction at zero angle.
         """
-        return self._point_cloud(cube, mask)
+        ...
