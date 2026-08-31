@@ -58,15 +58,15 @@ def _point_cloud(backend, config, cube, mask=None, **kwargs):
 
     if backend == "jax":
         pc = rspj.PointCloud(*_res(config), **kwargs)
-        pc_mask, points = pc(jnp.array(cube), jnp.array(mask))
-        return np.asarray(pc_mask), np.asarray(points)
+        out = pc(jnp.array(cube), jnp.array(mask))
+        return np.asarray(out.mask), np.asarray(out.points)
     elif backend == "torch":
         pc = rspt.PointCloud(*_res(config), **kwargs)
-        pc_mask, points = pc(torch.from_numpy(cube), torch.from_numpy(mask))
-        return pc_mask.numpy(), points.numpy()
+        out = pc(torch.from_numpy(cube), torch.from_numpy(mask))
+        return out.mask.numpy(), out.points.numpy()
 
-    pc = rspn.PointCloud(*_res(config), **kwargs)
-    return pc(cube, mask)
+    out = rspn.PointCloud(*_res(config), **kwargs)(cube, mask)
+    return out.mask, out.points
 
 
 def _angles(backend, config, **kwargs):
@@ -293,17 +293,14 @@ def test_end_to_end_parity(config, detector):
     assert np.array_equal(np.asarray(mask_j), mask_n)
     assert np.asarray(mask_j).any(), "no detections; test would be vacuous"
 
-    pc_mask_j, points_j = rspj.PointCloud(
-        *_res(config))(cube_j, mask_j)
-    pc_mask_t, points_t = rspt.PointCloud(
-        *_res(config))(cube_t, mask_t)
-    pc_mask_n, points_n = rspn.PointCloud(
-        *_res(config))(cube_n, mask_n)
+    pc_j = rspj.PointCloud(*_res(config))(cube_j, mask_j)
+    pc_t = rspt.PointCloud(*_res(config))(cube_t, mask_t)
+    pc_n = rspn.PointCloud(*_res(config))(cube_n, mask_n)
 
-    assert np.array_equal(np.asarray(pc_mask_j), pc_mask_t.numpy())
-    assert np.array_equal(np.asarray(pc_mask_j), pc_mask_n)
-    assert np.allclose(np.asarray(points_j), points_t.numpy(), atol=1e-4)
-    assert np.allclose(np.asarray(points_j), points_n, atol=1e-4)
+    assert np.array_equal(np.asarray(pc_j.mask), pc_t.mask.numpy())
+    assert np.array_equal(np.asarray(pc_j.mask), pc_n.mask)
+    assert np.allclose(np.asarray(pc_j.points), pc_t.points.numpy(), atol=1e-4)
+    assert np.allclose(np.asarray(pc_j.points), pc_n.points, atol=1e-4)
 
 
 # ---------------------------------------------------------------------------
