@@ -286,9 +286,9 @@ def test_end_to_end_parity(config, detector):
     cube_n = np.abs(rspn.AWR1843Boost(window=False, size={})(iq))
     _, _, el, az, _ = cube_j.shape
 
-    mask_j, _, _ = getattr(rspj, detector)(**kwargs)(cube_j)
-    mask_t, _, _ = getattr(rspt, detector)(**kwargs)(cube_t)
-    mask_n, _, _ = getattr(rspn, detector)(**kwargs)(cube_n)
+    mask_j = getattr(rspj, detector)(**kwargs)(cube_j).mask
+    mask_t = getattr(rspt, detector)(**kwargs)(cube_t).mask
+    mask_n = getattr(rspn, detector)(**kwargs)(cube_n).mask
     assert np.array_equal(np.asarray(mask_j), mask_t.numpy())
     assert np.array_equal(np.asarray(mask_j), mask_n)
     assert np.asarray(mask_j).any(), "no detections; test would be vacuous"

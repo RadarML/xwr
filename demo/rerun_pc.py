@@ -46,10 +46,10 @@ def _torch_backend(
         cube_rd = rsp.doppler_range(iq)
         cube = rsp.elevation_azimuth(cube_rd)
 
-        rd_mask, sig, snr = cfar(torch.abs(cube_rd))
-        pc_mask, pc = radar_pc(torch.abs(cube), rd_mask)
+        detection = cfar(torch.abs(cube_rd))
+        pc_mask, pc = radar_pc(torch.abs(cube), detection.mask)
 
-        return rd_mask, cube_rd, pc_mask, pc
+        return detection.mask, cube_rd, pc_mask, pc
 
     def to_input(iiqq):
         # Move to the device before un-interleaving, so the int16 -> complex64
@@ -83,10 +83,10 @@ def _jax_backend(
         cube_rd = rsp.doppler_range(iq)
         cube = rsp.elevation_azimuth(cube_rd)
 
-        rd_mask, sig, snr = cfar(jnp.abs(cube_rd))
-        pc_mask, pc = radar_pc(jnp.abs(cube), rd_mask)
+        detection = cfar(jnp.abs(cube_rd))
+        pc_mask, pc = radar_pc(jnp.abs(cube), detection.mask)
 
-        return rd_mask, cube_rd, pc_mask, pc
+        return detection.mask, cube_rd, pc_mask, pc
 
     def to_input(iiqq):
         return jnp.asarray(iq_from_iiqq(iiqq))
@@ -114,10 +114,10 @@ def _numpy_backend(
         cube_rd = rsp.doppler_range(iq)
         cube = rsp.elevation_azimuth(cube_rd)
 
-        rd_mask, sig, snr = cfar(np.abs(cube_rd))
-        pc_mask, pc = radar_pc(np.abs(cube), rd_mask)
+        detection = cfar(np.abs(cube_rd))
+        pc_mask, pc = radar_pc(np.abs(cube), detection.mask)
 
-        return rd_mask, cube_rd, pc_mask, pc
+        return detection.mask, cube_rd, pc_mask, pc
 
     def to_input(iiqq):
         return iq_from_iiqq(iiqq)

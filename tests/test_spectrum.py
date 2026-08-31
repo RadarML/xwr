@@ -70,7 +70,8 @@ def _run(backend, detector, cube: np.ndarray, **kwargs):
         data = torch.from_numpy(cube)
     else:
         data = cube
-    return _numpy(*getattr(module, detector)(**kwargs)(data))
+    out = getattr(module, detector)(**kwargs)(data)
+    return _numpy(out.mask, out.signal, out.snr)
 
 
 BACKENDS = ["jax", "torch", "numpy"]
