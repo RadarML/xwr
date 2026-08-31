@@ -14,15 +14,14 @@ class PointCloud(base.PointCloud[np.ndarray]):
     ) -> Float[np.ndarray, "..."]:
         return x
 
-    @staticmethod
-    def _argmax_aoa(ang_sptr: Float32[np.ndarray, "... el az"]) -> Int[
-        np.ndarray, "... 2"
-    ]:
-        el, az = ang_sptr.shape[-2:]
-        idx = np.argmax(ang_sptr.reshape(*ang_sptr.shape[:-2], el * az), -1)
+    def aoa(
+        self, cube: Float32[np.ndarray, "batch range doppler el az"]
+    ) -> Int[np.ndarray, "batch range doppler 2"]:
+        el, az = cube.shape[-2:]
+        idx = np.argmax(cube.reshape(*cube.shape[:-2], el * az), -1)
         return np.stack((idx // az, idx % az), axis=-1)
 
-    def _point_cloud(
+    def __call__(
         self,
         cube: Float32[np.ndarray, "batch doppler el az range"],
         mask: Bool[np.ndarray, "batch range doppler"],
