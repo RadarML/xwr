@@ -60,11 +60,11 @@ class PointCloud(ABC, Generic[TArray]):
 
     Args:
         range_res: range resolution, i.e. meters per range bin; see
-            [`XWRConfig.range_resolution`][xwr.config.]. Defaults to `1.0`,
-            which leaves the range axis in bins.
+            [`XWRConfig.range_resolution`][xwr.config.XWRConfig]. Defaults
+            to `1.0`, which leaves the range axis in bins.
         doppler_res: doppler resolution, i.e. meters/second per doppler bin;
-            see [`XWRConfig.doppler_resolution`][xwr.config.]. Defaults to
-            `1.0`, which leaves the doppler axis in bins.
+            see [`XWRConfig.doppler_resolution`][xwr.config.XWRConfig].
+            Defaults to `1.0`, which leaves the doppler axis in bins.
         angle_fov: angle field of view **in degrees**, for
             (elevation, azimuth).
         antenna_spacing: antenna spacing in terms of wavelength (default 0.5
