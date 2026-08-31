@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Generic
 
 import numpy as np
-from jaxtyping import Bool, Float, Float32, Int
+from jaxtyping import Bool, Float32, Int
 
 from xwr.config import XWRConfig
 
@@ -95,22 +95,6 @@ class PointCloud(ABC, Generic[TArray]):
         sin = np.clip(
             np.linspace(-1.0, 1.0, n) / (2 * self.antenna_spacing), -1.0, 1.0)
         return np.arcsin(sin).astype(np.float32)
-
-    @abstractmethod
-    def _asarray(
-        self, x: Float[np.ndarray, "..."], like: Float32[TArray, "..."]
-    ) -> Float[TArray, "..."]:
-        """Convert a numpy array to this backend's array type.
-
-        Args:
-            x: numpy array to convert.
-            like: array whose device the result should live on, where the
-                backend has a notion of one.
-
-        Returns:
-            The same values, as a backend array.
-        """
-        ...
 
     @staticmethod
     @abstractmethod
