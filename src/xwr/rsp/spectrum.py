@@ -1,12 +1,41 @@
 """Backend-agnostic detector (CFAR) base classes."""
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Any, Generic, cast
 
 import numpy as np
 from jaxtyping import Bool, Float
 
 from .generic import TArray
+
+SignalCube = (
+    Float[TArray, "batch doppler tx rx range"]
+    | Float[TArray, "batch doppler range"]
+    | Float[TArray, "batch doppler el az range"])
+"""Accepted detector input. A virtual array cube, an angle spectrum, or
+    an already-combined range-doppler image.
+"""
+
+
+@dataclass
+class Detection(Generic[TArray]):
+    """Detected objects, and the statistics they were detected from.
+
+    Type Parameters:
+        - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
+            torch `Tensor`.
+
+    Attributes:
+        mask: cfar detected object mask.
+        signal: non-coherently integrated power across the channel axes, i.e.
+            the range-doppler spectrum used for detection.
+        snr: signal to noise ratio, as a linear power ratio.
+    """
+
+    mask: Bool[TArray, "batch range doppler"]
+    signal: Float[TArray, "batch range doppler"]
+    snr: Float[TArray, "batch range doppler"]
 
 
 class Detector(ABC, Generic[TArray]):
@@ -80,11 +109,7 @@ class Detector(ABC, Generic[TArray]):
     @abstractmethod
     def _cfar(
         self, signal_cube: Float[TArray, "batch doppler channel range"]
-    ) -> tuple[
-        Bool[TArray, "batch range doppler"],
-        Float[TArray, "batch range doppler"],
-        Float[TArray, "batch range doppler"],
-    ]:
+    ) -> Detection[TArray]:
         """Run this detector on a batch of radar cubes.
 
         Args:
@@ -93,15 +118,12 @@ class Detector(ABC, Generic[TArray]):
                 single axis.
 
         Returns:
-            The same three values as
-                [`__call__`][xwr.rsp.Detector.__call__].
+            The same detections as [`__call__`][xwr.rsp.Detector.__call__].
         """
         ...
 
     def _flatten(
-        self, signal_cube: Float[TArray, "batch doppler tx rx range"]
-            | Float[TArray, "batch doppler range"]
-            | Float[TArray, "batch doppler el az range"]
+        self, signal_cube: SignalCube
     ) -> Float[TArray, "batch doppler channel range"]:
         """Collapse any axes between doppler and range into a channel axis.
 
@@ -117,15 +139,7 @@ class Detector(ABC, Generic[TArray]):
             signal_cube.shape[0], signal_cube.shape[1], signal_cube.shape[-1])
         return cast(Any, signal_cube).reshape((batch, doppler, -1, rng))
 
-    def __call__(
-        self, signal_cube: Float[TArray, "batch doppler tx rx range"]
-            | Float[TArray, "batch doppler range"]
-            | Float[TArray, "batch doppler el az range"]
-    ) -> tuple[
-        Bool[TArray, "batch range doppler"],
-        Float[TArray, "batch range doppler"],
-        Float[TArray, "batch range doppler"],
-    ]:
+    def __call__(self, signal_cube: SignalCube) -> Detection[TArray]:
         """Run 2D CFAR detection.
 
         !!! note
@@ -141,10 +155,9 @@ class Detector(ABC, Generic[TArray]):
                 across the virtual array.
 
         Returns:
-            cfar detected object mask.
-            non-coherently integrated power across the channel axes, i.e.
-                the range-doppler spectrum used for detection.
-            signal to noise ratio, as a linear power ratio.
+            The detection mask, the range-doppler spectrum it was computed
+                from, and the signal to noise ratio; see
+                [`Detection`][xwr.rsp.].
         """
         return self._cfar(self._flatten(signal_cube))
 

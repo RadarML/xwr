@@ -1,12 +1,35 @@
 """Backend-agnostic Angle of Arrival estimation and point cloud."""
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from typing import Generic
 
 import numpy as np
 from jaxtyping import Bool, Float32, Int
 
 from .generic import TArray
+
+
+@dataclass
+class DensePoints(Generic[TArray]):
+    """A dense radar point cloud, and the points in it which are valid.
+
+    Every range-doppler bin yields a point, so the cloud is *dense*; the
+    caller is expected to gather the valid ones using `mask`.
+
+    Type Parameters:
+        - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
+            torch `Tensor`.
+
+    Attributes:
+        mask: mask of valid points, i.e. the CFAR detection mask combined with
+            the angular bounds set by `angle_fov`.
+        points: all possible radar points, where the trailing axis holds
+            `(x, y, z, v)`.
+    """
+
+    mask: Bool[TArray, "batch range doppler"]
+    points: Float32[TArray, "batch range doppler 4"]
 
 
 class PointCloud(ABC, Generic[TArray]):
@@ -128,10 +151,7 @@ class PointCloud(ABC, Generic[TArray]):
         self,
         cube: Float32[TArray, "batch doppler el az range"],
         mask: Bool[TArray, "batch range doppler"],
-    ) -> tuple[
-        Bool[TArray, "batch range doppler"],
-        Float32[TArray, "batch range doppler 4"],
-    ]:
+    ) -> DensePoints[TArray]:
         """Get point cloud from radar cube and detection mask.
 
         !!! note
@@ -152,9 +172,7 @@ class PointCloud(ABC, Generic[TArray]):
             mask: CFAR detection mask.
 
         Returns:
-            mask of valid points, i.e. the CFAR detection mask combined with
-                the angular bounds set by `angle_fov`.
-            all possible radar points, where the trailing axis holds
-                `(x, y, z, v)`.
+            The dense point cloud, and the mask of points in it which are
+                valid; see [`DensePoints`][xwr.rsp.].
         """
         ...
