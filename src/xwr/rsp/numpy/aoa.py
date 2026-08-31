@@ -29,8 +29,8 @@ class PointCloud(base.PointCloud[np.ndarray]):
         Bool[np.ndarray, "batch range doppler"],
         Float32[np.ndarray, "batch range doppler 4"],
     ]:
-        el_angles = self._asarray(self.angle_table(cube.shape[2]), cube)
-        az_angles = self._asarray(self.angle_table(cube.shape[3]), cube)
+        el_angles = self._asarray(self._angle_table(cube.shape[2]), cube)
+        az_angles = self._asarray(self._angle_table(cube.shape[3]), cube)
 
         _, r_size, d_size = mask.shape
         range_v = np.arange(r_size) * self.range_res
