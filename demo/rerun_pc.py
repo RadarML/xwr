@@ -49,7 +49,7 @@ def _torch_backend(
         detection = cfar(torch.abs(cube_rd))
         points = radar_pc(torch.abs(cube), detection.mask)
 
-        return detection, cube_rd, points
+        return detection, points
 
     def to_input(iiqq):
         # Move to the device before un-interleaving, so the int16 -> complex64
@@ -86,7 +86,7 @@ def _jax_backend(
         detection = cfar(jnp.abs(cube_rd))
         points = radar_pc(jnp.abs(cube), detection.mask)
 
-        return detection, cube_rd, points
+        return detection, points
 
     def to_input(iiqq):
         return jnp.asarray(iq_from_iiqq(iiqq))
@@ -117,7 +117,7 @@ def _numpy_backend(
         detection = cfar(np.abs(cube_rd))
         points = radar_pc(np.abs(cube), detection.mask)
 
-        return detection, cube_rd, points
+        return detection, points
 
     def to_input(iiqq):
         return iq_from_iiqq(iiqq)
@@ -214,16 +214,14 @@ def main(
 
         iq = to_input(data["radar"].iq.squeeze(1))
 
-        detection, rd, points = sig_process(iq)
+        detection, points = sig_process(iq)
         pc = to_numpy(points.points[points.mask])
         rd_mask = to_numpy(detection.mask)[0]
-        rd = to_numpy(rd)[0]
 
-        D, nrx, ntd, R = rd.shape
-        rd = np.transpose(rd, (3, 0, 1, 2))
-        rd = np.flip(
-            np.clip(np.mean(np.abs(rd).reshape(R, D, -1), -1) * gain, 0, 1), 0
-        )
+        # `signal` is the integrated power the detector ran on; back to an
+        # amplitude for display.
+        rd = np.sqrt(to_numpy(detection.signal)[0])
+        rd = np.flip(np.clip(rd * gain, 0, 1), 0)
         rd_img = Image.fromarray((cmap(rd)[..., :3] * 255).astype(np.uint8))
         obj_mask = np.flip(rd_mask, 0)
         cfar_img = cmap(rd)[..., :3]
