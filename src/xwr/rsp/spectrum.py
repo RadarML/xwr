@@ -12,28 +12,33 @@ from .generic import TArray
 class Detector(ABC, Generic[TArray]):
     """Abstract, backend-agnostic constant false alarm rate detector.
 
-    !!! info
+    This class documents the interface shared by every CFAR variant: given a
+    batch of post range-doppler FFT radar cubes, report which range-doppler
+    cells hold a target. Concrete detectors differ in how they estimate the
+    noise floor.
 
-        This class documents the interface shared by every CFAR variant:
-        given a batch of post range-doppler FFT radar cubes, report which
-        range-doppler cells hold a target. Concrete detectors differ in how
-        they estimate the noise floor; see [`CFAR`][xwr.rsp.] for a 2D
-        cell-averaging ring, and [`CFARCASO`][xwr.rsp.] for separate
-        "smallest of" tests on the range and doppler axes.
+    The following implementations are available:
 
-    Every variant takes a batch of range-doppler cubes and is parameterized
-    the same way, with the `guard` and `train` sizes corresponding to the
-    (range, doppler) axes and counted on **each** side of the cell under
-    test.
+    | Detector | Noise estimate |
+    |----------|----------------|
+    | [`CFAR`][xwr.rsp.] | 2D cell-averaging ring |
+    | [`CFARCASO`][xwr.rsp.] | Separate "smallest of" tests on the range and doppler axes |
 
-    Guard cells sit between the cell under test and the training cells and
-    are excluded from the noise estimate, absorbing target energy spread by
-    FFT sidelobes and windowing which would otherwise raise the target's own
-    noise floor. Training cells sit outside them and form the estimate.
+    Implementation notes:
 
-    The closest range bins are dominated by TX to RX leakage and DC, and the
-    furthest are past useful SNR. Bins inside `discard_range` are forced to
-    non-detect and assigned unit noise.
+    - Every variant takes a batch of range-doppler cubes and is parameterized
+        the same way, with the `guard` and `train` sizes corresponding to the
+        (range, doppler) axes and counted on **each** side of the cell under
+        test. `guard`, `train`, and `discard_range` must all be `>= 0`; a
+        negative value raises `ValueError`.
+    - Guard cells sit between the cell under test and the training cells and
+        are excluded from the noise estimate, absorbing target energy spread
+        by FFT sidelobes and windowing which would otherwise raise the
+        target's own noise floor. Training cells sit outside them and form
+        the estimate.
+    - The closest range bins are dominated by TX to RX leakage and DC, and
+        the furthest are past useful SNR. Bins inside `discard_range` are
+        forced to non-detect and assigned unit noise.
 
     Type Parameters:
         - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
@@ -53,10 +58,6 @@ class Detector(ABC, Generic[TArray]):
         train: tuple[int, int],
         discard_range: tuple[int, int] = (10, 20),
     ) -> None:
-        # A negative guard or train silently corrupts the window geometry
-        # instead of raising: the derived half-width `guard + train` can fall
-        # below `guard`, so the guard region wraps to the far edge and the
-        # cell under test is never excluded from its own noise estimate.
         if any(g < 0 for g in guard):
             raise ValueError(f"Guard {guard} must be >= 0 on each axis.")
         if any(t < 0 for t in train):
@@ -67,7 +68,6 @@ class Detector(ABC, Generic[TArray]):
 
         self.guard = guard
         self.train = train
-        # discard detect object around DC
         self.discard_r = discard_range
 
     @abstractmethod
@@ -130,14 +130,16 @@ class CFAR(Detector[TArray], ABC):
     guard[1] ◄──► ◄───────► guard[1]+train[1]
     ```
 
-    The noise floor is the mean of the training cells in the 2D ring, so the
-    cell under test is tested once. The window half-width on each axis is
-    `guard + train`; `train` may be `0` on one axis, training on the other
-    axis only, but `0` on both leaves an empty ring and raises `ValueError`.
+    Implementation notes:
 
-    A cell is detected when its integrated power exceeds
-    `snr_thresh * noise`. Raising the threshold gives fewer false alarms and
-    a lower probability of detection.
+    - The noise floor is the mean of the training cells in the 2D ring, so
+        the cell under test is tested once. The window half-width on each
+        axis is `guard + train`; `train` may be `0` on one axis, training on
+        the other axis only, but `0` on both leaves an empty ring and raises
+        `ValueError`.
+    - A cell is detected when its integrated power exceeds
+        `snr_thresh * noise`. Raising the threshold gives fewer false alarms
+        and a lower probability of detection.
 
     See [`Detector`][xwr.rsp.] for the shared `guard`, `train`, and
     `discard_range` semantics.
@@ -210,16 +212,18 @@ class CFARCASO(Detector[TArray], ABC):
     guard[1] ◄─►   ◄───► train[1]
     ```
 
-    Rather than averaging both sides of the cell under test, CASO ("smallest
-    of") takes the **minimum** of the two one-sided means, so a strong target
-    on one side cannot inflate the noise floor and mask a weaker target on
-    the other. `train` must be `>= 1` on both axes, since each one-sided mean
-    divides by it, and the asymmetric default `guard` reflects that range
-    leakage is broad while doppler needs no guard.
+    Implementation notes:
 
-    An axis fires where its integrated power exceeds that axis's
-    `snr_thresh * noise`. Raising a threshold gives fewer false alarms and a
-    lower probability of detection.
+    - Rather than averaging both sides of the cell under test, CASO
+        ("smallest of") takes the **minimum** of the two one-sided means, so
+        a strong target on one side cannot inflate the noise floor and mask a
+        weaker target on the other. `train` must be `>= 1` on both axes,
+        since each one-sided mean divides by it, and the asymmetric default
+        `guard` reflects that range leakage is broad while doppler needs no
+        guard.
+    - An axis fires where its integrated power exceeds that axis's
+        `snr_thresh * noise`. Raising a threshold gives fewer false alarms
+        and a lower probability of detection.
 
     See [`Detector`][xwr.rsp.] for the shared `guard`, `train`, and
     `discard_range` semantics.

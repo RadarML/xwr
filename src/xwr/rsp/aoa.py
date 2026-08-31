@@ -35,26 +35,26 @@ class PointCloud(ABC, Generic[TArray]):
         nominal design frequency. Thus, you must correct by a corresponding
         scale factor when the chirp center frequency differs.
 
-    Only the derived `range_resolution` and `doppler_resolution` are taken
-    from the [`XWRConfig`][xwr.config.]. Range bins are mapped to meters by
-    `bin * range_resolution`, so bin `0` is zero range. Doppler bins are
-    mapped to *signed* radial velocity by
-    `(bin - doppler // 2) * doppler_resolution`, so the middle bin is zero
-    velocity; this assumes the doppler axis has already been `fftshift`ed,
-    which [`doppler_range`][xwr.rsp.RSP.] does.
+    Implementation notes:
 
-    `antenna_spacing` sets the sin-space to angle mapping and must be
-    positive; a non-positive value raises `ValueError`, while a wrong (but
-    positive) value gives systematically wrong angles rather than an error.
-
-    The bin-to-angle lookup tables are derived from the cube's own angle axes
-    on each call, so no angle size has to be declared up front and one
-    instance handles cubes of differing angle sizes.
-
-    `angle_fov` is applied as a symmetric `±fov` bound, and points falling
-    outside it are excluded from the returned mask. This rejects estimates
-    near the edge of the array's sin-space, where a sparse MIMO array has
-    little real resolving power and grating lobes appear.
+    - Only the derived `range_resolution` and `doppler_resolution` are taken
+        from the [`XWRConfig`][xwr.config.]. Range bins are mapped to meters
+        by `bin * range_resolution`, so bin `0` is zero range. Doppler bins
+        are mapped to *signed* radial velocity by
+        `(bin - doppler // 2) * doppler_resolution`, so the middle bin is
+        zero velocity; this assumes the doppler axis has already been
+        `fftshift`ed, which [`doppler_range`][xwr.rsp.RSP.] does.
+    - `antenna_spacing` sets the sin-space to angle mapping and must be
+        positive; a non-positive value raises `ValueError`, while a wrong
+        (but positive) value gives systematically wrong angles rather than an
+        error.
+    - The bin-to-angle lookup tables are derived from the cube's own angle
+        axes on each call, so no angle size has to be declared up front and
+        one instance handles cubes of differing angle sizes.
+    - `angle_fov` is applied as a symmetric `±fov` bound, and points falling
+        outside it are excluded from the returned mask. This rejects
+        estimates near the edge of the array's sin-space, where a sparse MIMO
+        array has little real resolving power and grating lobes appear.
 
     Type Parameters:
         - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
