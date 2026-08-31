@@ -68,7 +68,7 @@ def _angles(backend, config, **kwargs):
     """Get the (elevation, azimuth) lookup tables as numpy arrays."""
     module = {"jax": rspj, "torch": rspt, "numpy": rspn}[backend]
     pc = module.PointCloud(config, **kwargs)
-    return pc.angle_table(EL), pc.angle_table(AZ)
+    return pc._angle_table(EL), pc._angle_table(AZ)
 
 
 
