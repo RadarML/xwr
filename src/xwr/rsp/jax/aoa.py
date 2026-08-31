@@ -15,15 +15,14 @@ class PointCloud(base.PointCloud[Array]):
     ) -> Float[Array, "..."]:
         return jnp.asarray(x)
 
-    @staticmethod
-    def _argmax_aoa(ang_sptr: Float32[Array, "... el az"]) -> Int[
-        Array, "... 2"
-    ]:
-        el, az = ang_sptr.shape[-2:]
-        idx = jnp.argmax(ang_sptr.reshape(*ang_sptr.shape[:-2], el * az), -1)
+    def aoa(
+        self, cube: Float32[Array, "batch range doppler el az"]
+    ) -> Int[Array, "batch range doppler 2"]:
+        el, az = cube.shape[-2:]
+        idx = jnp.argmax(cube.reshape(*cube.shape[:-2], el * az), -1)
         return jnp.stack((idx // az, idx % az), axis=-1)
 
-    def _point_cloud(
+    def __call__(
         self,
         cube: Float32[Array, "batch doppler el az range"],
         mask: Bool[Array, "batch range doppler"],
