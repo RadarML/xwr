@@ -39,11 +39,7 @@ class CFAR(base.CFAR[Tensor]):
 
     def _cfar(
         self, signal_cube: Float[Tensor, "batch doppler channel range"]
-    ) -> tuple[
-        Bool[Tensor, "batch range doppler"],
-        Float[Tensor, "batch range doppler"],
-        Float[Tensor, "batch range doppler"],
-    ]:
+    ) -> base.Detection[Tensor]:
         signal = _integrate(signal_cube)
         self._to(signal.device, signal.dtype)
         _, s_r, _ = signal.shape
@@ -66,7 +62,7 @@ class CFAR(base.CFAR[Tensor]):
         obj_mask[:, near : s_r - far] = (
             snr[:, near : s_r - far] > self.snr_thresh)
 
-        return obj_mask, signal, snr
+        return base.Detection(obj_mask, signal, snr)
 
 
 class CFARCASO(base.CFARCASO[Tensor]):
@@ -123,11 +119,7 @@ class CFARCASO(base.CFARCASO[Tensor]):
 
     def _cfar(
         self, signal_cube: Float[Tensor, "batch doppler channel range"]
-    ) -> tuple[
-        Bool[Tensor, "batch range doppler"],
-        Float[Tensor, "batch range doppler"],
-        Float[Tensor, "batch range doppler"],
-    ]:
+    ) -> base.Detection[Tensor]:
         signal = _integrate(signal_cube)
         self._to(signal.device, signal.dtype)
         _, s_r, s_d = signal.shape
@@ -165,4 +157,4 @@ class CFARCASO(base.CFARCASO[Tensor]):
         snr = signal / noise
         obj_mask = torch.logical_and(detect, detect_d)
 
-        return obj_mask, signal, snr
+        return base.Detection(obj_mask, signal, snr)
