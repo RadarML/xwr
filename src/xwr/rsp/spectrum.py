@@ -1,7 +1,7 @@
 """Backend-agnostic detector (CFAR) base classes."""
 
 from abc import ABC, abstractmethod
-from typing import Generic
+from typing import Any, Generic, cast
 
 import numpy as np
 from jaxtyping import Bool, Float
@@ -31,6 +31,13 @@ class Detector(ABC, Generic[TArray]):
         (range, doppler) axes and counted on **each** side of the cell under
         test. `guard`, `train`, and `discard_range` must all be `>= 0`; a
         negative value raises `ValueError`.
+    - The input may be a virtual array cube
+        (`batch doppler tx rx range`), an angle spectrum
+        (`batch doppler el az range`), or an already-combined range-doppler
+        image (`batch doppler range`). Whatever sits between the doppler and
+        range axes is flattened into a single channel axis and integrated
+        non-coherently, so a range-doppler image is simply treated as having
+        one channel.
     - Guard cells sit between the cell under test and the training cells and
         are excluded from the noise estimate, absorbing target energy spread
         by FFT sidelobes and windowing which would otherwise raise the
@@ -72,7 +79,7 @@ class Detector(ABC, Generic[TArray]):
 
     @abstractmethod
     def _cfar(
-        self, signal_cube: Float[TArray, "batch doppler tx rx range"]
+        self, signal_cube: Float[TArray, "batch doppler channel range"]
     ) -> tuple[
         Bool[TArray, "batch range doppler"],
         Float[TArray, "batch range doppler"],
@@ -82,7 +89,8 @@ class Detector(ABC, Generic[TArray]):
 
         Args:
             signal_cube: batch of post range doppler FFT radar cubes in
-                amplitude.
+                amplitude, with the channel axes already flattened into a
+                single axis.
 
         Returns:
             The same three values as
@@ -90,8 +98,29 @@ class Detector(ABC, Generic[TArray]):
         """
         ...
 
+    def _flatten(
+        self, signal_cube: Float[TArray, "batch doppler tx rx range"]
+            | Float[TArray, "batch doppler range"]
+            | Float[TArray, "batch doppler el az range"]
+    ) -> Float[TArray, "batch doppler channel range"]:
+        """Collapse any axes between doppler and range into a channel axis.
+
+        Args:
+            signal_cube: batch of post range doppler FFT radar cubes in
+                amplitude.
+
+        Returns:
+            The same values, with a single channel axis; a range-doppler
+                image gains a channel axis of length 1.
+        """
+        batch, doppler, rng = (
+            signal_cube.shape[0], signal_cube.shape[1], signal_cube.shape[-1])
+        return cast(Any, signal_cube).reshape((batch, doppler, -1, rng))
+
     def __call__(
         self, signal_cube: Float[TArray, "batch doppler tx rx range"]
+            | Float[TArray, "batch doppler range"]
+            | Float[TArray, "batch doppler el az range"]
     ) -> tuple[
         Bool[TArray, "batch range doppler"],
         Float[TArray, "batch range doppler"],
@@ -101,20 +130,23 @@ class Detector(ABC, Generic[TArray]):
 
         !!! note
 
-            The transmit and receive antenna axes are combined
-            non-coherently, so their relative order does not matter.
+            The channel axes (the transmit and receive antennas of the
+            virtual array, or the elevation and azimuth bins of an angle
+            spectrum) are combined non-coherently, so their relative order
+            does not matter.
 
         Args:
             signal_cube: batch of post range doppler FFT radar cubes in
-                amplitude.
+                amplitude, or a range-doppler image which is already combined
+                across the virtual array.
 
         Returns:
             cfar detected object mask.
-            non-coherently integrated power across the virtual array, i.e.
+            non-coherently integrated power across the channel axes, i.e.
                 the range-doppler spectrum used for detection.
             signal to noise ratio, as a linear power ratio.
         """
-        return self._cfar(signal_cube)
+        return self._cfar(self._flatten(signal_cube))
 
 
 class CFAR(Detector[TArray], ABC):
