@@ -45,8 +45,8 @@ class CFAR(ABC, Generic[TArray]):
 
     | Detector | Noise estimate |
     |----------|----------------|
-    | [`CFAR`][xwr.rsp.] | 2D cell-averaging ring |
-    | [`CFARCASO`][xwr.rsp.] | Separate "smallest of" tests on the range and doppler axes |
+    | [`CACFAR`][xwr.rsp.] | 2D cell-averaging ring |
+    | [`CASOCFAR`][xwr.rsp.] | Separate "smallest of" tests on the range and doppler axes |
 
     Type Parameters:
         - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
@@ -90,7 +90,7 @@ class CFAR(ABC, Generic[TArray]):
                 single axis.
 
         Returns:
-            The same detections as [`__call__`][xwr.rsp.Detector.__call__].
+            The same detections as [`__call__`][xwr.rsp.CFAR.__call__].
         """
         ...
 
@@ -192,7 +192,7 @@ class CASOCFAR(CFAR[TArray], ABC):
 
     !!! info
 
-        Instead of the 2D kernel used in [`CFAR`][xwr.rsp.], CASO uses a
+        Instead of the 2D kernel used in [`CACFAR`][xwr.rsp.], CASO uses a
         separate 1D kernel for the range and doppler axes, and reports a
         detection only where **both** axes fire.
 
