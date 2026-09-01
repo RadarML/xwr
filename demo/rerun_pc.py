@@ -30,14 +30,14 @@ def _torch_backend(
     """
     import torch
 
-    from xwr.rsp.torch import CFARCASO, AWR1843Boost, PointCloud
+    from xwr.rsp.torch import CASOCFAR, AWR1843Boost, PointCloud
 
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
     dev = torch.device(device)
 
     rsp: RSP = AWR1843Boost(**rsp_args)
-    cfar = CFARCASO()
+    cfar = CASOCFAR()
     radar_pc = PointCloud(
         radar_cfg.range_resolution, radar_cfg.doppler_resolution)
 
@@ -71,10 +71,10 @@ def _jax_backend(
     import jax
     import jax.numpy as jnp
 
-    from xwr.rsp.jax import CFARCASO, AWR1843Boost, PointCloud
+    from xwr.rsp.jax import CASOCFAR, AWR1843Boost, PointCloud
 
     rsp: RSP = AWR1843Boost(**rsp_args)
-    cfar = CFARCASO()
+    cfar = CASOCFAR()
     radar_pc = PointCloud(
         radar_cfg.range_resolution, radar_cfg.doppler_resolution)
 
@@ -103,10 +103,10 @@ def _numpy_backend(
         The per-frame signal processing function, a raw IIQQ to device-array
             converter, an array to numpy converter, and the device name.
     """
-    from xwr.rsp.numpy import CFARCASO, AWR1843Boost, PointCloud
+    from xwr.rsp.numpy import CASOCFAR, AWR1843Boost, PointCloud
 
     rsp: RSP = AWR1843Boost(**rsp_args)
-    cfar = CFARCASO()
+    cfar = CASOCFAR()
     radar_pc = PointCloud(
         radar_cfg.range_resolution, radar_cfg.doppler_resolution)
 

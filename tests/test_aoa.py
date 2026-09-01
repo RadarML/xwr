@@ -266,7 +266,7 @@ def test_point_cloud_parity(config):
 # End to end
 # ---------------------------------------------------------------------------
 
-@pytest.mark.parametrize("detector", ["CFAR", "CFARCASO"])
+@pytest.mark.parametrize("detector", ["CACFAR", "CASOCFAR"])
 def test_end_to_end_parity(config, detector):
     """RSP -> detector -> point cloud agrees across backends."""
     rng = np.random.default_rng(1)
@@ -276,7 +276,7 @@ def test_end_to_end_parity(config, detector):
     kwargs = (
         {"guard": (2, 2), "train": (2, 2), "snr_thresh": 1.2,
          "discard_range": (2, 2)}
-        if detector == "CFAR" else
+        if detector == "CACFAR" else
         {"train": (4, 2), "guard": (2, 0),
          "snr_thresh": (1.2, 1.1), "discard_range": (2, 2)})
 
@@ -319,7 +319,7 @@ def test_backends_share_base_classes(backend):
     module = {"jax": rspj, "torch": rspt, "numpy": rspn}[backend]
 
     assert issubclass(module.PointCloud, rsp.PointCloud)
-    assert issubclass(module.CFAR, rsp.CFAR)
-    assert issubclass(module.CFARCASO, rsp.CFARCASO)
-    assert issubclass(module.CFAR, rsp.Detector)
-    assert issubclass(module.CFARCASO, rsp.Detector)
+    assert issubclass(module.CACFAR, rsp.CACFAR)
+    assert issubclass(module.CASOCFAR, rsp.CASOCFAR)
+    assert issubclass(module.CACFAR, rsp.CFAR)
+    assert issubclass(module.CASOCFAR, rsp.CFAR)
