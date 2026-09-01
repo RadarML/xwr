@@ -37,7 +37,7 @@ with install_import_hook("xwr.rsp.torch", "beartype.beartype"):
         AWR1843Boost,
         RSPTorch,
     )
-    from .spectrum import CFAR, CFARCASO
+    from .spectrum import CACFAR, CASOCFAR
 
 __all__ = [
     "AWR1642Boost",
@@ -46,7 +46,7 @@ __all__ = [
     "AWR2944EVM",
     "AWRL6844EVM",
     "RSPTorch",
-    "CFAR",
-    "CFARCASO",
+    "CACFAR",
+    "CASOCFAR",
     "PointCloud"
 ]

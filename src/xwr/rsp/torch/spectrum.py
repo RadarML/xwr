@@ -9,7 +9,7 @@ from torch.nn.functional import conv1d, conv2d
 from xwr.rsp import spectrum as base
 
 
-class CFAR(base.CFAR[Tensor]):
+class CACFAR(base.CACFAR[Tensor]):
     """Cell-averaging CFAR."""
 
     ker: Float[Tensor, "kr kd"] | None = None
@@ -27,21 +27,16 @@ class CFAR(base.CFAR[Tensor]):
     def _cfar(
         self, signal_cube: Float[Tensor, "batch doppler channel range"]
     ) -> base.Detection[Tensor]:
-        # Non-coherent integration over the channel axis, offset by 1 so
-        # that an empty cell has unit power instead of dividing by zero.
+        # Offset by 1 to prevent division by zero for SNR calculations.
         signal = (signal_cube**2).sum(dim=2).transpose(1, 2) + 1
         _, s_r, _ = signal.shape
 
-        # Torch only supports zero padding here, matching jax's 'fill', so the
-        # training cell count is normalized out to compensate at the edges.
         sig = signal[:, None]
         kernel = self._to(signal.device, signal.dtype)[None, None]
         valid = conv2d(torch.ones_like(sig), kernel, padding="same")
         noise_r = (conv2d(sig, kernel, padding="same") / valid)[:, 0]
 
         near, far = self.discard_r[0], self.discard_r[1]
-        # 1 outside the discarded band, so the reported SNR there is the raw
-        # signal rather than a division by zero.
         noise = signal.new_ones(signal.shape)
         noise[:, near : s_r - far] = noise_r[:, near : s_r - far]
 
@@ -53,7 +48,7 @@ class CFAR(base.CFAR[Tensor]):
         return base.Detection(obj_mask, signal, snr)
 
 
-class CFARCASO(base.CFARCASO[Tensor]):
+class CASOCFAR(base.CASOCFAR[Tensor]):
     """Cell-averaging Smallest of CFAR."""
 
     def __init__(
@@ -65,8 +60,6 @@ class CFARCASO(base.CFARCASO[Tensor]):
     ) -> None:
         super().__init__(guard, train, snr_thresh, discard_range)
 
-        # Unlike the jax backend, which accumulates the one-sided means from
-        # shifted slices, torch correlates against explicit kernels.
         def make_caso_kernels(n_train, pad):
             ker = np.zeros((2 * pad + 1), dtype=np.float32)
             ker_a, ker_b = ker.copy(), ker.copy()
@@ -92,13 +85,7 @@ class CFARCASO(base.CFARCASO[Tensor]):
         snr: float,
         pad: int,
     ) -> tuple[Bool[Tensor, "... m"], Float[Tensor, "... m"]]:
-        """Run 1D CFAR CASO, returning a detection mask and noise level.
-
-        Operates on the last axis, over an arbitrary batch of leading axes;
-        the two one-sided kernels are evaluated as the two output channels of
-        a single `conv1d`, whose `valid` output is what jax gets from
-        `jnp.correlate(..., mode="valid")`.
-        """
+        """Run 1D CFAR CASO, returning a detection mask and noise level."""
         flat = signal.reshape(-1, 1, signal.shape[-1])
         noise = conv1d(flat, ker).min(dim=1).values.reshape(
             *signal.shape[:-1], -1)
@@ -108,8 +95,7 @@ class CFARCASO(base.CFARCASO[Tensor]):
     def _cfar(
         self, signal_cube: Float[Tensor, "batch doppler channel range"]
     ) -> base.Detection[Tensor]:
-        # Non-coherent integration over the channel axis, offset by 1 so
-        # that an empty cell has unit power instead of dividing by zero.
+        # Offset by 1 to prevent division by zero for SNR calculations.
         signal = (signal_cube**2).sum(dim=2).transpose(1, 2) + 1
         self._to(signal.device, signal.dtype)
         _, s_r, s_d = signal.shape
@@ -133,7 +119,6 @@ class CFARCASO(base.CFARCASO[Tensor]):
             dim=2,
         )
 
-        # detection
         detect_r, noise_r = self._caso(
             sig_pad_r.transpose(1, 2), self.r_ker, self.snr_r, self.pad_r)
         detect_r, noise_r = detect_r.transpose(1, 2), noise_r.transpose(1, 2)
