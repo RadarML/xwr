@@ -28,26 +28,28 @@ def _integrate(
 class CFAR(base.CFAR[Tensor]):
     """Cell-averaging CFAR."""
 
-    @staticmethod
-    def _asarray(x: Float[np.ndarray, "..."]) -> Float[Tensor, "..."]:
-        return torch.from_numpy(x)
+    ker: Float[Tensor, "kr kd"] | None = None
 
-    def _to(self, device: torch.device, dtype: torch.dtype) -> None:
-        """Move the ring kernel to `device`/`dtype`, if needed."""
-        if self.mask.device != device or self.mask.dtype != dtype:
-            self.mask = self.mask.to(device=device, dtype=dtype)
+    def _to(
+        self, device: torch.device, dtype: torch.dtype
+    ) -> Float[Tensor, "kr kd"]:
+        """Get the ring kernel on `device`/`dtype`, converting if needed."""
+        if (self.ker is None or self.ker.device != device
+                or self.ker.dtype != dtype):
+            self.ker = torch.from_numpy(self.mask).to(
+                device=device, dtype=dtype)
+        return self.ker
 
     def _cfar(
         self, signal_cube: Float[Tensor, "batch doppler channel range"]
     ) -> base.Detection[Tensor]:
         signal = _integrate(signal_cube)
-        self._to(signal.device, signal.dtype)
         _, s_r, _ = signal.shape
 
         # Torch only supports zero padding here, matching jax's 'fill', so the
         # training cell count is normalized out to compensate at the edges.
         sig = signal[:, None]
-        kernel = self.mask[None, None]
+        kernel = self._to(signal.device, signal.dtype)[None, None]
         valid = conv2d(torch.ones_like(sig), kernel, padding="same")
         noise_r = (conv2d(sig, kernel, padding="same") / valid)[:, 0]
 
