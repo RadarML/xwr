@@ -10,10 +10,6 @@ from xwr.rsp import spectrum as base
 class CFAR(base.CFAR[np.ndarray]):
     """Cell-averaging CFAR."""
 
-    @staticmethod
-    def _asarray(x: Float[np.ndarray, "..."]) -> Float[np.ndarray, "..."]:
-        return x
-
     def _noise(
         self, signal: Float[np.ndarray, "range doppler"]
     ) -> Float[np.ndarray, "range doppler"]:
