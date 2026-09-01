@@ -61,5 +61,5 @@ with install_import_hook("xwr.rsp", "beartype.beartype"):
 __all__ = [
     "RSP", "iq_from_iiqq", "iqiq_from_iiqq",
     "CACFAR", "CASOCFAR", "CFAR", "Detection", "SignalCube",
-    "CFAR", "CASOCFAR", "PointCloud", "DensePoints"
+    "PointCloud", "DensePoints"
 ]
