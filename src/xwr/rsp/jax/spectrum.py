@@ -20,7 +20,7 @@ jax.tree_util.register_dataclass(
 from a `jax.jit`-ed function."""
 
 
-class CFAR(base.CFAR[Array]):
+class CACFAR(base.CACFAR[Array]):
     """Cell-averaging CFAR."""
 
     def _noise(
@@ -37,16 +37,13 @@ class CFAR(base.CFAR[Array]):
     def _cfar(
         self, signal_cube: Float[Array, "batch doppler channel range"]
     ) -> base.Detection[Array]:
-        # Non-coherent integration over the channel axis, offset by 1 so
-        # that an empty cell has unit power instead of dividing by zero.
+        # Offset by 1 to prevent division by zero for SNR calculations.
         signal = jnp.sum(signal_cube**2, axis=2).transpose(0, 2, 1) + 1
         _, s_r, _ = signal.shape
 
         noise_r = jax.vmap(self._noise)(signal)
 
         near, far = self.discard_r[0], self.discard_r[1]
-        # 1 outside the discarded band, so the reported SNR there is the raw
-        # signal rather than a division by zero.
         noise = jnp.ones_like(signal).at[:, near : s_r - far].set(
             noise_r[:, near : s_r - far])
 
@@ -57,7 +54,7 @@ class CFAR(base.CFAR[Array]):
         return base.Detection(obj_mask, signal, snr)
 
 
-class CFARCASO(base.CFARCASO[Array]):
+class CASOCFAR(base.CASOCFAR[Array]):
     """Cell-averaging Smallest of CFAR."""
 
     @staticmethod
@@ -105,8 +102,7 @@ class CFARCASO(base.CFARCASO[Array]):
     def _cfar(
         self, signal_cube: Float[Array, "batch doppler channel range"]
     ) -> base.Detection[Array]:
-        # Non-coherent integration over the channel axis, offset by 1 so
-        # that an empty cell has unit power instead of dividing by zero.
+        # Offset by 1 to prevent division by zero for SNR calculations.
         signal = jnp.sum(signal_cube**2, axis=2).transpose(0, 2, 1) + 1
         _, s_r, _ = signal.shape
 
@@ -124,12 +120,9 @@ class CFARCASO(base.CFARCASO[Array]):
             signal, ((0, 0), (0, 0), (self.pad_d, self.pad_d)), mode="wrap"
         )
 
-        # detection
         detect_r, noise_r = self._caso(
             sig_pad_r, 1, self.train_r, self.pad_r, self.snr_r)
         detect_r = jnp.pad(detect_r, ((0, 0), (near, far), (0, 0)))
-        # 1 outside the discarded band, so the reported SNR there is the raw
-        # signal rather than a division by zero.
         noise = jnp.pad(
             noise_r, ((0, 0), (near, far), (0, 0)), constant_values=1)
         detect_d, _ = self._caso(
