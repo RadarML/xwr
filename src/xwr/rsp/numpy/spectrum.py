@@ -7,22 +7,6 @@ from scipy.signal import convolve2d, correlate
 from xwr.rsp import spectrum as base
 
 
-def _integrate(
-    signal_cube: Float[np.ndarray, "batch doppler channel range"]
-) -> Float[np.ndarray, "batch range doppler"]:
-    """Combine the channel axis non-coherently into a range-doppler image.
-
-    Args:
-        signal_cube: batch of post range doppler FFT radar cubes in amplitude,
-            flattened to a single channel axis.
-
-    Returns:
-        Integrated power, offset by 1 so that an empty cell has unit power
-            instead of dividing by zero downstream.
-    """
-    return np.sum(signal_cube**2, axis=2).transpose(0, 2, 1) + 1
-
-
 class CFAR(base.CFAR[np.ndarray]):
     """Cell-averaging CFAR."""
 
@@ -40,7 +24,9 @@ class CFAR(base.CFAR[np.ndarray]):
     def _cfar(
         self, signal_cube: Float[np.ndarray, "batch doppler channel range"]
     ) -> base.Detection[np.ndarray]:
-        signal = _integrate(signal_cube)
+        # Non-coherent integration over the channel axis, offset by 1 so
+        # that an empty cell has unit power instead of dividing by zero.
+        signal = np.sum(signal_cube**2, axis=2).transpose(0, 2, 1) + 1
         _, s_r, _ = signal.shape
 
         noise_r = np.stack([self._noise(s) for s in signal])
@@ -104,7 +90,9 @@ class CFARCASO(base.CFARCASO[np.ndarray]):
     def _cfar(
         self, signal_cube: Float[np.ndarray, "batch doppler channel range"]
     ) -> base.Detection[np.ndarray]:
-        signal = _integrate(signal_cube)
+        # Non-coherent integration over the channel axis, offset by 1 so
+        # that an empty cell has unit power instead of dividing by zero.
+        signal = np.sum(signal_cube**2, axis=2).transpose(0, 2, 1) + 1
         batch, s_r, s_d = signal.shape
 
         near, far = self.discard_r[0], self.discard_r[1]
