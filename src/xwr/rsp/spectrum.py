@@ -220,20 +220,7 @@ class CFAR(Detector[TArray], ABC):
         if mask.sum() == 0:
             raise ValueError(
                 f"CFAR mask is empty; check guard={guard} and train={train}.")
-        self.mask: Float[TArray, "kr kd"] = self._asarray(mask)
-
-    @staticmethod
-    @abstractmethod
-    def _asarray(x: Float[np.ndarray, "..."]) -> Float[TArray, "..."]:
-        """Convert a numpy array to this backend's array type.
-
-        Args:
-            x: numpy array to convert.
-
-        Returns:
-            The same values, as a backend array.
-        """
-        ...
+        self.mask: Float[np.ndarray, "kr kd"] = mask
 
 
 class CFARCASO(Detector[TArray], ABC):
