@@ -9,22 +9,6 @@ from torch.nn.functional import conv1d, conv2d
 from xwr.rsp import spectrum as base
 
 
-def _integrate(
-    signal_cube: Float[Tensor, "batch doppler channel range"]
-) -> Float[Tensor, "batch range doppler"]:
-    """Combine the channel axis non-coherently into a range-doppler image.
-
-    Args:
-        signal_cube: batch of post range doppler FFT radar cubes in amplitude,
-            flattened to a single channel axis.
-
-    Returns:
-        Integrated power, offset by 1 so that an empty cell has unit power
-            instead of dividing by zero downstream.
-    """
-    return (signal_cube**2).sum(dim=2).transpose(1, 2) + 1
-
-
 class CFAR(base.CFAR[Tensor]):
     """Cell-averaging CFAR."""
 
@@ -43,7 +27,9 @@ class CFAR(base.CFAR[Tensor]):
     def _cfar(
         self, signal_cube: Float[Tensor, "batch doppler channel range"]
     ) -> base.Detection[Tensor]:
-        signal = _integrate(signal_cube)
+        # Non-coherent integration over the channel axis, offset by 1 so
+        # that an empty cell has unit power instead of dividing by zero.
+        signal = (signal_cube**2).sum(dim=2).transpose(1, 2) + 1
         _, s_r, _ = signal.shape
 
         # Torch only supports zero padding here, matching jax's 'fill', so the
@@ -122,7 +108,9 @@ class CFARCASO(base.CFARCASO[Tensor]):
     def _cfar(
         self, signal_cube: Float[Tensor, "batch doppler channel range"]
     ) -> base.Detection[Tensor]:
-        signal = _integrate(signal_cube)
+        # Non-coherent integration over the channel axis, offset by 1 so
+        # that an empty cell has unit power instead of dividing by zero.
+        signal = (signal_cube**2).sum(dim=2).transpose(1, 2) + 1
         self._to(signal.device, signal.dtype)
         _, s_r, s_d = signal.shape
 
