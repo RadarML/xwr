@@ -14,9 +14,6 @@ from .generic import TArray
 class DensePoints(Generic[TArray]):
     """A dense radar point cloud, and the points in it which are valid.
 
-    Every range-doppler bin yields a point, so the cloud is *dense*; the
-    caller is expected to gather the valid ones using `mask`.
-
     Type Parameters:
         - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
             torch `Tensor`.
@@ -58,22 +55,11 @@ class PointCloud(ABC, Generic[TArray]):
 
     Implementation notes:
 
-    - Range bins are mapped by `bin * range_res`, so bin `0` is zero range.
-        Doppler bins are mapped to a *signed* value by
-        `(bin - doppler // 2) * doppler_res`, so the middle bin is zero
-        velocity; this assumes the doppler axis has already been `fftshift`ed,
-        which [`doppler_range`][xwr.rsp.RSP.] does. With the default
-        resolutions of `1.0`, the point cloud is in range/doppler bins instead
-        of meters and meters/second.
-    - `antenna_spacing` sets the sin-space to angle mapping and must be
-        positive; a non-positive value raises `ValueError`.
-    - The bin-to-angle lookup tables are derived from the cube's own angle
-        axes on each call, so no angle size has to be declared up front and
-        one instance handles cubes of differing angle sizes.
-    - `angle_fov` is applied as a symmetric `±fov` bound, and points falling
-        outside it are excluded from the returned mask. This rejects
-        estimates near the edge of the array's sin-space, where a sparse MIMO
-        array has little real resolving power and grating lobes appear.
+    -  With the default range and dopplerresolutions of `1.0`, the point cloud
+        is in range/doppler bins instead of meters and meters/second.
+    - Radars have little resolving power close to the array plane in angle,
+        and suffer from high noise at the edge of the main lobe. Reject these
+        points with `angle_fov`.
 
     Type Parameters:
         - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
@@ -86,8 +72,8 @@ class PointCloud(ABC, Generic[TArray]):
         doppler_res: doppler resolution, i.e. meters/second per doppler bin;
             see [`XWRConfig.doppler_resolution`][xwr.config.XWRConfig].
             Defaults to `1.0`, which leaves the doppler axis in bins.
-        angle_fov: angle field of view **in degrees**, for
-            (elevation, azimuth).
+        angle_fov: (elevation, azimuth) field of view **in degrees**, where points
+            outside +/-elevation and +/-azimuth are rejected.
         antenna_spacing: antenna spacing in terms of wavelength (default 0.5
             for a half-wavelength grid).
     """

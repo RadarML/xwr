@@ -38,13 +38,8 @@ class Detection(Generic[TArray]):
     snr: Float[TArray, "batch range doppler"]
 
 
-class Detector(ABC, Generic[TArray]):
-    """Abstract, backend-agnostic constant false alarm rate detector.
-
-    This class documents the interface shared by every CFAR variant: given a
-    batch of post range-doppler FFT radar cubes, report which range-doppler
-    cells hold a target. Concrete detectors differ in how they estimate the
-    noise floor.
+class CFAR(ABC, Generic[TArray]):
+    """Abstract, backend-agnostic CFAR base class.
 
     The following implementations are available:
 
@@ -52,29 +47,6 @@ class Detector(ABC, Generic[TArray]):
     |----------|----------------|
     | [`CFAR`][xwr.rsp.] | 2D cell-averaging ring |
     | [`CFARCASO`][xwr.rsp.] | Separate "smallest of" tests on the range and doppler axes |
-
-    Implementation notes:
-
-    - Every variant takes a batch of range-doppler cubes and is parameterized
-        the same way, with the `guard` and `train` sizes corresponding to the
-        (range, doppler) axes and counted on **each** side of the cell under
-        test. `guard`, `train`, and `discard_range` must all be `>= 0`; a
-        negative value raises `ValueError`.
-    - The input may be a virtual array cube
-        (`batch doppler tx rx range`), an angle spectrum
-        (`batch doppler el az range`), or an already-combined range-doppler
-        image (`batch doppler range`). Whatever sits between the doppler and
-        range axes is flattened into a single channel axis and integrated
-        non-coherently, so a range-doppler image is simply treated as having
-        one channel.
-    - Guard cells sit between the cell under test and the training cells and
-        are excluded from the noise estimate, absorbing target energy spread
-        by FFT sidelobes and windowing which would otherwise raise the
-        target's own noise floor. Training cells sit outside them and form
-        the estimate.
-    - The closest range bins are dominated by TX to RX leakage and DC, and
-        the furthest are past useful SNR. Bins inside `discard_range` are
-        forced to non-detect and assigned unit noise.
 
     Type Parameters:
         - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
@@ -156,13 +128,12 @@ class Detector(ABC, Generic[TArray]):
 
         Returns:
             The detection mask, the range-doppler spectrum it was computed
-                from, and the signal to noise ratio; see
-                [`Detection`][xwr.rsp.].
+                from, and the signal to noise ratio.
         """
         return self._cfar(self._flatten(signal_cube))
 
 
-class CFAR(Detector[TArray], ABC):
+class CACFAR(CFAR[TArray], ABC):
     """Cell-averaging CFAR.
 
     ```
@@ -177,17 +148,10 @@ class CFAR(Detector[TArray], ABC):
 
     Implementation notes:
 
-    - The noise floor is the mean of the training cells in the 2D ring, so
-        the cell under test is tested once. The window half-width on each
-        axis is `guard + train`; `train` may be `0` on one axis, training on
-        the other axis only, but `0` on both leaves an empty ring and raises
-        `ValueError`.
+    - The noise floor is the mean of the training cells in the 2D ring.
+    - `train` can be `0` on at most one axis.
     - A cell is detected when its integrated power exceeds
-        `snr_thresh * noise`. Raising the threshold gives fewer false alarms
-        and a lower probability of detection.
-
-    See [`Detector`][xwr.rsp.] for the shared `guard`, `train`, and
-    `discard_range` semantics.
+        `snr_thresh * noise`.
 
     Type Parameters:
         - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
@@ -223,7 +187,7 @@ class CFAR(Detector[TArray], ABC):
         self.mask: Float[np.ndarray, "kr kd"] = mask
 
 
-class CFARCASO(Detector[TArray], ABC):
+class CASOCFAR(CFAR[TArray], ABC):
     """Cell-averaging Smallest of CFAR.
 
     !!! info
@@ -246,19 +210,11 @@ class CFARCASO(Detector[TArray], ABC):
 
     Implementation notes:
 
-    - Rather than averaging both sides of the cell under test, CASO
-        ("smallest of") takes the **minimum** of the two one-sided means, so
+    - On each axis, CASO takes the **minimum** of the two one-sided means, so
         a strong target on one side cannot inflate the noise floor and mask a
-        weaker target on the other. `train` must be `>= 1` on both axes,
-        since each one-sided mean divides by it, and the asymmetric default
-        `guard` reflects that range leakage is broad while doppler needs no
-        guard.
+        weaker target on the other. As such, `train` must be `>= 1` on both axes.
     - An axis fires where its integrated power exceeds that axis's
-        `snr_thresh * noise`. Raising a threshold gives fewer false alarms
-        and a lower probability of detection.
-
-    See [`Detector`][xwr.rsp.] for the shared `guard`, `train`, and
-    `discard_range` semantics.
+        `snr_thresh * noise`. Both axes must fire for a detection to be reported.
 
     Type Parameters:
         - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or

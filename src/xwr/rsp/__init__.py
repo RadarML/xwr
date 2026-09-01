@@ -50,15 +50,16 @@ with install_import_hook("xwr.rsp", "beartype.beartype"):
     from .aoa import DensePoints, PointCloud
     from .generic import RSP, iq_from_iiqq, iqiq_from_iiqq
     from .spectrum import (
+        CACFAR,
+        CASOCFAR,
         CFAR,
-        CFARCASO,
         Detection,
-        Detector,
         SignalCube,
     )
 
 
 __all__ = [
     "RSP", "iq_from_iiqq", "iqiq_from_iiqq",
-    "Detector", "Detection", "SignalCube", "CFAR", "CFARCASO", "PointCloud", "DensePoints"
+    "CACFAR", "CASOCFAR", "CFAR", "Detection", "SignalCube",
+    "CFAR", "CASOCFAR", "PointCloud", "DensePoints"
 ]
