@@ -41,7 +41,7 @@ with install_import_hook("xwr.rsp.numpy", "beartype.beartype"):
         AWR1843Boost,
         RSPNumpy,
     )
-    from .spectrum import CFAR, CFARCASO
+    from .spectrum import CACFAR, CASOCFAR
 
 
 __all__ = [
@@ -51,7 +51,7 @@ __all__ = [
     "AWR2944EVM",
     "AWRL6844EVM",
     "RSPNumpy",
-    "CFAR",
-    "CFARCASO",
+    "CACFAR",
+    "CASOCFAR",
     "PointCloud",
 ]

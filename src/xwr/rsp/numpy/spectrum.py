@@ -7,7 +7,7 @@ from scipy.signal import convolve2d, correlate
 from xwr.rsp import spectrum as base
 
 
-class CFAR(base.CFAR[np.ndarray]):
+class CACFAR(base.CACFAR[np.ndarray]):
     """Cell-averaging CFAR."""
 
     def _noise(
@@ -20,16 +20,13 @@ class CFAR(base.CFAR[np.ndarray]):
     def _cfar(
         self, signal_cube: Float[np.ndarray, "batch doppler channel range"]
     ) -> base.Detection[np.ndarray]:
-        # Non-coherent integration over the channel axis, offset by 1 so
-        # that an empty cell has unit power instead of dividing by zero.
+        # Offset by 1 to prevent division by zero for SNR calculations.
         signal = np.sum(signal_cube**2, axis=2).transpose(0, 2, 1) + 1
         _, s_r, _ = signal.shape
 
         noise_r = np.stack([self._noise(s) for s in signal])
 
         near, far = self.discard_r[0], self.discard_r[1]
-        # 1 outside the discarded band, so the reported SNR there is the raw
-        # signal rather than a division by zero.
         noise = np.ones_like(signal)
         noise[:, near : s_r - far] = noise_r[:, near : s_r - far]
 
@@ -41,7 +38,7 @@ class CFAR(base.CFAR[np.ndarray]):
         return base.Detection(obj_mask, signal, snr)
 
 
-class CFARCASO(base.CFARCASO[np.ndarray]):
+class CASOCFAR(base.CASOCFAR[np.ndarray]):
     """Cell-averaging Smallest of CFAR."""
 
     def __init__(
@@ -53,8 +50,6 @@ class CFARCASO(base.CFARCASO[np.ndarray]):
     ) -> None:
         super().__init__(guard, train, snr_thresh, discard_range)
 
-        # Unlike the jax backend, which accumulates the one-sided means from
-        # shifted slices, scipy correlates against an explicit kernel.
         def make_caso_kernels(n_train, pad):
             ker = np.zeros((2 * pad + 1), dtype=np.float32)
             ker_a, ker_b = ker.copy(), ker.copy()
@@ -86,8 +81,7 @@ class CFARCASO(base.CFARCASO[np.ndarray]):
     def _cfar(
         self, signal_cube: Float[np.ndarray, "batch doppler channel range"]
     ) -> base.Detection[np.ndarray]:
-        # Non-coherent integration over the channel axis, offset by 1 so
-        # that an empty cell has unit power instead of dividing by zero.
+        # Offset by 1 to prevent division by zero for SNR calculations.
         signal = np.sum(signal_cube**2, axis=2).transpose(0, 2, 1) + 1
         batch, s_r, s_d = signal.shape
 
@@ -105,8 +99,6 @@ class CFARCASO(base.CFARCASO[np.ndarray]):
             signal, ((0, 0), (0, 0), (self.pad_d, self.pad_d)), mode="wrap"
         )
 
-        # detection: loop over (batch, doppler) rows for the range axis, and
-        # over (batch, range) rows for the doppler axis.
         detect_r = np.zeros((batch, s_r - near - far, s_d), dtype=bool)
         noise_r = np.zeros((batch, s_r - near - far, s_d), dtype=np.float32)
         for b in range(batch):
