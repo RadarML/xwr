@@ -3,9 +3,9 @@
 !!! info
 
     In addition to mirroring the functionality of
-    [`xwr.rsp.numpy`][xwr.rsp.numpy], this module also provides a range of
-    point cloud processing algorithms, mirroring
-    [`xwr.rsp.jax`][xwr.rsp.jax].
+    [`xwr.rsp.numpy`][xwr.rsp.numpy] and [`xwr.rsp.jax`][xwr.rsp.jax], this
+    module also provides a range of point cloud processing algorithms,
+    mirroring both.
 
 !!! warning
 
