@@ -3,7 +3,6 @@
 from typing import Generic, TypeVar
 
 import jax
-import numpy as np
 from jax import numpy as jnp
 from jax.scipy.signal import convolve2d
 from jaxtyping import Array, Bool, Complex64, Float, Float32, Int16
@@ -24,19 +23,16 @@ from a `jax.jit`-ed function."""
 class CFAR(base.CFAR[Array]):
     """Cell-averaging CFAR."""
 
-    @staticmethod
-    def _asarray(x: Float[np.ndarray, "..."]) -> Float[Array, "..."]:
-        return jnp.asarray(x)
-
     def _noise(
         self, signal: Float[Array, "range doppler"]
     ) -> Float[Array, "range doppler"]:
         """Get the ring-averaged noise floor for a range-doppler image."""
+        mask = jnp.asarray(self.mask)
         # Jax currently only supports 'fill', but this should be changed to
         # 'wrap' if they ever decide to add support; the training cell count
         # is normalized out to compensate at the edges.
-        valid = convolve2d(jnp.ones_like(signal), self.mask, mode="same")
-        return convolve2d(signal, self.mask, mode="same") / valid
+        valid = convolve2d(jnp.ones_like(signal), mask, mode="same")
+        return convolve2d(signal, mask, mode="same") / valid
 
     def _cfar(
         self, signal_cube: Float[Array, "batch doppler channel range"]
