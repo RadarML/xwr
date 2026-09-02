@@ -6,10 +6,10 @@ from jaxtyping import Array, Bool, Float32, Int
 
 from xwr.rsp import aoa as base
 
+# Register [`DensePoints`][xwr.rsp.] as a pytree, so that it can be
+# returned from a `jax.jit`-ed function.
 jax.tree_util.register_dataclass(
     base.DensePoints, data_fields=["mask", "points"], meta_fields=[])
-"""Register [`DensePoints`][xwr.rsp.] as a pytree, so that it can be
-returned from a `jax.jit`-ed function."""
 
 
 class PointCloud(base.PointCloud[Array]):

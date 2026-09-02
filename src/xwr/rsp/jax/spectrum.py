@@ -14,10 +14,10 @@ from .rsp import RSPJax
 
 TRSP = TypeVar("TRSP", bound=RSPJax)
 
+# Rgister [`Detection`][xwr.rsp.] as a pytree, so that it can be
+# returned from a `jax.jit`-ed function.
 jax.tree_util.register_dataclass(
     base.Detection, data_fields=["mask", "signal", "snr"], meta_fields=[])
-"""Register [`Detection`][xwr.rsp.] as a pytree, so that it can be returned
-from a `jax.jit`-ed function."""
 
 
 class CACFAR(base.CACFAR[Array]):
