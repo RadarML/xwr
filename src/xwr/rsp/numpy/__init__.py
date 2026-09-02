@@ -32,7 +32,7 @@
 from jaxtyping import install_import_hook
 
 with install_import_hook("xwr.rsp.numpy", "beartype.beartype"):
-    from .aoa import PointCloud  # noqa: I001
+    from .aoa import PointCloud
     from .rsp import (
         AWR1843AOP,
         AWR2944EVM,
