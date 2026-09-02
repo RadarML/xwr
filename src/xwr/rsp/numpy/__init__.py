@@ -1,12 +1,5 @@
 """Radar Signal Processing in Numpy.
 
-!!! info
-
-    In addition to mirroring the functionality of
-    [`xwr.rsp.jax`][xwr.rsp.jax] and [`xwr.rsp.torch`][xwr.rsp.torch], this
-    module also provides a range of point cloud processing algorithms,
-    mirroring both.
-
 !!! tip
 
     We use [pyfftw](https://pyfftw.readthedocs.io/en/latest/index.html)
