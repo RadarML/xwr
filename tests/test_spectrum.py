@@ -1,0 +1,335 @@
+"""Detector (CACFAR / CASOCFAR) tests."""
+
+import jax.numpy as jnp
+import numpy as np
+import pytest
+import torch
+
+from xwr.rsp import jax as rspj
+from xwr.rsp import numpy as rspn
+from xwr.rsp import torch as rspt
+
+# (batch, doppler, tx, rx, range) of the synthetic cubes used here.
+SHAPE = (1, 16, 3, 4, 64)
+TARGET = (30, 5)
+"""Injected target, as a (range, doppler) bin index."""
+
+
+def _target_cube(amplitude: float = 50.0, seed: int = 0) -> np.ndarray:
+    """Low-amplitude noise floor with a single strong target."""
+    rng = np.random.default_rng(seed)
+    cube = rng.random(SHAPE).astype(np.float32) * 0.1 + 0.1
+    cube[:, TARGET[1], :, :, TARGET[0]] = amplitude
+    return cube
+
+
+def _signal(cube: np.ndarray) -> np.ndarray:
+    """Reference non-coherent integration: (batch, range, doppler)."""
+    return (cube.astype(np.float64) ** 2).sum(axis=(2, 3)).transpose(0, 2, 1) + 1
+
+
+def _ring_noise(signal: np.ndarray, guard, window) -> np.ndarray:
+    """Reference ring-averaged noise floor, by explicit summation.
+
+    Zero-padded at the edges and normalized by the number of in-bounds
+    training cells, matching both backends' `valid` normalization.
+    """
+    (g0, g1), (w0, w1) = guard, window
+    mask = np.ones((2 * w0 + 1, 2 * w1 + 1))
+    mask[w0 - g0: w0 + g0 + 1, w1 - g1: w1 + g1 + 1] = 0.0
+
+    s_r, s_d = signal.shape
+    noise = np.zeros_like(signal)
+    for i in range(s_r):
+        for j in range(s_d):
+            total, count = 0.0, 0.0
+            for di in range(-w0, w0 + 1):
+                for dj in range(-w1, w1 + 1):
+                    if mask[di + w0, dj + w1] == 0:
+                        continue
+                    if 0 <= i + di < s_r and 0 <= j + dj < s_d:
+                        total += signal[i + di, j + dj]
+                        count += 1
+            noise[i, j] = total / count
+    return noise
+
+
+def _numpy(*arrays):
+    """Convert jax arrays or torch tensors to numpy."""
+    return tuple(
+        x.numpy() if isinstance(x, torch.Tensor) else np.asarray(x)
+        for x in arrays)
+
+
+def _run(backend, detector, cube: np.ndarray, **kwargs):
+    """Run a detector on `cube` in the given backend, returning numpy."""
+    module = {"jax": rspj, "torch": rspt, "numpy": rspn}[backend]
+    if backend == "jax":
+        data = jnp.array(cube)
+    elif backend == "torch":
+        data = torch.from_numpy(cube)
+    else:
+        data = cube
+    out = getattr(module, detector)(**kwargs)(data)
+    return _numpy(out.mask, out.signal, out.snr)
+
+
+BACKENDS = ["jax", "torch", "numpy"]
+
+CACFAR_PARAMS = [
+    {"guard": (2, 2), "train": (2, 2), "snr_thresh": 5.0,
+     "discard_range": (10, 20)},
+    {"guard": (1, 1), "train": (2, 1), "snr_thresh": 2.0,
+     "discard_range": (4, 6)},
+    # far=0: `signal[near:-far]` would slice to empty; regression for the
+    # jax/torch divergence.
+    {"guard": (2, 2), "train": (2, 2), "snr_thresh": 5.0,
+     "discard_range": (4, 0)},
+    {"guard": (0, 0), "train": (2, 2), "snr_thresh": 3.0,
+     "discard_range": (0, 0)},
+]
+
+CASO_PARAMS = [
+    {"train": (8, 4), "guard": (8, 0), "snr_thresh": (5.0, 3.0),
+     "discard_range": (10, 20)},
+    {"train": (4, 2), "guard": (2, 0), "snr_thresh": (2.0, 1.5),
+     "discard_range": (4, 6)},
+    {"train": (4, 2), "guard": (2, 0), "snr_thresh": (5.0, 3.0),
+     "discard_range": (4, 0)},
+    {"train": (4, 2), "guard": (2, 0), "snr_thresh": (5.0, 3.0),
+     "discard_range": (0, 0)},
+]
+
+
+# ---------------------------------------------------------------------------
+# Cross-backend parity
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("kwargs", CACFAR_PARAMS)
+def test_cfar_parity(kwargs):
+    """All backends' CACFAR must agree; they mirror the same algorithm."""
+    cube = _target_cube()
+    results = {b: _run(b, "CACFAR", cube, **kwargs) for b in BACKENDS}
+    mask0, signal0, snr0 = results[BACKENDS[0]]
+    for backend in BACKENDS[1:]:
+        mask, signal, snr = results[backend]
+        assert np.array_equal(mask0, mask)
+        assert np.allclose(signal0, signal, atol=1e-4)
+        assert np.allclose(snr0, snr, rtol=1e-4)
+
+
+@pytest.mark.parametrize("kwargs", CASO_PARAMS)
+def test_caso_parity(kwargs):
+    """All backends' CASOCFAR must agree."""
+    cube = _target_cube()
+    results = {b: _run(b, "CASOCFAR", cube, **kwargs) for b in BACKENDS}
+    mask0, signal0, snr0 = results[BACKENDS[0]]
+    for backend in BACKENDS[1:]:
+        mask, signal, snr = results[backend]
+        assert np.array_equal(mask0, mask)
+        assert np.allclose(signal0, signal, atol=1e-4)
+        assert np.allclose(snr0, snr, rtol=1e-4)
+
+
+# ---------------------------------------------------------------------------
+# Detection correctness
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.mark.parametrize("detector", ["CACFAR", "CASOCFAR"])
+def test_detects_only_the_target(backend, detector):
+    """An isolated strong target is the one and only detection."""
+    cube = _target_cube()
+    kwargs = (
+        {"guard": (2, 2), "train": (2, 2), "snr_thresh": 5.0,
+         "discard_range": (10, 20)}
+        if detector == "CACFAR" else
+        {"train": (4, 2), "guard": (2, 0),
+         "snr_thresh": (5.0, 3.0), "discard_range": (10, 20)})
+
+    mask, _, snr = _run(backend, detector, cube, **kwargs)
+
+    assert mask[0, TARGET[0], TARGET[1]]
+    # One detection per batch element, and nowhere else.
+    assert np.array_equal(
+        np.argwhere(mask), [[0, TARGET[0], TARGET[1]]])
+    assert snr[0, TARGET[0], TARGET[1]] > 5.0
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.mark.parametrize("detector", ["CACFAR", "CASOCFAR"])
+def test_integrated_signal(backend, detector):
+    """`signal` is the non-coherent sum over the virtual array, plus one."""
+    cube = _target_cube()
+    kwargs = (
+        {"discard_range": (10, 20)} if detector == "CACFAR" else
+        {"train": (4, 2), "guard": (2, 0),
+         "discard_range": (10, 20)})
+
+    _, signal, _ = _run(backend, detector, cube, **kwargs)
+
+    assert signal.shape == (SHAPE[0], SHAPE[4], SHAPE[1])
+    assert np.allclose(signal, _signal(cube), rtol=1e-5)
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.mark.parametrize("detector", ["CACFAR", "CASOCFAR"])
+def test_discard_band(backend, detector):
+    """Discarded range bins never detect, and are assigned unit noise."""
+    near, far = 10, 20
+    cube = _target_cube()
+    # Put a second target inside the discarded band; it must not fire.
+    cube[:, TARGET[1], :, :, near - 1] = 50.0
+    kwargs = (
+        {"discard_range": (near, far)} if detector == "CACFAR" else
+        {"train": (4, 2), "guard": (2, 0),
+         "discard_range": (near, far)})
+
+    mask, signal, snr = _run(backend, detector, cube, **kwargs)
+    s_r = signal.shape[1]
+
+    assert not mask[:, :near].any()
+    assert not mask[:, s_r - far:].any()
+    # noise == 1 outside the band, so snr is the raw integrated signal.
+    assert np.allclose(snr[:, :near], signal[:, :near], rtol=1e-5)
+    assert np.allclose(snr[:, s_r - far:], signal[:, s_r - far:], rtol=1e-5)
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_cfar_noise_floor(backend):
+    """The CACFAR ring noise floor matches an explicit numpy reference."""
+    guard, train = (1, 1), (1, 1)
+    window = (guard[0] + train[0], guard[1] + train[1])
+    cube = _target_cube()
+    # No discarded band, so every bin exercises the ring average.
+    _, signal, snr = _run(
+        backend, "CACFAR", cube, guard=guard, train=train,
+        discard_range=(0, 0))
+
+    expected = _ring_noise(_signal(cube)[0], guard, window)
+    assert np.allclose(signal[0] / snr[0], expected, rtol=1e-4)
+
+
+# ---------------------------------------------------------------------------
+# Input shapes
+# ---------------------------------------------------------------------------
+
+DEFAULT_PARAMS = {
+    "CACFAR": {"guard": (2, 2), "train": (2, 2), "snr_thresh": 5.0,
+             "discard_range": (10, 20)},
+    "CASOCFAR": {"train": (4, 2), "guard": (2, 0),
+                 "snr_thresh": (5.0, 3.0), "discard_range": (10, 20)},
+}
+
+
+def _assert_same(ref, got):
+    """The two `(mask, signal, snr)` triples must match."""
+    mask0, signal0, snr0 = ref
+    mask, signal, snr = got
+    assert np.array_equal(mask0, mask)
+    assert np.allclose(signal0, signal, atol=1e-4)
+    assert np.allclose(snr0, snr, rtol=1e-4)
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.mark.parametrize("detector", ["CACFAR", "CASOCFAR"])
+def test_angle_cube(backend, detector):
+    """An angle spectrum is integrated like a virtual array cube.
+
+    The axes between doppler and range are flattened, so how the channels are
+    split across them cannot matter: the same values as `3 x 4` virtual
+    elements or `2 x 6` angle bins must detect identically.
+    """
+    cube = _target_cube()
+    kwargs = DEFAULT_PARAMS[detector]
+    angle = cube.reshape(SHAPE[0], SHAPE[1], 2, 6, SHAPE[4])
+
+    _assert_same(
+        _run(backend, detector, cube, **kwargs),
+        _run(backend, detector, angle, **kwargs))
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.mark.parametrize("detector", ["CACFAR", "CASOCFAR"])
+def test_range_doppler_image(backend, detector):
+    """A range-doppler image is treated as a single-channel cube."""
+    image = _target_cube()[:, :, 0, 0]
+    kwargs = DEFAULT_PARAMS[detector]
+
+    ref = _run(backend, detector, image[:, :, None, None], **kwargs)
+    got = _run(backend, detector, image, **kwargs)
+
+    _assert_same(ref, got)
+    assert got[0][0, TARGET[0], TARGET[1]]
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.mark.parametrize("shape", [
+    (SHAPE[1], SHAPE[4]),                       # unbatched image
+    (SHAPE[1], SHAPE[2], SHAPE[3], SHAPE[4]),   # unbatched cube
+    (*SHAPE, 2),                                # one axis too many
+])
+def test_invalid_rank(backend, shape):
+    """Only 3 and 5 axis inputs match one of the accepted shapes."""
+    with pytest.raises(TypeError):
+        _run(
+            backend, "CACFAR", np.zeros(shape, dtype=np.float32),
+            discard_range=(2, 2))
+
+
+# ---------------------------------------------------------------------------
+# Constructor validation
+# ---------------------------------------------------------------------------
+
+@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.mark.parametrize("kwargs", [
+    {"train": (0, 0)},                          # no training cells left
+    {"guard": (2, 2, 2)},                       # wrong length
+    {"train": (2, 2, 2)},                       # wrong length
+    {"discard_range": (1, 2, 3)},               # wrong length
+    {"train": (-1, 2)},                         # negative
+    {"guard": (-1, 2)},                         # negative
+    {"discard_range": (-1, 20)},                # negative
+])
+def test_cfar_invalid(backend, kwargs):
+    """Bad CACFAR parameters are rejected at construction.
+
+    !!! note
+
+        `guard`/`train`/`discard_range` are all typed `tuple[int, int]`, so
+        a wrong-length value is rejected by beartype with a `TypeError`;
+        `train=(0, 0)` is a manual `ValueError` (empty CACFAR mask).
+
+    A negative `guard` or `train` is rejected rather than silently corrupting
+    the kernel: the derived half-width `guard + train` would fall below
+    `guard`, so the guard region wraps to the far edge and the cell under
+    test is never excluded from its own noise estimate.
+    """
+    module = {"jax": rspj, "torch": rspt, "numpy": rspn}[backend]
+    with pytest.raises((ValueError, TypeError)):
+        module.CACFAR(**kwargs)
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+@pytest.mark.parametrize("kwargs", [
+    {"train": (8, 4, 2)},
+    {"guard": (8, 0, 1)},
+    {"discard_range": (1, 2, 3)},
+    {"snr_thresh": (5.0, 3.0, 1.0)},
+    {"train": (0, 4)},                          # divides by train
+    {"train": (-1, 4)},                         # negative
+    {"guard": (-1, 0)},                         # negative
+    {"discard_range": (-1, 20)},                # negative
+])
+def test_caso_invalid(backend, kwargs):
+    """Bad CASOCFAR parameters are rejected at construction.
+
+    !!! note
+
+        `train`, `guard`, `snr_thresh`, and `discard_range`
+        are all typed as fixed-length tuples, so a wrong-length value is
+        rejected by beartype with a `TypeError`.
+    """
+    module = {"jax": rspj, "torch": rspt, "numpy": rspn}[backend]
+    with pytest.raises((ValueError, TypeError)):
+        module.CASOCFAR(**kwargs)
