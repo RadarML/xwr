@@ -47,9 +47,19 @@ To use the RSP:
 from jaxtyping import install_import_hook
 
 with install_import_hook("xwr.rsp", "beartype.beartype"):
+    from .aoa import DensePoints, PointCloud
     from .generic import RSP, iq_from_iiqq, iqiq_from_iiqq
+    from .spectrum import (
+        CACFAR,
+        CASOCFAR,
+        CFAR,
+        Detection,
+        SignalCube,
+    )
 
 
 __all__ = [
-    "RSP", "iq_from_iiqq", "iqiq_from_iiqq"
+    "RSP", "iq_from_iiqq", "iqiq_from_iiqq",
+    "CACFAR", "CASOCFAR", "CFAR", "Detection", "SignalCube",
+    "PointCloud", "DensePoints"
 ]
