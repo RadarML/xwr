@@ -32,7 +32,7 @@ with install_import_hook("xwr.rsp.jax", "beartype.beartype"):
         AWR1843Boost,
         RSPJax,
     )
-    from .spectrum import CFAR, CFARCASO, CalibratedSpectrum
+    from .spectrum import CACFAR, CASOCFAR, CalibratedSpectrum
 
 __all__ = [
     "AWR1642Boost",
@@ -41,8 +41,8 @@ __all__ = [
     "AWR2944EVM",
     "AWRL6844EVM",
     "RSPJax",
-    "CFAR",
-    "CFARCASO",
+    "CACFAR",
+    "CASOCFAR",
     "CalibratedSpectrum",
     "PointCloud"
 ]

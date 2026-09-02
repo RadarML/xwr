@@ -15,7 +15,7 @@ from roverd.sensors.radar import RadarMetadata
 from tqdm import tqdm
 
 from xwr.rsp import RSP, iq_from_iiqq
-from xwr.rsp.jax import CFARCASO, AWR1843Boost, PointCloud
+from xwr.rsp.jax import CASOCFAR, AWR1843Boost, PointCloud
 
 
 def main(
@@ -51,7 +51,7 @@ def main(
         size={"azimuth": azimuth_size, "elevation": elevation_size},
         window={"range": True, "doppler": True},
     )
-    cfar = CFARCASO()
+    cfar = CASOCFAR()
     radar_pc = PointCloud(
         radar_cfg.range_resolution[0].item(),
         radar_cfg.doppler_resolution[0].item(),
@@ -62,10 +62,12 @@ def main(
         cube_rd = rsp.doppler_range(iq)
         cube = rsp.elevation_azimuth(cube_rd)
 
-        rd_mask, sig, snr = cfar.__call__(jnp.abs(cube_rd.squeeze()))
-        pc_mask, pc = radar_pc.__call__(jnp.abs(cube.squeeze()), rd_mask)
+        detection = cfar.__call__(jnp.abs(cube_rd.squeeze()))
+        points = radar_pc.__call__(
+            jnp.abs(cube.squeeze()), detection.mask)
 
-        return rd_mask, cube_rd.squeeze(), pc_mask, pc
+        return (
+            detection.mask, cube_rd.squeeze(), points.mask, points.points)
 
     cmap = plt.get_cmap("hot")
     rr.init("radar_vis")
