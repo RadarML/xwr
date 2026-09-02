@@ -43,6 +43,14 @@ To use the RSP:
         Use [`xwr.rsp.RSP`][xwr.rsp.RSP] as the type for a generic RSP, and
         `RSP[np.ndarray]`, `RSP[jax.Array]`, `RSP[torch.Tensor]`, etc for a
         RSP with a specific backend.
+
+4. If point cloud processing is desired, use the matching `CFAR` class for your
+    backend.
+
+    !!! note
+
+        We currently provide implementations of `CA-CFAR` and `CFAR-CASO`
+        for each backend.
 """
 from jaxtyping import install_import_hook
 

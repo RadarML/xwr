@@ -10,7 +10,7 @@ allow-direct-references = true
 
 [project]
 name = "xwr"
-version = "0.4.4"
+version = "0.5.0"
 authors = [
   { name="Tianshu Huang", email="tianshu2@andrew.cmu.edu" },
 ]
