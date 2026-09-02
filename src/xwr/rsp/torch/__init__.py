@@ -2,7 +2,7 @@
 
 !!! info
 
-    This module mirrors the functionality of [`xwr.rsp.numpy`][xwr.rsp.numpy].
+    This moduel mirrors the functionality of [`xwr.rsp.numpy`][xwr.rsp.numpy].
 
 !!! warning
 
@@ -25,6 +25,7 @@
 from jaxtyping import install_import_hook
 
 with install_import_hook("xwr.rsp.torch", "beartype.beartype"):
+    from .aoa import PointCloud
     from .rsp import (
         AWR1843AOP,
         AWR2944EVM,
@@ -33,7 +34,7 @@ with install_import_hook("xwr.rsp.torch", "beartype.beartype"):
         AWR1843Boost,
         RSPTorch,
     )
-
+    from .spectrum import CACFAR, CASOCFAR
 
 __all__ = [
     "AWR1642Boost",
@@ -42,4 +43,7 @@ __all__ = [
     "AWR2944EVM",
     "AWRL6844EVM",
     "RSPTorch",
+    "CACFAR",
+    "CASOCFAR",
+    "PointCloud"
 ]
