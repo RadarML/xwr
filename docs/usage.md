@@ -142,13 +142,13 @@ As a general guideline:
 With [`uv` installed](https://docs.astral.sh/uv/getting-started/installation/) and the XWR repository cloned:
 ```sh
 cd demo
-uv run demo.py --device AWR1843 --rsp AWR1843
+uv run demo.py --device AWR1843 --rsp AWR1843Boost
 ```
 
 !!! info
 
     Replace the `--device` and `--rsp` with specifications according to your radar development board.
-    
+
     - `--device` should be the name of a class in [`xwr.radar`][xwr.radar]
     - `--rsp` should be the name of a class in [`xwr.rsp`][xwr.rsp.numpy]
 
