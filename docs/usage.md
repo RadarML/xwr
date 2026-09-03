@@ -141,19 +141,25 @@ As a general guideline:
 
 With [`uv` installed](https://docs.astral.sh/uv/getting-started/installation/) and the XWR repository cloned:
 ```sh
-uv run demo/demo.py --extra demo --device AWR1843 --rsp AWR1843
+cd demo
+uv run demo.py --device AWR1843 --rsp AWR1843
 ```
 
 !!! info
 
-    Replace the `--device` and `--rsp` with specifications according to your radar development board:
+    Replace the `--device` and `--rsp` with specifications according to your radar development board.
+    
+    - `--device` should be the name of a class in [`xwr.radar`][xwr.radar]
+    - `--rsp` should be the name of a class in [`xwr.rsp`][xwr.rsp.numpy]
 
     | Radar                   | `--device` | `--rsp`         |
     |-------------------------|------------|-----------------|
+    | AWR1642Boost            | AWR1642    | AWR1642Boost    |
     | AWR1843Boost            | AWR1843    | AWR1843Boost    |
     | AWR1843Boost, 1642 Mode | AWR1843L   | AWR1642Boost    |
     | AWR1843AOPEVM           | AWR1843    | AWR1843AOP      |
-    | AWR1642Boost            | AWR1642    | AWR1642Boost    |
+    | AWR2944EVM              | AWR2944    | AWR2944EVM      |
+    | AWRL6844EVM             | AWRL6844   | AWRL6844EVM     |
 
 ![Spectrum Demo](images/demo.png)
 

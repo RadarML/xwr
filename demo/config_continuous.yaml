@@ -1,0 +1,21 @@
+# Continuous chirp configuration (frame_length=1; slow time handled in software)
+radar:  # -> AWRConfig
+  port: null  # auto-detect
+  frequency: 77.0
+  idle_time: 20.0 # 20.0
+  adc_start_time: 3.0
+  # adc_start_time + sample_time (128 / 2500 * 1000) + 2.0us guard buffer
+  ramp_end_time: 56.20
+  tx_start_time: 1.0
+  # 4000 MHz / ramp_end_time -> the whole chirp sweeps just under 4GHz total,
+  # since the hardware bounds the full ramp (not just the sampled window)
+  freq_slope: 71.174
+  adc_samples: 128
+  sample_rate: 2500
+  frame_length: 1
+  frame_period: 0.8
+capture:  # -> DCAConfig
+  sys_ip: 192.168.33.30
+  fpga_ip: 192.168.33.180
+  data_port: 4098
+  config_port: 4096
