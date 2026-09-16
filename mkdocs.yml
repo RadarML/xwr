@@ -1,4 +1,5 @@
 site_name: XWR
+site_url: https://radarml.github.io/xwr
 repo_url: https://github.com/RadarML/xwr
 repo_name: RadarML/xwr
 nav:
@@ -65,6 +66,40 @@ theme:
 plugins:
 - search
 - autorefs
+- llmstxt:
+    full_output: llms-full.txt
+    markdown_description: |
+      `xwr` is a python library for real-time raw (I/Q) data capture from TI
+      mmWave radars on linux. It provides a high-level capture system which
+      configures and streams 4D spectrum data from a TI XWR radar paired with a
+      DCA1000EVM capture card, a documented and type-annotated low-level
+      interface to both the radar firmware and the capture card, a radar signal
+      processing library with numpy, pytorch, and jax backends, and a
+      preprocessing toolkit for neural network training.
+    sections:
+      "XWR":
+      - index.md: Project overview, supported hardware, and installation
+      - usage.md: User guide for operating system setup, radar configuration, and capturing data
+      - setup.md: Hardware setup for the DCA1000EVM capture card and supported TI radar development boards
+      - develop.md: Development environment setup, testing, and documentation
+      - system.md: High level API - the XWRSystem capture interface and its XWRConfig/DCAConfig configuration
+      - constraints.md: Documented and enforced constraints on radar configurations
+      - ros.md: ROS 2 node wrapping the XWR data collection pipeline
+      - firmware.md: Custom radar firmware versions and flashing instructions
+      "Radar Processing":
+      - rsp/index.md: Radar signal processing for batched 4D spectrum, and backend-agnostic types
+      - rsp/numpy.md: Numpy (pyfftw-backed) radar signal processing implementation
+      - rsp/torch.md: Pytorch radar signal processing implementation
+      - rsp/jax.md: Jax radar signal processing implementation
+      - nn/index.md: Radar preprocessing and data augmentation toolkit for neural network training
+      "Low Level API: Capture Card":
+      - dca/api.md: DCA1000EVM capture card interface and real-time streaming implementation
+      - dca/defines.md: DCA1000EVM constants, enums, and other definitions
+      - dca/types.md: DCA1000EVM API data types and packet parsing
+      "Low Level API: Radar":
+      - radar/api.md: Parameterized python interface for the TI demo MSS firmware
+      - radar/defines.md: TI radar demo firmware common API defines
+      - radar/common.md: Raw, individually documented radar firmware commands
 - mkdocstrings:
     default_handler: python_xref
     handlers:
