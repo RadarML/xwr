@@ -20,8 +20,8 @@ This module documents and enforces known constraints on radar configurations.
 | [`AdcSamplesPowerOfTwo`][.] | ADC samples: power of 2 |
 | [`MaxSampleRate`][.] | ADC sample rate ≤ device maximum |
 | [`MinSampleRate`][.] | ADC sample rate ≥ device minimum |
-| [`FrequencyRange`][.] | Start/end frequency within device RF band |
-| [`MaxBandwidth`][.] | Chirp bandwidth ≤ device RF maximum |
+| [`FrequencyRange`][.] | Entire swept ramp within device RF band |
+| [`MaxBandwidth`][.] | Swept ramp bandwidth ≤ device RF maximum |
 | [`NetworkUtilization`][.] | Radar throughput < 80% of capture |
 | [`ReceiveBuffer`][.] | Receive buffer must hold ≥ 2 radar frames |
 """
@@ -284,10 +284,18 @@ class MinSampleRate(Constraint):
 
 
 class FrequencyRange(Constraint):
-    """Start and end frequencies must lie within the device RF band.
+    """Every frequency the ramp reaches must lie within the device RF band.
 
-    Both the start frequency and the end frequency
-    (`start_freq + bandwidth / 1000`) are checked against per-device limits:
+    The synthesizer ramps for the whole of `ramp_end_time`, not only while
+    the ADC is sampling, so the span actually swept is
+
+        start_freq .. start_freq + ramp_bandwidth / 1000
+
+    where `ramp_bandwidth = freq_slope * ramp_end_time` (see
+    [`XWRConfig.ramp_bandwidth`][xwr.config.XWRConfig]). This is wider than
+    `start_freq + bandwidth / 1000`, which covers only the sampled window and
+    omits both `adc_start_time` and any excess ramp time. Both endpoints are
+    checked against per-device limits:
 
     | Device   | Min (GHz) | Max (GHz) |
     |----------|-----------|-----------|
@@ -313,27 +321,38 @@ class FrequencyRange(Constraint):
                 FrequencyRange, None,
                 f"not checked for {radar.device_name}")
         min_freq, max_freq = limits
-        start = radar.frequency
-        end = radar.frequency + radar.bandwidth / 1000
-        if start < min_freq:
+        low, high = radar.swept_frequency_range
+        if low < min_freq:
             return ConstraintCheck(
                 FrequencyRange, False,
-                f"start frequency {start:.3f} GHz < device minimum {min_freq} GHz")
-        if end > max_freq:
+                f"ramp reaches {low:.3f} GHz < device minimum {min_freq} GHz")
+        if high > max_freq:
             return ConstraintCheck(
                 FrequencyRange, False,
-                f"end frequency {end:.3f} GHz > device maximum {max_freq} GHz")
+                f"ramp reaches {high:.3f} GHz > device maximum {max_freq} GHz "
+                f"(sampled window ends at "
+                f"{radar.frequency + radar.bandwidth / 1000:.3f} GHz; the ramp "
+                f"continues for the whole of ramp_end_time)")
         return ConstraintCheck(
             FrequencyRange, True,
-            f"frequency range {start:.3f}–{end:.3f} GHz "
+            f"swept frequency range {low:.3f}–{high:.3f} GHz "
             f"(device band {min_freq}–{max_freq} GHz)")
 
 
 class MaxBandwidth(Constraint):
-    """Effective chirp bandwidth must not exceed the device RF limit.
+    """Swept chirp bandwidth must not exceed the device RF limit.
 
-    Bandwidth is computed as `freq_slope × T_s` (see
-    [`XWRConfig.bandwidth`][xwr.config.XWRConfig]).
+    The limit applies to the span the synthesizer traverses, which is
+    `freq_slope × ramp_end_time` (see
+    [`XWRConfig.ramp_bandwidth`][xwr.config.XWRConfig]), not the narrower
+    `freq_slope × T_s` sampled by the ADC: the ramp also runs during
+    `adc_start_time` and any excess ramp time, and the hardware sweeps that
+    whole span regardless of how much of it is digitized.
+
+    Whenever [`ExcessRampTime`][.] holds, the swept span is the wider of the
+    two. This check compares the wider span regardless, so that it can never
+    be weaker than a sampled-only check even for a configuration whose ADC
+    window nominally outruns its ramp.
 
     | Device   | Maximum  |
     |----------|----------|
@@ -356,12 +375,24 @@ class MaxBandwidth(Constraint):
             return ConstraintCheck(
                 MaxBandwidth, None,
                 f"not checked for {radar.device_name}")
-        passed = radar.bandwidth <= limit
-        detail = f"bandwidth = {radar.bandwidth:.1f} MHz, maximum = {limit:.0f} MHz"
-        if not passed:
+        swept = abs(radar.ramp_bandwidth)
+        sampled = abs(radar.bandwidth)
+        passed = max(swept, sampled) <= limit
+        detail = (
+            f"swept bandwidth = {swept:.1f} MHz "
+            f"(sampled {sampled:.1f} MHz), "
+            f"maximum = {limit:.0f} MHz")
+        if not passed and swept >= sampled:
             detail = (
-                f"bandwidth = {radar.bandwidth:.1f} MHz "
-                f"> device maximum {limit:.0f} MHz")
+                f"swept bandwidth = {swept:.1f} MHz "
+                f"> device maximum {limit:.0f} MHz "
+                f"(only {sampled:.1f} MHz is sampled, but the "
+                f"ramp sweeps the full span)")
+        elif not passed:
+            detail = (
+                f"sampled bandwidth = {sampled:.1f} MHz "
+                f"> device maximum {limit:.0f} MHz "
+                f"(the ramp sweeps only {swept:.1f} MHz; see ExcessRampTime)")
         return ConstraintCheck(MaxBandwidth, passed, detail)
 
 
