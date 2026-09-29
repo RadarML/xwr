@@ -279,15 +279,10 @@ class AWR2944P(AWR2944):
         - AWR2944PEVM
 
     The AWR2944P shares the RF front end, antenna layout, and LVDS interface
-    of the AWR2944; the only difference is that the AWR2x44P (like the
-    AWR2544) has a 25MHz ethernet oscillator clock output, so its `channelCfg`
-    takes two additional arguments `<ethOscClkEn> <driveStrength>` (see the
-    mmWave MCU+ SDK user guide). We leave the clock disabled.
-
-    !!! note
-
-        Tested with the mmWave MCU+ SDK `04.07.02.01` TDM demo
-        (`version` reports platform `AWR2X44P`).
+    of the AWR2944; the only difference is that the AWR2x44P has a 25MHz
+    ethernet oscillator clock output, so its `channelCfg` takes two additional
+    arguments `<ethOscClkEn> <driveStrength>` (see the mmWave MCU+ SDK user
+    guide), which we leave disabled.
 
     Args:
         port: radar control serial port; typically the lower numbered one.

@@ -52,9 +52,9 @@ def configure_channels(
         rx: RX channel bitmask, e.g. ``0b1111`` for 4 RX antennas.
         tx: TX channel bitmask, e.g. ``0b111`` for 3 TX antennas.
         eth_osc_clk: `(ethOscClkEn, driveStrength)` for the 25MHz ethernet
-            oscillator clock output. These two extra `channelCfg` arguments
-            exist only on the AWR2544 and AWR2x44P, which require them
-            (leave `None` for all other devices). `(0, 0)` disables the clock.
+            oscillator clock output (e.g., for the AWR2544 or AWR2x44P); set
+            `(0, 0)` to disable entirely, or leave `None` to omit this
+            command.
 
     Returns:
         A string containing multiple lines of commands to send.

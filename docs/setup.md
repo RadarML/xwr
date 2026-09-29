@@ -242,28 +242,66 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 
 !!! info "Firmware"
 
-    Install the [mmWave MCU Plus SDK](https://www.ti.com/tool/MMWAVE-MCUPLUS-SDK) (`04.07.02.01` or later; earlier versions do not support the AWR2944P). You will need two firmware files:
+    Install the [mmWave MCU Plus SDK](https://www.ti.com/tool/MMWAVE-MCUPLUS-SDK) (`04.07.00.01` or later; earlier versions do not support the AWR2944P). You will need two firmware files:
 
-    - `mmwave_mcuplus_sdk_{version}/ti/demo/awr294x/mmw/awr2944P_mmw_demoTDM.appimage`: main application image.
-    - `mmwave_mcuplus_sdk_{version}/tools/awr294x/sbl_qspi.release.tiimage`: bootloader image.
+    - `mmwave_mcuplus_sdk_{version}/ti/demo/awr2x44P/mmw_tdm/awr2x44P_mmw_demoTDM.appimage`: main application image.
+    - `mmwave_mcuplus_sdk_{version}/tools/awr2x44P/sbl_qspi.release.tiimage`: bootloader image.
 
-!!! warning "Same hardware caveats as the AWR2944EVM"
+!!! warning
 
-    The AWR2944PEVM is the same board design as the [AWR2944EVM](#awr2944evm): it needs the same two jumper caps for `SOP2:0`, and the same external 12v supply (do not mix it up with the DCA1000EVM's 5v supply).
+    Flashing the AWR2944PEVM requires two jumper caps or wires in order to physically short the required pins. One of these jumpers must remain on the board to set it to functional mode.
 
-!!! bug "TI UniFlash does not support the AWR2x44P"
+!!! warning "Requires External 12v Power"
 
-    Per TI, the UniFlash GUI cannot flash the AWR2944P; use the `uart_uniflash.py` script shipped with the MCU Plus SDK instead (`mcu_plus_sdk_awr294x_{version}/tools/boot/uart_uniflash.py`). See the [AWR2544LOPEVM](#awr2544lopevm) instructions for an example invocation.
+    The AWR2944PEVM requires external 12v power to operate, while the DCA1000EVM requires external 5v power.
 
-1. Prepare for flashing: identical to the [AWR2944EVM](#awr2944evm) (`SOP2:0=101`, USB to the XDS port, 12v power).
+    !!! danger "Both power supplies have the same barrel jack size, and mixing them up will immediately destroy the DCA1000EVM."
 
-2. Flash both images using `uart_uniflash.py`, selecting the serial port with description `XDS110 Class Application/User UART` (the lower-numbered `/dev/ttyACM*` on linux).
+    We recommend labeling the power supplies at the barrel jack end, as well as connecting the radar power supply first (so that if the radar does not power on, you know that you've mixed them up).
 
-3. Switch the radar to functional mode: remove the jumper on SOP2, so only a jumper on SOP0 remains (`SOP2:0=001`).
+1. Prepare for flashing.
 
-!!! note "CLI differences"
+    - Plug in a USB cable to the XDS port (on the right side).
+    - Find `SOP2:0`, and short SOP0 and SOP2 (`SOP2:0=101`). These are physical jumpers, which must be shorted using jumper caps or wires.
 
-    The AWR2x44P (like the AWR2544) has a 25MHz ethernet oscillator clock output, so its `channelCfg` takes two extra arguments, `<ethOscClkEn> <driveStrength>`. The RF front end and antenna array are unchanged, so the `AWR2944EVM` signal processing class still applies.
+2. Flash using the `uart_uniflash.py` script (see the [mmWave MCU Plus SDK user guide](https://dr-download-cdn.ti.com/software-development/software-development-kit-sdk/MD-U4MY7aGNn5/04.07.01.03/mmwave_mcuplus_sdk_user_guide.pdf)).
+
+    !!! bug
+
+        Flashing using TI Uniflash does not work; you must use the python script.
+
+    !!! note
+
+        These instructions use the script on Windows.
+
+    - Make sure you have `python` installed, along with `pyserial`, `xmodem`, `tqdm`:
+        ```sh
+        pip install pyserial xmodem tqdm
+        ```
+    - Set the correct device in `C:\ti\mmwave_mcuplus_sdk_{version}\mmwave_mcuplus_sdk_{version}\scripts\windows\setenv.bat` and ensure that all software versions are correct:
+        ```
+        set MMWAVE_SDK_DEVICE=awr2x44P
+        ```
+    - Set the environment variables by executing the script
+        ```
+        cd C:\ti\mmwave_mcuplus_sdk_{version}\mmwave_mcuplus_sdk_{version}\scripts\windows
+        setenv.bat
+        ```
+    - Find the COM port corresponding to the `XDS110 Class Application/User UART` port.
+    - Update the config in `C:\ti\mmwave_mcuplus_sdk_{version}\mmwave_mcuplus_sdk_{version}\tools\awr2x44P\default.cfg`:
+        ```diff
+        - --file=../../ti/utils/ccsdebug/awr2x44P_ccsdebug.appimage --operation=flash --flash-offset=0xA0000
+        + --file=../../ti/demo/awr2x44P/mmw_tdm/awr2x44P_mmw_demoTDM.appimage --operation=flash --flash-offset=0xA0000
+        ```
+    - Then, run the following (replacing `{COM Port}` with the radar board's COM port):
+        ```
+        cd %MMWAVE_SDK_INSTALL_PATH%\tools\awr2x44P
+        python %MCU_PLUS_AWR2X44P_INSTALL_PATH%\tools\boot\uart_uniflash.py -p {COM Port} --cfg=default.cfg
+        ```
+
+3. Switch the radar to functional mode.
+
+    - Remove the jumper on SOP2, so only a jumper on SOP0 remains (`SOP2:0=001`).
 
 ## AWRL6844EVM
 
@@ -401,7 +439,7 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
     - Make sure you have `python` installed, along with `pyserial`, `xmodem`, `tqdm`:
         ```sh
         pip install pyserial xmodem tqdm
-        ``` 
+        ```
 
     - Find the COM port corresponding to the `XDS110 Class Application/User UART` port.
     - Then, in `C:\ti\mmwave_mcuplus_sdk_04_07_00_01\mmwave_mcuplus_sdk_04_07_00_01\tools\awr2544`, run the following (replacing `COM5` with the radar board's COM port):
