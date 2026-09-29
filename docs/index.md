@@ -42,6 +42,7 @@
     - [:material-arrow-right: AWR1843AOPEVM](https://www.ti.com/tool/AWR1843AOPEVM)
     - [:material-arrow-right: AWR1642Boost](https://www.ti.com/tool/AWR1642BOOST)
     - [:material-arrow-right: AWR2944EVM](https://www.ti.com/tool/AWR2944EVM)
+    - [:material-arrow-right: AWR2944PEVM](https://www.ti.com/tool/AWR2944PEVM)
     - [:material-arrow-right: AWRL6844](https://www.ti.com/product/AWRL6844)
     - :construction_site: WIP: AWR2544LOPEVM
 

@@ -194,6 +194,9 @@ class AWR2944(XWRBase, common.APIMixins):
     _START_COMMAND = "sensorStart"
     _TX_MASK = 0b1111
     _RX_MASK = 0b1111
+    # `(ethOscClkEn, driveStrength)` for devices whose `channelCfg` takes
+    # these; see [`configure_channels`][xwr.radar.common.configure_channels].
+    _ETH_OSC_CLK: tuple[int, int] | None = None
     NUM_TX = 4
     NUM_RX = 4
     BYTES_PER_SAMPLE = 2
@@ -251,7 +254,9 @@ class AWR2944(XWRBase, common.APIMixins):
             framePeriodicity=frame_period,
             triggerSelect=1, frameTriggerDelay=0.0))
 
-        self.send(common.configure_channels(rx=self._RX_MASK, tx=self._TX_MASK))
+        self.send(common.configure_channels(
+            rx=self._RX_MASK, tx=self._TX_MASK,
+            eth_osc_clk=self._ETH_OSC_CLK))
         self.compRangeBiasAndRxChanPhase(rx_phase = [(1, 0)] * 4 * 4)
         self.lvdsStreamCfg()
 
@@ -264,6 +269,34 @@ class AWR2944(XWRBase, common.APIMixins):
         self.send(common.get_boilerplate())
 
         self.log.info("Radar setup complete.")
+
+
+class AWR2944P(AWR2944):
+    """Interface implementation for the TI AWR2944P.
+
+    !!! info "Supported devices"
+
+        - AWR2944PEVM
+
+    The AWR2944P shares the RF front end, antenna layout, and LVDS interface
+    of the AWR2944; the only difference is that the AWR2x44P has a 25MHz
+    ethernet oscillator clock output, so its `channelCfg` takes two additional
+    arguments `<ethOscClkEn> <driveStrength>` (see the mmWave MCU+ SDK user
+    guide), which we leave disabled.
+
+    Args:
+        port: radar control serial port; typically the lower numbered one.
+        baudrate: baudrate of control port.
+        name: human-readable name.
+    """
+
+    _ETH_OSC_CLK = (0, 0)
+
+    def __init__(
+        self, port: str | None = None, baudrate: int = 115200,
+        name: str = "AWR2944P"
+    ) -> None:
+        super().__init__(port=port, baudrate=baudrate, name=name)
 
 
 class AWRL6844(XWRBase):

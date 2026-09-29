@@ -21,7 +21,7 @@ from xwr.constraints import (
     ReceiveBuffer,
     check_config,
 )
-from xwr.radar import AWR1642, AWR1843, AWR1843L, AWR2944, AWRL6844
+from xwr.radar import AWR1642, AWR1843, AWR1843L, AWR2944, AWR2944P, AWRL6844
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -144,6 +144,16 @@ def test_cube_size_limit_awr2944_larger_buffer(radar):
     assert_passed(CubeSizeLimit.check(cfg))
 
 
+def test_cube_size_limit_awr2944p_larger_buffer(radar):
+    # AWR2944P has a 3 MiB limit (2-byte samples)
+    # frame_size = 128 * 4 * 4 * 512 * 2 = 2 MiB < 3 MiB
+    cfg = replace(radar, device=AWR2944P, frame_length=128, adc_samples=512)
+    assert_passed(CubeSizeLimit.check(cfg))
+    # frame_size = 256 * 4 * 4 * 512 * 2 = 4 MiB > 3 MiB
+    cfg = replace(radar, device=AWR2944P, frame_length=256, adc_samples=512)
+    assert_failed(CubeSizeLimit.check(cfg))
+
+
 def test_cube_size_limit_skip_unknown_device(radar):
     class CustomRadar(AWR1843):
         pass
@@ -189,6 +199,14 @@ def test_max_sample_rate_fail_awr1642(radar):
 
 def test_max_sample_rate_at_limit(radar):
     assert_passed(MaxSampleRate.check(replace(radar, sample_rate=25_000)))
+
+
+def test_max_sample_rate_awr2944p(radar):
+    # AWR2944P allows 45 Msps, AWR2944 only 37.5 Msps
+    cfg = replace(radar, device=AWR2944P, sample_rate=45_000)
+    assert_passed(MaxSampleRate.check(cfg))
+    cfg = replace(radar, device=AWR2944, sample_rate=45_000)
+    assert_failed(MaxSampleRate.check(cfg))
 
 
 def test_max_sample_rate_skip_unknown(radar):
@@ -262,8 +280,8 @@ def test_frequency_range_awrl6844_fail_end_too_high(radar):
 
 
 def test_frequency_range_all_76ghz_devices(radar):
-    # AWR1642, AWR1843, AWR2944 all use the 76-81 GHz band
-    for device in [AWR1642, AWR1843, AWR1843L, AWR2944]:
+    # AWR1642, AWR1843, AWR2944, AWR2944P all use the 76-81 GHz band
+    for device in [AWR1642, AWR1843, AWR1843L, AWR2944, AWR2944P]:
         assert_passed(FrequencyRange.check(replace(radar, device=device)))
 
 

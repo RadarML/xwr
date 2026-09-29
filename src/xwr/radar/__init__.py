@@ -27,9 +27,10 @@
 """
 
 from . import defines
-from .api import AWR1642, AWR1843, AWR1843L, AWR2944, AWRL6844
+from .api import AWR1642, AWR1843, AWR1843L, AWR2944, AWR2944P, AWRL6844
 from .base import XWRBase, XWRError
 
 __all__ = [
-    "defines", "AWR1642", "AWR1843", "AWR1843L", "AWR2944", "AWRL6844",
+    "defines", "AWR1642", "AWR1843", "AWR1843L", "AWR2944", "AWR2944P",
+    "AWRL6844",
     "XWRError", "XWRBase"]
