@@ -5,12 +5,15 @@ build-backend = "hatchling.build"
 [tool.hatch.build.hooks.custom]
 path = "hatch_build.py"
 
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "hatch_build.py"]
+
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [project]
 name = "xwr"
-version = "0.5.0"
+version = "0.5.1"
 authors = [
   { name="Tianshu Huang", email="tianshu2@andrew.cmu.edu" },
 ]
@@ -49,7 +52,9 @@ dev = [
     "coverage",
     "pytest-cov",
     "pyright >= 1.0.0",
-    "ruff >= 0.11.0"
+    "ruff >= 0.11.0",
+    "hatchling",
+    "setuptools",
 ]
 docs = [
     "abstract_dataloader >= 0.3.5",
@@ -66,6 +71,13 @@ docs = [
 Homepage = "https://github.com/RadarML/xwr"
 Documentation = "https://radarml.github.io/xwr"
 Issues = "https://github.com/RadarML/xwr/issues"
+
+[tool.cibuildwheel]
+# Linux-only (POSIX sockets); one wheel per CPython version since the C
+# extension uses the full (non-limited) Python and NumPy C APIs.
+build = "cp310-* cp311-* cp312-* cp313-* cp314-*"
+skip = "*-musllinux_*"
+test-command = "python -c 'import xwr.capture._fast'"
 
 [tool.ruff]
 line-length = 100

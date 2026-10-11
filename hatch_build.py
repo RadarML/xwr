@@ -1,6 +1,6 @@
 """Hatchling build hook: compile src/xwr/capture/_fast.c."""
 
-import glob
+import os
 import warnings
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
@@ -8,6 +8,10 @@ from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
 class CustomBuildHook(BuildHookInterface):
     def initialize(self, version: str, build_data: dict) -> None:
+        # Only compile for wheels; the sdist should ship the C source only.
+        if self.target_name != "wheel":
+            return
+
         try:
             import numpy as np
             from setuptools import Extension
@@ -46,7 +50,12 @@ class CustomBuildHook(BuildHookInterface):
             )
             return
 
-        # Tell hatchling to include the compiled .so in the wheel.
-        for so in glob.glob("src/xwr/capture/_fast*.so"):
-            build_data["artifacts"].append(so)
-            build_data["force_include"][so] = so
+        # Tell hatchling to include the compiled .so in the wheel, and tag the
+        # wheel as platform/interpreter-specific (e.g. cp312-cp312-linux_x86_64).
+        # Use the exact output path so stale builds for other interpreters
+        # (left in-place in src/) are not picked up.
+        so = os.path.relpath(cmd.get_ext_fullpath(ext.name))
+        build_data["artifacts"].append(so)
+        build_data["force_include"][so] = os.path.relpath(so, "src")
+        build_data["pure_python"] = False
+        build_data["infer_tag"] = True
