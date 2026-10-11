@@ -10,7 +10,7 @@ allow-direct-references = true
 
 [project]
 name = "xwr"
-version = "0.5.0"
+version = "0.5.1"
 authors = [
   { name="Tianshu Huang", email="tianshu2@andrew.cmu.edu" },
 ]
@@ -66,6 +66,13 @@ docs = [
 Homepage = "https://github.com/RadarML/xwr"
 Documentation = "https://radarml.github.io/xwr"
 Issues = "https://github.com/RadarML/xwr/issues"
+
+[tool.cibuildwheel]
+# Linux-only (POSIX sockets); one wheel per CPython version since the C
+# extension uses the full (non-limited) Python and NumPy C APIs.
+build = "cp310-* cp311-* cp312-* cp313-* cp314-*"
+skip = "*-musllinux_*"
+test-command = "python -c 'import xwr.capture._fast'"
 
 [tool.ruff]
 line-length = 100

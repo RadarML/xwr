@@ -1,0 +1,75 @@
+# Build wheels (one per CPython version and Linux architecture) and the sdist,
+# check that the C extension imports, and publish: to PyPI when a GitHub
+# release is published, and to TestPyPI when run manually. Publishing uses
+# PyPI trusted publishing (no API token).
+name: Release
+
+on:
+  release:
+    types: [ published ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wheels:
+    name: wheels (${{ matrix.runner }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ ubuntu-24.04, ubuntu-24.04-arm ]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build and test wheels
+        uses: pypa/cibuildwheel@v4.3.1
+        with:
+          output-dir: dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.runner }}
+          path: dist
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Build sdist
+        run: uv build --sdist --out-dir dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-sdist
+          path: dist
+
+  publish:
+    needs: [ wheels, sdist ]
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event_name == 'release' && 'pypi' || 'testpypi' }}
+    permissions:
+      id-token: write  # trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          merge-multiple: true
+          path: dist
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Publish to PyPI
+        if: github.event_name == 'release'
+        run: uv publish --trusted-publishing always dist/*
+
+      - name: Publish to TestPyPI
+        if: github.event_name != 'release'
+        run: >
+          uv publish --trusted-publishing always
+          --publish-url https://test.pypi.org/legacy/ dist/*
