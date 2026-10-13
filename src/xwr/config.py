@@ -47,7 +47,15 @@ class XWRConfig:
         chirp_time: *(derived)* Per-TX antenna inter-chirp time T_c, in microseconds.
         frame_time: *(derived)* Total radar frame time, in ms.
         sample_time: *(derived)* Total sampling time T_s, in us.
-        bandwidth: *(derived)* Effective bandwidth, in MHz.
+        bandwidth: *(derived)* Sampled bandwidth, in MHz; the span swept
+            while the ADC is actually sampling. This is the bandwidth which
+            sets the range resolution.
+        ramp_bandwidth: *(derived)* Total bandwidth swept by the chirp ramp,
+            in MHz. Always at least `bandwidth`, since the ramp also runs
+            during `adc_start_time` and any excess ramp time. This is the
+            span the synthesizer traverses, so device RF limits apply to it.
+        swept_frequency_range: *(derived)* `(low, high)` frequencies actually
+            reached by the ramp, in GHz.
         range_resolution: *(derived)* Range resolution, in m.
         max_range: *(derived)* Maximum range, in m.
         wavelength: *(derived)* Center wavelength, in m.
@@ -122,6 +130,16 @@ class XWRConfig:
     @property
     def bandwidth(self) -> float:
         return self.freq_slope * self.sample_time
+
+    @property
+    def ramp_bandwidth(self) -> float:
+        return self.freq_slope * self.ramp_end_time
+
+    @property
+    def swept_frequency_range(self) -> tuple[float, float]:
+        start = self.frequency
+        end = self.frequency + self.ramp_bandwidth / 1000
+        return (min(start, end), max(start, end))
 
     @property
     def range_resolution(self) -> float:
