@@ -230,6 +230,9 @@ class RSP(ABC, Generic[TArray]):
             If an axis is not spacified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     SAMPLE_TYPE: Literal["IQ", "I"] = "IQ"
@@ -240,6 +243,7 @@ class RSP(ABC, Generic[TArray]):
         size: Mapping[
             Literal["range", "doppler", "azimuth", "elevation"], int] = {},
         sample_swap: bool = False,
+        doppler_correction: bool = False,
     ) -> None:
         self.window: dict[
             Literal["range", "doppler", "azimuth", "elevation"], bool]
@@ -255,6 +259,7 @@ class RSP(ABC, Generic[TArray]):
 
         self.size = size
         self.sample_swap = sample_swap
+        self._doppler_correction = doppler_correction
 
     @abstractmethod
     def fft(
@@ -327,6 +332,47 @@ class RSP(ABC, Generic[TArray]):
 
         return rd
 
+    @staticmethod
+    @abstractmethod
+    def doppler_correction(
+        rd: Complex64[TArray, "#batch doppler tx rx range"]
+    ) -> Complex64[TArray, "#batch doppler tx rx range"]:
+        """Compensate the Doppler-induced phase shift across TDM-MIMO TXs.
+
+        In TDM-MIMO, TX antennas transmit one after another within each chirp
+        loop, so a moving target picks up an extra phase on the `t`-th TX of
+        `2 * pi * f * t / N_tx`, where `f` is its Doppler frequency in cycles
+        per loop. This multiplies each (doppler bin, TX) by the conjugate
+        phase:
+        ```
+        rd[:, k, t] *= exp(-2j * pi * (k - D // 2) / D * t / N_tx)
+        ```
+
+        !!! info
+
+            This is applied by [`__call__`][xwr.rsp.RSP.__call__] only when
+            the RSP is created with `doppler_correction=True`. Otherwise,
+            apply it manually between the range-doppler and angle steps:
+            ```python
+            rd = rsp.doppler_range(x)
+            rd = rsp.doppler_correction(rd)
+            spec = rsp.elevation_azimuth(rd)
+            ```
+
+        !!! warning
+
+            Must be applied to the raw `tx` axis (i.e., before
+            `mimo_virtual_array`), whose order is the TX transmission order.
+
+        Args:
+            rd: complex range-doppler spectrum, with the doppler axis
+                fft-shifted (as returned by `doppler_range`).
+
+        Returns:
+            Phase-corrected range-doppler spectrum.
+        """
+        ...
+
     @abstractmethod
     def mimo_virtual_array(
         self, rd: Complex64[TArray, "#batch doppler tx rx range"]
@@ -391,5 +437,7 @@ class RSP(ABC, Generic[TArray]):
             x = _to_float32(x)
 
         dr = self.doppler_range(x)
+        if self._doppler_correction:
+            dr = self.doppler_correction(dr)
         drae = self.elevation_azimuth(dr)
         return drae

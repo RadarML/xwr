@@ -21,6 +21,9 @@ class RSPTorch(RSP[Tensor], ABC):
             If an axis is not specified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def fft(
@@ -64,6 +67,18 @@ class RSPTorch(RSP[Tensor], ABC):
             (hann / np.mean(hann))[tuple(broadcast)]).to(x.device)
         return x * window
 
+    @staticmethod
+    def doppler_correction(
+        rd: Complex64[Tensor, "#batch doppler tx rx range"]
+    ) -> Complex64[Tensor, "#batch doppler tx rx range"]:
+        _, n_doppler, n_tx, _, _ = rd.shape
+        f = (torch.arange(n_doppler, device=rd.device, dtype=torch.float32)
+             - n_doppler // 2) / n_doppler
+        t = torch.arange(n_tx, device=rd.device, dtype=torch.float32) / n_tx
+        angle = -2 * np.pi * torch.outer(f, t)
+        phase = torch.polar(torch.ones_like(angle), angle)
+        return rd * phase[None, :, :, None, None]
+
 
 class AWR1843AOP(RSPTorch):
     """Radar Signal Processing for AWR1843AOP.
@@ -86,6 +101,9 @@ class AWR1843AOP(RSPTorch):
             If an axis is not specified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(
@@ -119,6 +137,9 @@ class AWR1843Boost(RSPTorch):
             If an axis is not specified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(
@@ -155,6 +176,9 @@ class AWR1642Boost(RSPTorch):
             If an axis is not specified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(

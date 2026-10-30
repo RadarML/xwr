@@ -19,6 +19,9 @@ class RSPJax(RSP[Array], ABC):
             If an axis is not spacified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def fft(
@@ -59,6 +62,16 @@ class RSPJax(RSP[Array], ABC):
         broadcast: list[None | slice] = [None] * x.ndim
         broadcast[axis] = slice(None)
         return x * (hann / jnp.mean(hann))[tuple(broadcast)]
+
+    @staticmethod
+    def doppler_correction(
+        rd: Complex64[Array, "#batch doppler tx rx range"]
+    ) -> Complex64[Array, "#batch doppler tx rx range"]:
+        _, n_doppler, n_tx, _, _ = rd.shape
+        f = (jnp.arange(n_doppler) - n_doppler // 2) / n_doppler
+        t = jnp.arange(n_tx) / n_tx
+        phase = jnp.exp(-2j * jnp.pi * jnp.outer(f, t)).astype(jnp.complex64)
+        return rd * phase[None, :, :, None, None]
 
     def azimuth_aoa(
         self, iq: Complex64[Array, "batch slow tx rx fast"]
@@ -104,6 +117,9 @@ class AWR1843AOP(RSPJax):
             If an axis is not specified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(
@@ -137,6 +153,9 @@ class AWR1843Boost(RSPJax):
             If an axis is not spacified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(
@@ -169,6 +188,8 @@ class AWR1843Boost(RSPJax):
         """
         iq = iq_from_iiqq(iq, sample_swap=self.sample_swap)
         rd = self.doppler_range(iq)
+        if self._doppler_correction:
+            rd = self.doppler_correction(rd)
         mimo = self.mimo_virtual_array(rd)[:, :, :, 2:-2]
 
         angle = jnp.angle(mimo)
@@ -197,6 +218,9 @@ class AWR1642Boost(RSPJax):
             If an axis is not spacified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(

@@ -22,6 +22,9 @@ class RSPNumpy(RSP[np.ndarray], ABC):
             If an axis is not spacified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def __init__(
@@ -30,8 +33,11 @@ class RSPNumpy(RSP[np.ndarray], ABC):
         size: Mapping[
             Literal["range", "doppler", "azimuth", "elevation"], int] = {},
         sample_swap: bool = False,
+        doppler_correction: bool = False,
     ) -> None:
-        super().__init__(window=window, size=size, sample_swap=sample_swap)
+        super().__init__(
+            window=window, size=size, sample_swap=sample_swap,
+            doppler_correction=doppler_correction)
         self._fft_cache: dict[
             tuple[tuple[int, ...], tuple[int, ...], np.dtype], FFTW] = {}
 
@@ -84,6 +90,16 @@ class RSPNumpy(RSP[np.ndarray], ABC):
         broadcast[axis] = slice(None)
         return x * (hann / np.mean(hann))[tuple(broadcast)]
 
+    @staticmethod
+    def doppler_correction(
+        rd: Complex64[np.ndarray, "#batch doppler tx rx range"]
+    ) -> Complex64[np.ndarray, "#batch doppler tx rx range"]:
+        _, n_doppler, n_tx, _, _ = rd.shape
+        f = (np.arange(n_doppler) - n_doppler // 2) / n_doppler
+        t = np.arange(n_tx) / n_tx
+        phase = np.exp(-2j * np.pi * np.outer(f, t)).astype(np.complex64)
+        return rd * phase[None, :, :, None, None]
+
 
 class AWR1843AOP(RSPNumpy):
     """Radar Signal Processing for AWR1843AOP.
@@ -106,6 +122,9 @@ class AWR1843AOP(RSPNumpy):
             If an axis is not specified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(
@@ -139,6 +158,9 @@ class AWR1843Boost(RSPNumpy):
             If an axis is not spacified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(
@@ -175,6 +197,9 @@ class AWR1642Boost(RSPNumpy):
             If an axis is not spacified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(
