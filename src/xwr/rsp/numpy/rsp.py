@@ -84,6 +84,16 @@ class RSPNumpy(RSP[np.ndarray], ABC):
         broadcast[axis] = slice(None)
         return x * (hann / np.mean(hann))[tuple(broadcast)]
 
+    @staticmethod
+    def doppler_correction(
+        rd: Complex64[np.ndarray, "#batch doppler tx rx range"]
+    ) -> Complex64[np.ndarray, "#batch doppler tx rx range"]:
+        _, n_doppler, n_tx, _, _ = rd.shape
+        f = (np.arange(n_doppler) - n_doppler // 2) / n_doppler
+        t = np.arange(n_tx) / n_tx
+        phase = np.exp(-2j * np.pi * np.outer(f, t)).astype(np.complex64)
+        return rd * phase[None, :, :, None, None]
+
 
 class AWR1843AOP(RSPNumpy):
     """Radar Signal Processing for AWR1843AOP.

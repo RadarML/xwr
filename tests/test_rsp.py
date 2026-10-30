@@ -227,3 +227,82 @@ def test_torch_awrl6844evm_backward():
 
     assert data.grad is not None
     assert data.grad.shape == data.shape
+
+
+@pytest.mark.parametrize("radar", list(SHAPE.keys()))
+def test_doppler_correction_backends(radar):
+    """Doppler correction matches across numpy, jax, and torch."""
+    shape = SHAPE[radar]
+    rn = getattr(rspn, radar)(window=True, size={"doppler": 8})
+    rj = getattr(rspj, radar)(window=True, size={"doppler": 8})
+    rt = getattr(rspt, radar)(window=True, size={"doppler": 8})
+
+    data = (_i_float32(shape) if rn.SAMPLE_TYPE == "I"
+            else _iq_complex(shape))
+    if rn.SAMPLE_TYPE == "IQ":
+        data_n = rsp.iq_from_iiqq(data)
+    else:
+        data_n = data
+
+    out_n = rn.doppler_correction(rn.doppler_range(data_n))
+    out_j = rj.doppler_correction(rj.doppler_range(jnp.array(data_n)))
+    out_t = rt.doppler_correction(rt.doppler_range(torch.from_numpy(data_n)))
+
+    assert out_n.dtype == np.complex64
+    assert np.allclose(out_n, np.array(out_j), atol=1e-4)
+    assert np.allclose(out_n, out_t.numpy(), atol=1e-4)
+
+    # Full pipeline with correction also agrees.
+    spec_n = rn.elevation_azimuth(out_n)
+    spec_t = rt.elevation_azimuth(out_t)
+    assert np.allclose(spec_n, spec_t.numpy(), atol=1e-3)
+
+
+@pytest.mark.parametrize("n_doppler", [16, 15])
+@pytest.mark.parametrize("k0", [3, -5, 0])
+def test_doppler_correction_physics(n_doppler, k0):
+    """A moving target has equal phase across TXs after correction."""
+    n_tx, n_rx, n_range, r0 = 3, 4, 8, 2
+    f0 = k0 / n_doppler
+    n = np.arange(n_doppler)[:, None]
+    t = np.arange(n_tx)[None, :]
+    slow = np.exp(2j * np.pi * f0 * (n + t / n_tx))  # doppler x tx
+    fast = np.exp(2j * np.pi * r0 * np.arange(n_range) / n_range)
+    x = (slow[None, :, :, None, None] * fast[None, None, None, None, :]
+         * np.ones((1, 1, 1, n_rx, 1))).astype(np.complex64)
+
+    for r in [rspn.AWR1843Boost(), rspj.AWR1843Boost(),
+              rspt.AWR1843Boost()]:
+        if isinstance(r, rspj.AWR1843Boost):
+            x_in = jnp.array(x)
+        elif isinstance(r, rspt.AWR1843Boost):
+            x_in = torch.from_numpy(x)
+        else:
+            x_in = x
+        rd = r.doppler_range(x_in)
+        rd_c = r.doppler_correction(rd)
+        peak = n_doppler // 2 + k0
+        raw = np.angle(np.asarray(rd)[0, peak, :, 0, r0])
+        cor = np.angle(np.asarray(rd_c)[0, peak, :, 0, r0])
+
+        expected = 2 * np.pi * f0 * np.arange(n_tx) / n_tx
+        assert np.allclose(
+            np.exp(1j * (raw - raw[0])), np.exp(1j * expected), atol=1e-4)
+        assert np.allclose(np.exp(1j * (cor - cor[0])), 1, atol=1e-4)
+
+
+def test_doppler_correction_identity_at_zero():
+    """Correction leaves the zero-Doppler bin unchanged."""
+    rd = _iq_complex((2, 8, 3, 4, 8))
+    out = rspn.AWR1843Boost().doppler_correction(rd)
+    assert np.allclose(out[:, 4], rd[:, 4])
+
+
+def test_torch_doppler_correction_backward():
+    """Gradients flow through torch doppler correction."""
+    data = torch.from_numpy(
+        _iq_complex(SHAPE["AWR1843Boost"])).requires_grad_(True)
+    r = rspt.AWR1843Boost()
+    out = r.elevation_azimuth(r.doppler_correction(r.doppler_range(data)))
+    out.abs().sum().backward()
+    assert data.grad is not None

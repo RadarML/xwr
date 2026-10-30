@@ -44,6 +44,7 @@ def _torch_backend(
     @torch.no_grad()
     def sig_process(iq):
         cube_rd = rsp.doppler_range(iq)
+        cube_rd = rsp.doppler_correction(cube_rd)
         cube = rsp.elevation_azimuth(cube_rd)
 
         detection = cfar(torch.abs(cube_rd))
@@ -81,6 +82,7 @@ def _jax_backend(
     @jax.jit
     def sig_process(iq):
         cube_rd = rsp.doppler_range(iq)
+        cube_rd = rsp.doppler_correction(cube_rd)
         cube = rsp.elevation_azimuth(cube_rd)
 
         detection = cfar(jnp.abs(cube_rd))
@@ -112,6 +114,7 @@ def _numpy_backend(
 
     def sig_process(iq):
         cube_rd = rsp.doppler_range(iq)
+        cube_rd = rsp.doppler_correction(cube_rd)
         cube = rsp.elevation_azimuth(cube_rd)
 
         detection = cfar(np.abs(cube_rd))

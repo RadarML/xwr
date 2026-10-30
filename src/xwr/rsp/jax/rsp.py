@@ -60,6 +60,16 @@ class RSPJax(RSP[Array], ABC):
         broadcast[axis] = slice(None)
         return x * (hann / jnp.mean(hann))[tuple(broadcast)]
 
+    @staticmethod
+    def doppler_correction(
+        rd: Complex64[Array, "#batch doppler tx rx range"]
+    ) -> Complex64[Array, "#batch doppler tx rx range"]:
+        _, n_doppler, n_tx, _, _ = rd.shape
+        f = (jnp.arange(n_doppler) - n_doppler // 2) / n_doppler
+        t = jnp.arange(n_tx) / n_tx
+        phase = jnp.exp(-2j * jnp.pi * jnp.outer(f, t)).astype(jnp.complex64)
+        return rd * phase[None, :, :, None, None]
+
     def azimuth_aoa(
         self, iq: Complex64[Array, "batch slow tx rx fast"]
         | Int16[Array, "batch slow tx rx fast*2"]

@@ -64,6 +64,18 @@ class RSPTorch(RSP[Tensor], ABC):
             (hann / np.mean(hann))[tuple(broadcast)]).to(x.device)
         return x * window
 
+    @staticmethod
+    def doppler_correction(
+        rd: Complex64[Tensor, "#batch doppler tx rx range"]
+    ) -> Complex64[Tensor, "#batch doppler tx rx range"]:
+        _, n_doppler, n_tx, _, _ = rd.shape
+        f = (torch.arange(n_doppler, device=rd.device, dtype=torch.float32)
+             - n_doppler // 2) / n_doppler
+        t = torch.arange(n_tx, device=rd.device, dtype=torch.float32) / n_tx
+        angle = -2 * np.pi * torch.outer(f, t)
+        phase = torch.polar(torch.ones_like(angle), angle)
+        return rd * phase[None, :, :, None, None]
+
 
 class AWR1843AOP(RSPTorch):
     """Radar Signal Processing for AWR1843AOP.
