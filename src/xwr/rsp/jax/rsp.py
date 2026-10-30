@@ -19,6 +19,9 @@ class RSPJax(RSP[Array], ABC):
             If an axis is not spacified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def fft(
@@ -114,6 +117,9 @@ class AWR1843AOP(RSPJax):
             If an axis is not specified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(
@@ -147,6 +153,9 @@ class AWR1843Boost(RSPJax):
             If an axis is not spacified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(
@@ -179,6 +188,8 @@ class AWR1843Boost(RSPJax):
         """
         iq = iq_from_iiqq(iq, sample_swap=self.sample_swap)
         rd = self.doppler_range(iq)
+        if self._doppler_correction:
+            rd = self.doppler_correction(rd)
         mimo = self.mimo_virtual_array(rd)[:, :, :, 2:-2]
 
         angle = jnp.angle(mimo)
@@ -207,6 +218,9 @@ class AWR1642Boost(RSPJax):
             If an axis is not spacified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(

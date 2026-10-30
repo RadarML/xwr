@@ -22,6 +22,9 @@ class RSPNumpy(RSP[np.ndarray], ABC):
             If an axis is not spacified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def __init__(
@@ -30,8 +33,11 @@ class RSPNumpy(RSP[np.ndarray], ABC):
         size: Mapping[
             Literal["range", "doppler", "azimuth", "elevation"], int] = {},
         sample_swap: bool = False,
+        doppler_correction: bool = False,
     ) -> None:
-        super().__init__(window=window, size=size, sample_swap=sample_swap)
+        super().__init__(
+            window=window, size=size, sample_swap=sample_swap,
+            doppler_correction=doppler_correction)
         self._fft_cache: dict[
             tuple[tuple[int, ...], tuple[int, ...], np.dtype], FFTW] = {}
 
@@ -116,6 +122,9 @@ class AWR1843AOP(RSPNumpy):
             If an axis is not specified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(
@@ -149,6 +158,9 @@ class AWR1843Boost(RSPNumpy):
             If an axis is not spacified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(
@@ -185,6 +197,9 @@ class AWR1642Boost(RSPNumpy):
             If an axis is not spacified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     def mimo_virtual_array(

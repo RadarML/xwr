@@ -230,6 +230,9 @@ class RSP(ABC, Generic[TArray]):
             If an axis is not spacified, it is not padded.
         sample_swap: if `True`, swap the I and Q components when
             un-interleaving IIQQ data.
+        doppler_correction: if `True`, apply
+            [`doppler_correction`][xwr.rsp.RSP.doppler_correction] to the
+            range-doppler spectrum in `__call__`, before the angle FFTs.
     """
 
     SAMPLE_TYPE: Literal["IQ", "I"] = "IQ"
@@ -240,6 +243,7 @@ class RSP(ABC, Generic[TArray]):
         size: Mapping[
             Literal["range", "doppler", "azimuth", "elevation"], int] = {},
         sample_swap: bool = False,
+        doppler_correction: bool = False,
     ) -> None:
         self.window: dict[
             Literal["range", "doppler", "azimuth", "elevation"], bool]
@@ -255,6 +259,7 @@ class RSP(ABC, Generic[TArray]):
 
         self.size = size
         self.sample_swap = sample_swap
+        self._doppler_correction = doppler_correction
 
     @abstractmethod
     def fft(
@@ -345,8 +350,9 @@ class RSP(ABC, Generic[TArray]):
 
         !!! info
 
-            This is not applied by [`__call__`][xwr.rsp.RSP.__call__]; apply
-            it manually between the range-doppler and angle steps:
+            This is applied by [`__call__`][xwr.rsp.RSP.__call__] only when
+            the RSP is created with `doppler_correction=True`. Otherwise,
+            apply it manually between the range-doppler and angle steps:
             ```python
             rd = rsp.doppler_range(x)
             rd = rsp.doppler_correction(rd)
@@ -431,5 +437,7 @@ class RSP(ABC, Generic[TArray]):
             x = _to_float32(x)
 
         dr = self.doppler_range(x)
+        if self._doppler_correction:
+            dr = self.doppler_correction(dr)
         drae = self.elevation_azimuth(dr)
         return drae
