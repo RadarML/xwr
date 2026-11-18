@@ -334,3 +334,78 @@ class AWR2944EVM(RSPTorch):
         )
 
         return el_az_spectrum
+
+
+class AWR2E44PEVM(RSPTorch):
+    """Radar Signal Processing for AWR2E44PEVM.
+
+    !!! info "Antenna Array"
+
+        The AWR2E44PEVM (launch-on-package antennas) has a sparse virtual
+        array on a 2x19 grid with 1/2 wavelength spacing in both azimuth and
+        elevation:
+        ```
+                                            4-1     4-2                 4-3     4-4   ^
+        1-1     1-2 2-1     2-2 3-1 1-3 3-2 1-4 2-3     2-4 3-3     3-4               | Up
+        ```
+        Empty positions are filled with zeros, which raises the angular
+        sidelobes compared to a filled array.
+
+    !!! info "Channel Phase Calibration"
+
+        The AWR2E44PEVM channels have large phase offsets, including a ~180°
+        inversion of TX3 and RX4, so each TX-RX pair is multiplied by a
+        unit-magnitude phase correction before forming the virtual array.
+        The corrections are the phases of `antennaCalibParams` in the TI DDM
+        demo profiles for the AWR2E44P
+        (`mmwave_mcuplus_sdk_{version}/ti/demo/awr2x44P/mmw_ddm/profiles/awr2E44P`),
+        which are given in `Im(Q) Re(I)` order; amplitudes are not corrected.
+
+        Source: `antGeometryCfg` in the TI demo profiles for the AWR2E44P
+        (`mmwave_mcuplus_sdk_{version}/ti/demo/awr2x44P/mmw_tdm/profiles/awr2E44P`),
+        which use the TX1, TX2, TX3, TX4 chirp order.
+
+    Args:
+        window: whether to apply a hanning window. If `bool`, the same option
+            is applied to all axes. If `dict`, specify per axis with keys
+            "range", "doppler", "azimuth", and "elevation".
+        size: target size for each axis after zero-padding, specified by axis.
+            If an axis is not specified, it is not padded.
+    """
+
+    SAMPLE_TYPE = "I"
+
+    # (elevation row, azimuth column) of each TX-RX pair; row 0 is up.
+    _ROW = [[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1], [0, 0, 0, 0]]
+    _COL = [[0, 2, 7, 9], [3, 5, 10, 12], [6, 8, 13, 15], [9, 11, 16, 18]]
+    _SHAPE = (2, 19)
+    # TI `antennaCalibParams` for the AWR2E44P, as (Im(Q), Re(I)) per TX-RX
+    # pair in TX-major, RX-minor order.
+    _CALIBRATION_QI = np.array([
+        [0.6718, 0.3970], [0.5714, 0.5259], [-0.0907, 0.8665],
+        [0.0989, -0.9754], [0.8083, 0.0366], [0.7769, 0.2025],
+        [0.3331, 0.8275], [-0.3769, -0.9263], [-0.6290, -0.4124],
+        [-0.5234, -0.5298], [0.1282, -0.8125], [-0.1418, 0.9100],
+        [0.5869, 0.3367], [0.4966, 0.4459], [-0.0732, 0.7262],
+        [0.0808, -0.8108]])
+    # Unit-magnitude phase correction, shape (tx, rx).
+    _CALIBRATION = np.exp(1j * np.arctan2(
+        _CALIBRATION_QI[:, 0], _CALIBRATION_QI[:, 1])
+    ).reshape(4, 4).astype(np.complex64)
+
+    def mimo_virtual_array(
+        self, rd: Complex64[Tensor, "#batch doppler tx rx range"]
+    ) -> Complex64[Tensor, "#batch doppler el az range"]:
+        batch, doppler, tx, rx, range = rd.shape
+        if tx != 4 or rx != 4:
+            raise ValueError(
+                f"Expected (tx, rx)=4x4, got tx={tx} and rx={rx}.")
+
+        mimo = torch.zeros(
+            (batch, doppler, *self._SHAPE, range),
+            dtype=torch.complex64, device=rd.device)
+        row = torch.tensor(self._ROW, device=rd.device)
+        col = torch.tensor(self._COL, device=rd.device)
+        cal = torch.from_numpy(self._CALIBRATION).to(rd.device)
+        mimo[:, :, row, col, :] = rd * cal[None, None, :, :, None]
+        return mimo
