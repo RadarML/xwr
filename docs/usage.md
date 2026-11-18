@@ -160,6 +160,7 @@ uv run demo.py --device AWR1843 --rsp AWR1843Boost
     | AWR1843AOPEVM           | AWR1843    | AWR1843AOP      |
     | AWR2944EVM              | AWR2944    | AWR2944EVM      |
     | AWR2944PEVM             | AWR2944P   | AWR2944EVM      |
+    | AWR2E44PEVM             | AWR2E44P   | AWR2E44PEVM     |
     | AWRL6844EVM             | AWRL6844   | AWRL6844EVM     |
 
 ![Spectrum Demo](images/demo.png)
