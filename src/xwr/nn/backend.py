@@ -1,15 +1,13 @@
 """Internal backend for pytorch / numpy interop."""
 
 from collections.abc import Sequence
-from typing import TypeVar, cast
+from typing import cast
 
 import numpy as np
 import torch
 
-TArray = TypeVar("TArray", bound = np.ndarray | torch.Tensor)
 
-
-def concatenate(arrays: Sequence[TArray], axis: int) -> TArray:
+def concatenate[TArray: np.ndarray | torch.Tensor](arrays: Sequence[TArray], axis: int) -> TArray:
     """Concatenate arrays."""
     if isinstance(arrays[0], np.ndarray):
         return cast(TArray, np.concatenate(
@@ -19,7 +17,7 @@ def concatenate(arrays: Sequence[TArray], axis: int) -> TArray:
             cast(tuple[torch.Tensor], tuple(arrays)), dim=axis))
 
 
-def stack(arrays: Sequence[TArray], axis: int) -> TArray:
+def stack[TArray: np.ndarray | torch.Tensor](arrays: Sequence[TArray], axis: int) -> TArray:
     """Stack arrays."""
     if isinstance(arrays[0], np.ndarray):
         return cast(TArray, np.stack(
@@ -29,7 +27,7 @@ def stack(arrays: Sequence[TArray], axis: int) -> TArray:
             cast(tuple[torch.Tensor], tuple(arrays)), dim=axis))
 
 
-def flip(arr: TArray, axis: int = 0) -> TArray:
+def flip[TArray: np.ndarray | torch.Tensor](arr: TArray, axis: int = 0) -> TArray:
     """Flip array."""
     if isinstance(arr, np.ndarray):
         return cast(TArray, np.flip(arr, axis=axis))
@@ -37,7 +35,7 @@ def flip(arr: TArray, axis: int = 0) -> TArray:
         return cast(TArray, torch.flip(arr, dims=(axis,)))
 
 
-def log(arr: TArray) -> TArray:
+def log[TArray: np.ndarray | torch.Tensor](arr: TArray) -> TArray:
     """Elementwise log."""
     if isinstance(arr, np.ndarray):
         return cast(TArray, np.log(arr))
@@ -45,7 +43,7 @@ def log(arr: TArray) -> TArray:
         return cast(TArray, torch.log(arr))
 
 
-def sqrt(arr: TArray) -> TArray:
+def sqrt[TArray: np.ndarray | torch.Tensor](arr: TArray) -> TArray:
     """Elementwise square root."""
     if isinstance(arr, np.ndarray):
         return cast(TArray, np.sqrt(arr))
@@ -53,7 +51,7 @@ def sqrt(arr: TArray) -> TArray:
         return cast(TArray, torch.sqrt(arr))
 
 
-def abs(arr: TArray) -> TArray:
+def abs[TArray: np.ndarray | torch.Tensor](arr: TArray) -> TArray:
     """Elementwise absolute value."""
     if isinstance(arr, np.ndarray):
         return cast(TArray, np.abs(arr))
@@ -61,7 +59,7 @@ def abs(arr: TArray) -> TArray:
         return cast(TArray, torch.abs(arr))
 
 
-def angle(arr: TArray) -> TArray:
+def angle[TArray: np.ndarray | torch.Tensor](arr: TArray) -> TArray:
     """Elementwise angle (phase) of complex numbers."""
     if isinstance(arr, np.ndarray):
         return cast(TArray, np.angle(arr))
@@ -69,7 +67,7 @@ def angle(arr: TArray) -> TArray:
         return cast(TArray, torch.angle(arr))
 
 
-def real(arr: TArray) -> TArray:
+def real[TArray: np.ndarray | torch.Tensor](arr: TArray) -> TArray:
     """Elementwise real part of complex numbers."""
     if isinstance(arr, np.ndarray):
         return cast(TArray, np.real(arr))
@@ -77,7 +75,7 @@ def real(arr: TArray) -> TArray:
         return cast(TArray, torch.real(arr))
 
 
-def imag(arr: TArray) -> TArray:
+def imag[TArray: np.ndarray | torch.Tensor](arr: TArray) -> TArray:
     """Elementwise imaginary part of complex numbers."""
     if isinstance(arr, np.ndarray):
         return cast(TArray, np.imag(arr))
@@ -85,7 +83,7 @@ def imag(arr: TArray) -> TArray:
         return cast(TArray, torch.imag(arr))
 
 
-def exp(arr: TArray) -> TArray:
+def exp[TArray: np.ndarray | torch.Tensor](arr: TArray) -> TArray:
     """Elementwise exponential."""
     if isinstance(arr, np.ndarray):
         return cast(TArray, np.exp(arr))
@@ -93,7 +91,7 @@ def exp(arr: TArray) -> TArray:
         return cast(TArray, torch.exp(arr))
 
 
-def maximum(arr: TArray, value: float) -> TArray:
+def maximum[TArray: np.ndarray | torch.Tensor](arr: TArray, value: float) -> TArray:
     """Elementwise maximum with a scalar."""
     if isinstance(arr, np.ndarray):
         return cast(TArray, np.maximum(arr, value))
