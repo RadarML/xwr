@@ -190,7 +190,7 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 !!! info "Firmware"
 
     After installing the [mmWave MCU Plus SDK](https://www.ti.com/tool/MMWAVE-MCUPLUS-SDK), you will need two firmware files:
-    
+
     - `mmwave_mcuplus_sdk_{version}/ti/demo/awr294x/mmw/awr2944_mmw_demoTDM.appimage`: main application image.
     - `mmwave_mcuplus_sdk_{version}/tools/awr294x/sbl_qspi.release.tiimage`: bootloader image.
 
@@ -198,37 +198,36 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 
     Flashing the AWR2944EVM requires two jumper caps or wires in order to physically short the required pins. One of these jumpers must remain on the board to set it to functional mode.
 
-!!! warning "Requires External 12v Power"
+!!! warning "Requires External 12V Power"
 
-    The AWR2944EVM requires external 12v power to operate, while the DCA1000EVM requires external 5v power.
-    
+    The AWR2944EVM requires external 12V power to operate, while the DCA1000EVM requires external 5V power.
+
     ??? danger "Both power supplies have the same barrel jack size, and mixing them up will immediately destroy the DCA1000EVM."
 
         Don't ask me how I know this!
 
     We recommend labeling the power supplies at the barrel jack end, as well as connecting the radar power supply first (so that if the radar does not power on, you know that you've mixed them up).
 
-
 1. Prepare for flashing.
 
-    - Plug in a USB cable to the XDS port (on the right side).
+    - Plug a USB cable into the XDS port (on the right side).
     - Find `SOP2:0`, and short SOP0 and SOP2 (`SOP2:0=101`). These are physical jumpers, which must be shorted using jumper caps or wires.
-    - Power on the radar using external 12v power.
+    - Power on the radar using external 12V power.
 
 2. Flash using [TI UniFlash](https://www.ti.com/tool/UNIFLASH).
 
     !!! note
 
-        UniFlash seems to work most reliably on windows.
+        UniFlash seems to work most reliably on Windows.
 
-    - Uniflash should automatically discover the radar. If not, select the `AWR2944EVM` device.
+    - UniFlash should automatically discover the radar. If not, select the `AWR2944EVM` device.
     - Select the `awr2944_mmw_demoTDM.appimage` and `sbl_qspi.release.tiimage` images to flash.
     - Choose the serial port corresponding to the radar; the serial port should have a name/description `XDS110 Class Application/User UART`.
     - Flashing should take around 1 minute, and terminate with "Program Load completed successfully".
 
     ??? failure "Not able to connect to serial port. Recheck COM port selected and/or permissions."
 
-        If the SOP switches or `S2` are not in the correct position, flashing will fail with
+        If the SOP jumpers are not in the correct position, flashing will fail with
         ```
         Not able to connect to serial port.
         Recheck COM port selected and/or permissions.
@@ -251,9 +250,9 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 
     Flashing the AWR2944PEVM requires two jumper caps or wires in order to physically short the required pins. One of these jumpers must remain on the board to set it to functional mode.
 
-!!! warning "Requires External 12v Power"
+!!! warning "Requires External 12V Power"
 
-    The AWR2944PEVM requires external 12v power to operate, while the DCA1000EVM requires external 5v power.
+    The AWR2944PEVM requires external 12V power to operate, while the DCA1000EVM requires external 5V power.
 
     !!! danger "Both power supplies have the same barrel jack size, and mixing them up will immediately destroy the DCA1000EVM."
 
@@ -261,14 +260,14 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 
 1. Prepare for flashing.
 
-    - Plug in a USB cable to the XDS port (on the right side).
+    - Plug a USB cable into the XDS port (on the right side).
     - Find `SOP2:0`, and short SOP0 and SOP2 (`SOP2:0=101`). These are physical jumpers, which must be shorted using jumper caps or wires.
 
 2. Flash using the `uart_uniflash.py` script (see the [mmWave MCU Plus SDK user guide](https://dr-download-cdn.ti.com/software-development/software-development-kit-sdk/MD-U4MY7aGNn5/04.07.01.03/mmwave_mcuplus_sdk_user_guide.pdf)).
 
     !!! bug
 
-        Flashing using TI Uniflash does not work; you must use the python script.
+        Flashing using TI UniFlash does not work; you must use the Python script.
 
     !!! note
 
@@ -282,7 +281,7 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
         ```
         set MMWAVE_SDK_DEVICE=awr2x44P
         ```
-    - Set the environment variables by executing the script
+    - Set the environment variables by executing the script:
         ```
         cd C:\ti\mmwave_mcuplus_sdk_{version}\mmwave_mcuplus_sdk_{version}\scripts\windows
         setenv.bat
@@ -302,6 +301,110 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 3. Switch the radar to functional mode.
 
     - Remove the jumper on SOP2, so only a jumper on SOP0 remains (`SOP2:0=001`).
+
+## AWR2E44PEVM
+
+!!! info "Firmware"
+
+    Install the [mmWave MCU Plus SDK](https://www.ti.com/tool/MMWAVE-MCUPLUS-SDK) (tested with `04.07.02.01`). The pre-built AWR2x44P images are built for the AWR2E44P package by default, and the stock TDM demo supports raw ADC streaming over LVDS. You will need the following files, all relative to the inner `mmwave_mcuplus_sdk_{version}` directory of the install (e.g. `~/ti/mmwave_mcuplus_sdk_{version}/mmwave_mcuplus_sdk_{version}`):
+
+    - `ti/demo/awr2x44P/mmw_tdm/awr2x44P_mmw_demoTDM.appimage`: main application image.
+    - `tools/awr2x44P/sbl_qspi.release.tiimage`: bootloader image.
+    - `tools/awr2x44P/sbl_uart_uniflash.release.tiimage`: temporary flash-writer image, which the flashing script loads onto the radar to perform the flash.
+
+!!! warning
+
+    Flashing the AWR2E44PEVM requires two jumper caps or wires in order to physically short the required SOP pins (`J17`, `J18`, `J20`). One of these jumpers must remain on the board to set it to functional mode.
+
+!!! warning "Requires External 12V Power"
+
+    The AWR2E44PEVM requires external 12V power (2.1mm barrel jack, center positive, at least 2.5A), while the DCA1000EVM requires external 5V power.
+
+    ??? danger "Both power supplies have the same barrel jack size, and mixing them up will immediately destroy the DCA1000EVM."
+
+        Plugging the 12V radar supply into the DCA1000EVM kills it instantly; there is no protection and no second chance.
+
+    We recommend labeling the power supplies at the barrel jack end, as well as connecting the radar power supply first (so that if the radar does not power on, you know that you've mixed them up).
+
+1. Prepare for flashing.
+
+    - Plug a USB cable into the XDS port.
+    - Find the SOP jumpers, and short SOP0 and SOP2 (`SOP2:0=101`). These are physical jumpers, which must be shorted using jumper caps or wires.
+    - Power on the radar using external 12V power, then press the `NRST` button (`SW1`) once so that the radar boots in flashing mode.
+
+    !!! info
+
+        The SOP pins are only read when the radar boots. If you change the jumpers while the radar is powered, press `NRST` again.
+
+2. Flash using TI's `uart_uniflash.py` script on Linux (see the [mmWave MCU Plus SDK user guide](https://dr-download-cdn.ti.com/software-development/software-development-kit-sdk/MD-U4MY7aGNn5/04.07.01.03/mmwave_mcuplus_sdk_user_guide.pdf) for details).
+
+    !!! note
+
+        TI UniFlash does not work for the closely related AWR2944PEVM, so we use the Python script instead.
+
+    - Set up the flashing environment from the root of the `xwr` repository. The `flash/` project contains the script's dependencies (`pyserial`, `xmodem`, `tqdm`):
+        ```sh
+        uv sync --project flash
+        ```
+    - Set paths to the SDK and to the `xwr` repository (adjust the versions to match your install):
+        ```sh
+        export XWR=$(pwd)
+        export SDK=~/ti/mmwave_mcuplus_sdk_04_07_02_01/mmwave_mcuplus_sdk_04_07_02_01
+        export MCU_PLUS=~/ti/mmwave_mcuplus_sdk_04_07_02_01/mcu_plus_sdk_awr2x44p_10_02_00_04
+        ```
+    - Find the serial port. The XDS110 shows up as two serial ports (e.g. `/dev/ttyACM0` and `/dev/ttyACM1`); use the lower-numbered one, which is the `XDS110 Class Application/User UART`.
+        ```sh
+        ls -l /dev/serial/by-id/
+        ```
+
+        ??? failure "Permission denied"
+
+            Your user needs to be in the `dialout` group to access serial ports:
+            ```sh
+            sudo usermod -aG dialout $USER
+            ```
+            Then log out and back in.
+
+    - The SDK's `default.cfg` flashes a debug image instead of the demo. Make a copy which flashes the TDM demo instead:
+        ```sh
+        cd $SDK/tools/awr2x44P
+        sed 's#ti/utils/ccsdebug/awr2x44P_ccsdebug.appimage#ti/demo/awr2x44P/mmw_tdm/awr2x44P_mmw_demoTDM.appimage#' default.cfg > tdm.cfg
+        ```
+        This should result in the following change:
+        ```diff
+        - --file=../../ti/utils/ccsdebug/awr2x44P_ccsdebug.appimage --operation=flash --flash-offset=0xA0000
+        + --file=../../ti/demo/awr2x44P/mmw_tdm/awr2x44P_mmw_demoTDM.appimage --operation=flash --flash-offset=0xA0000
+        ```
+    - Then, flash the radar (replacing `/dev/ttyACM0` with the radar's serial port). This must be run from `$SDK/tools/awr2x44P`, since the paths in the config file are relative to it.
+        ```sh
+        cd $SDK/tools/awr2x44P
+        uv run --project $XWR/flash python $MCU_PLUS/tools/boot/uart_uniflash.py -p /dev/ttyACM0 --cfg=tdm.cfg
+        ```
+        Flashing takes around 1 minute; each of the three steps should end with `[STATUS] SUCCESS !!!`.
+
+    ??? failure "`send error: expected NAK, CRC, EOT or CAN; got b'd'`"
+
+        When it boots, the radar prints a few hundred characters of status output (`d0003010000...`) before it starts sending `C` every 3 seconds to signal that it is ready to receive. If this output is still sitting in the serial buffer, the flashing script reads it first, counts 10 errors, and aborts with `XMODEM send failed`.
+
+        To fix this, drain the buffer and check that the radar is sending `C`, then immediately run the flashing command again:
+        ```sh
+        uv run --project $XWR/flash python -c "
+        import serial
+        s = serial.Serial('/dev/ttyACM0', 115200, timeout=4)
+        s.reset_input_buffer(); print(s.read(1024))"
+        ```
+        This should print `b'C'` (possibly preceded by leftover `0`s). If nothing is printed, check the SOP jumpers and press `NRST`.
+
+3. Switch the radar to functional mode.
+
+    - Remove the jumper on SOP2, so only a jumper on SOP0 remains (`SOP2:0=001`).
+    - Press `NRST` (or power cycle the radar) to boot the newly flashed firmware.
+
+4. Use [`AWR2E44P`][xwr.radar.AWR2E44P] as the radar device, and [`AWR2E44PEVM`][xwr.rsp.numpy.AWR2E44PEVM] for signal processing. To run the demo with the included configuration:
+    ```sh
+    cd demo
+    uv run demo.py --config config_awr2e44p.yaml --rsp AWR2E44PEVM
+    ```
 
 ## AWRL6844EVM
 
@@ -353,7 +456,7 @@ The `DC_JACK_5V_IN` (the large switch on the side) should also be set, depending
 
     !!! bug
 
-        Flashing using TI Uniflash does not work; you must use the python script.
+        Flashing using TI Uniflash does not work; you must use the Python script.
 
     ??? quote "Build requirements for firmware compilation on linux"
 
