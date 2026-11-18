@@ -27,6 +27,7 @@ from jaxtyping import install_import_hook
 with install_import_hook("xwr.rsp.torch", "beartype.beartype"):
     from .aoa import PointCloud
     from .rsp import (
+        AWR2E44PEVM,
         AWR1843AOP,
         AWR2944EVM,
         AWRL6844EVM,
@@ -41,6 +42,7 @@ __all__ = [
     "AWR1843AOP",
     "AWR1843Boost",
     "AWR2944EVM",
+    "AWR2E44PEVM",
     "AWRL6844EVM",
     "RSPTorch",
     "CACFAR",
