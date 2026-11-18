@@ -47,7 +47,7 @@ class XWRSystem(Generic[TRadar]):
         [`xwr.constraints`][xwr.constraints] for the full list.
 
     Type Parameters:
-        - `TRadar`: radar type (subclass of [`XWRBase`][xwr.radar.])
+        TRadar: radar type (subclass of [`XWRBase`][xwr.radar.])
 
     Args:
         radar: radar configuration; if `dict`, the key/value pairs are passed

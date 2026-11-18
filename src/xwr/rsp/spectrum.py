@@ -23,7 +23,7 @@ class Detection(Generic[TArray]):
     """Detected objects, and the statistics they were detected from.
 
     Type Parameters:
-        - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
+        TArray: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
             torch `Tensor`.
 
     Attributes:
@@ -49,7 +49,7 @@ class CFAR(ABC, Generic[TArray]):
     | [`CASOCFAR`][xwr.rsp.] | Separate "smallest of" tests on the range and doppler axes |
 
     Type Parameters:
-        - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
+        TArray: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
             torch `Tensor`.
 
     Args:
@@ -154,7 +154,7 @@ class CACFAR(CFAR[TArray], ABC):
         `snr_thresh * noise`.
 
     Type Parameters:
-        - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
+        TArray: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
             torch `Tensor`.
 
     Args:
@@ -217,7 +217,7 @@ class CASOCFAR(CFAR[TArray], ABC):
         `snr_thresh * noise`. Both axes must fire for a detection to be reported.
 
     Type Parameters:
-        - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
+        TArray: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
             torch `Tensor`.
 
     Args:

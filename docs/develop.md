@@ -62,7 +62,7 @@ uv run --all-extras pytest -ra --cov --cov-report=html --cov-report=term -- test
 
 Build docs for development:
 ```sh
-uv run --extra docs mkdocs serve
+uv run --extra docs zensical serve
 ```
 
 !!! info
