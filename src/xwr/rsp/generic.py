@@ -16,7 +16,12 @@ from jaxtyping import Complex64, Float32, Int16
 
 @runtime_checkable
 class ArrayLike(Protocol):
-    """Array with shape and dtype."""
+    """Array with shape and dtype.
+
+    This is the bound of the `TArray` type parameter of backend-agnostic
+    components, and is satisfied by numpy `np.ndarray`, jax `jax.Array`, and
+    torch `Tensor`.
+    """
 
     @property
     def shape(self) -> tuple[int, ...]: ...

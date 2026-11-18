@@ -111,6 +111,8 @@ plugins:
       python_xref:
         paths: [src]
         options:
+          extensions:
+          - scripts/griffe_type_params.py:TypeParameterBoundLinks
           docstring_style: google
           relative_crossrefs: true
           separate_signature: true
