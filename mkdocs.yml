@@ -34,6 +34,7 @@ extra_css:
 
 theme:
   name: material
+  variant: classic
   icon:
     logo: material/antenna
     annotation: material/arrow-right-circle

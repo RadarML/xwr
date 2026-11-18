@@ -66,7 +66,7 @@ def iqiq_from_iiqq(
     """Un-interleave IIQQ data.
 
     Type Parameters:
-        - `TArray`: This function is multi-backend, and supports numpy
+        TArray: This function is multi-backend, and supports numpy
             `np.ndarray`, jax `jax.Array`, and torch `Tensor`.
 
     Args:
@@ -130,7 +130,7 @@ def iq_from_iiqq(
         before I, leading to the actual physical layout being QQII and so on.
 
     Type Parameters:
-        - `TArray`: This function is multi-backend, and supports numpy
+        TArray: This function is multi-backend, and supports numpy
             `np.ndarray`, jax `jax.Array`, and torch `Tensor`.
 
     Args:
@@ -219,7 +219,7 @@ class RSP(ABC, Generic[TArray]):
         processing (RSP) classes, except where otherwise noted.
 
     Type Parameters:
-        - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
+        TArray: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
             torch `Tensor`.
 
     Args:

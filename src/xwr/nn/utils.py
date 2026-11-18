@@ -176,7 +176,7 @@ def resize(
         - `range_scale * n_range >= 1`.
 
     Type Parameters:
-        - `TArray`: array type; `np.ndarray` or `torch.Tensor`.
+        TArray: array type; `np.ndarray` or `torch.Tensor`.
 
     Args:
         spectrum: input spectrum as a real channel; should be output by one of

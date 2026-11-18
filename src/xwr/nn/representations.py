@@ -60,7 +60,7 @@ class Representation(ABC):
         """Get spectrum representation.
 
         Type Parameters:
-            - `TArray`: array type; `np.ndarray` or `torch.Tensor`.
+            TArray: array type; `np.ndarray` or `torch.Tensor`.
 
         Args:
             spectrum: complex spectrum as output by one of the
@@ -95,7 +95,7 @@ class Magnitude(Representation):
         """Get spectrum amplitude.
 
         Type Parameters:
-            - `TArray`: array type; `np.ndarray` or `torch.Tensor`.
+            TArray: array type; `np.ndarray` or `torch.Tensor`.
 
         Args:
             spectrum: complex spectrum as output by one of the
@@ -139,7 +139,7 @@ class PhaseAngle(Representation):
         """Get complex spectrum representation.
 
         Type Parameters:
-            - `TArray`: array type; `np.ndarray` or `torch.Tensor`.
+            TArray: array type; `np.ndarray` or `torch.Tensor`.
 
         Args:
             spectrum: complex spectrum as output by one of the
@@ -185,7 +185,7 @@ class PhaseVec(Representation):
         """Get amplitude spectrum.
 
         Type Parameters:
-            - `TArray`: array type; `np.ndarray` or `torch.Tensor`.
+            TArray: array type; `np.ndarray` or `torch.Tensor`.
 
         Args:
             spectrum: complex spectrum as output by one of the
@@ -239,7 +239,7 @@ class ComplexParts(Representation):
         """Get complex spectrum representation.
 
         Type Parameters:
-            - `TArray`: array type; `np.ndarray` or `torch.Tensor`.
+            TArray: array type; `np.ndarray` or `torch.Tensor`.
 
         Args:
             spectrum: complex spectrum as output by one of the

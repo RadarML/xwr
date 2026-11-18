@@ -15,7 +15,7 @@ class DensePoints(Generic[TArray]):
     """A dense radar point cloud, and the points in it which are valid.
 
     Type Parameters:
-        - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
+        TArray: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
             torch `Tensor`.
 
     Attributes:
@@ -62,7 +62,7 @@ class PointCloud(ABC, Generic[TArray]):
         points with `angle_fov`.
 
     Type Parameters:
-        - `TArray`: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
+        TArray: Generic backend, e.g., `np.ndarray`, jax `jax.Array`, or
             torch `Tensor`.
 
     Args:
