@@ -143,6 +143,7 @@ class CubeSizeLimit(Constraint):
     | AWR1843  | 1 MiB    |
     | AWR2944  | 2.5 MiB  |
     | AWR2944P | 3 MiB    |
+    | AWR2E44P | 3 MiB    |
     | AWRL6844 | 896 KiB  |
     """
 
@@ -152,6 +153,7 @@ class CubeSizeLimit(Constraint):
         "AWR1843L": 1024 * 1024,
         "AWR2944":  int(2.5 * 1024 * 1024),
         "AWR2944P": 3 * 1024 * 1024,
+        "AWR2E44P": 3 * 1024 * 1024,
         "AWRL6844": 896 * 1024,
     }
 
@@ -230,6 +232,7 @@ class MaxSampleRate(Constraint):
     | AWR1843  | 25,000 Ksps |
     | AWR2944  | 37,500 Ksps |
     | AWR2944P | 45,000 Ksps |
+    | AWR2E44P | 45,000 Ksps |
     | AWRL6844 | 25,000 Ksps |
     """
 
@@ -239,6 +242,7 @@ class MaxSampleRate(Constraint):
         "AWR1843L": 25_000,
         "AWR2944":  37_500,
         "AWR2944P": 45_000,
+        "AWR2E44P": 45_000,
         "AWRL6844": 25_000,
     }
 
@@ -299,6 +303,7 @@ class FrequencyRange(Constraint):
     | AWR1843  | 76        | 81        |
     | AWR2944  | 76        | 81        |
     | AWR2944P | 76        | 81        |
+    | AWR2E44P | 76        | 81        |
     | AWRL6844 | 57        | 64        |
     """
 
@@ -308,6 +313,7 @@ class FrequencyRange(Constraint):
         "AWR1843L": (76.0, 81.0),
         "AWR2944":  (76.0, 81.0),
         "AWR2944P": (76.0, 81.0),
+        "AWR2E44P": (76.0, 81.0),
         "AWRL6844": (57.0, 64.0),
     }
 
@@ -347,6 +353,7 @@ class MaxBandwidth(Constraint):
     | AWR1843  | 4000 MHz |
     | AWR2944  | 4000 MHz |
     | AWR2944P | 4000 MHz |
+    | AWR2E44P | 4000 MHz |
     """
 
     _LIMITS: ClassVar[dict[str, float]] = {
@@ -355,6 +362,7 @@ class MaxBandwidth(Constraint):
         "AWR1843L": 4000.0,
         "AWR2944":  4000.0,
         "AWR2944P": 4000.0,
+        "AWR2E44P": 4000.0,
     }
 
     @staticmethod
