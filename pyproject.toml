@@ -13,18 +13,16 @@ allow-direct-references = true
 
 [project]
 name = "xwr"
-version = "0.5.3"
+version = "0.6.0"
 authors = [
   { name="Tianshu Huang", email="tianshu2@andrew.cmu.edu" },
 ]
 description = "Linux-Compatible Real-Time Raw Data Capture for TI mmWave Radars."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
 classifiers = [
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
@@ -58,9 +56,9 @@ dev = [
 ]
 docs = [
     "abstract_dataloader >= 0.3.5",
-    "zensical >= 0.1.1; python_version >= '3.11'",
-    "mkdocstrings-python >= 2.0.11; python_version >= '3.11'",
-    "mkdocstrings-python-xref >= 2.1.1; python_version >= '3.11'",
+    "zensical >= 0.1.1",
+    "mkdocstrings-python >= 2.0.11",
+    "mkdocstrings-python-xref >= 2.1.1",
     "ruff >= 0.11.0",
 ]
 
@@ -72,7 +70,7 @@ Issues = "https://github.com/RadarML/xwr/issues"
 [tool.cibuildwheel]
 # Linux-only (POSIX sockets); one wheel per CPython version since the C
 # extension uses the full (non-limited) Python and NumPy C APIs.
-build = "cp310-* cp311-* cp312-* cp313-* cp314-*"
+build = "cp312-* cp313-* cp314-*"
 skip = "*-musllinux_*"
 test-command = "python -c 'import xwr.capture._fast'"
 
