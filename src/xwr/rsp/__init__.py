@@ -56,7 +56,7 @@ from jaxtyping import install_import_hook
 
 with install_import_hook("xwr.rsp", "beartype.beartype"):
     from .aoa import DensePoints, PointCloud
-    from .generic import RSP, iq_from_iiqq, iqiq_from_iiqq
+    from .generic import RSP, ArrayLike, iq_from_iiqq, iqiq_from_iiqq
     from .spectrum import (
         CACFAR,
         CASOCFAR,
@@ -67,7 +67,7 @@ with install_import_hook("xwr.rsp", "beartype.beartype"):
 
 
 __all__ = [
-    "RSP", "iq_from_iiqq", "iqiq_from_iiqq",
+    "RSP", "ArrayLike", "iq_from_iiqq", "iqiq_from_iiqq",
     "CACFAR", "CASOCFAR", "CFAR", "Detection", "SignalCube",
     "PointCloud", "DensePoints"
 ]
