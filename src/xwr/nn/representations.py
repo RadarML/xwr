@@ -6,10 +6,10 @@ from collections.abc import Mapping
 from typing import Any, Literal, cast
 
 import numpy as np
+import torch
 from jaxtyping import Complex64, Float32, Shaped
 
 from . import backend
-from .backend import TArray
 from .utils import resize
 
 
@@ -31,7 +31,7 @@ class Representation(ABC):
         self.eps = eps
         self._magnitude_transform = transform
 
-    def _flip(
+    def _flip[TArray: np.ndarray | torch.Tensor](
         self, spectrum: Shaped[TArray, "batch doppler el az rng"],
         aug: Mapping[str, Any] = {}
     ) -> Shaped[TArray, "batch doppler el az rng"]:
@@ -41,7 +41,7 @@ class Representation(ABC):
             spectrum = backend.flip(spectrum, axis=-3)
         return spectrum
 
-    def _scale(
+    def _scale[TArray: np.ndarray | torch.Tensor](
         self, data: Float32[TArray, "..."]
     ) -> Float32[TArray, "..."]:
         data = cast(TArray, data * self.scale)
@@ -53,7 +53,7 @@ class Representation(ABC):
             return data
 
     @abstractmethod
-    def __call__(
+    def __call__[TArray: np.ndarray | torch.Tensor](
         self, spectrum: Complex64[TArray, "batch doppler el az rng"],
         aug: Mapping[str, Any] = {}
     ) -> Float32[TArray, "batch doppler el az rng c"]:
@@ -88,7 +88,7 @@ class Magnitude(Representation):
         eps: small value to avoid log(0) in log transform.
     """
 
-    def __call__(
+    def __call__[TArray: np.ndarray | torch.Tensor](
         self, spectrum: Complex64[TArray, "batch doppler el az rng"],
         aug: Mapping[str, Any] = {}
     ) -> Float32[TArray, "batch doppler el az rng 1"]:
@@ -132,7 +132,7 @@ class PhaseAngle(Representation):
         eps: small value to avoid log(0) in log transform.
     """
 
-    def __call__(
+    def __call__[TArray: np.ndarray | torch.Tensor](
         self, spectrum: Complex64[TArray, "batch doppler el az rng"],
         aug: Mapping[str, Any] = {}
     ) -> Float32[TArray, "batch doppler el az rng 2"]:
@@ -178,7 +178,7 @@ class PhaseVec(Representation):
         eps: small value to avoid log(0) in log transform.
     """
 
-    def __call__(
+    def __call__[TArray: np.ndarray | torch.Tensor](
         self, spectrum: Complex64[TArray, "batch doppler el az rng"],
         aug: Mapping[str, Any] = {}
     ) -> Float32[TArray, "batch doppler el az rng 3"]:
@@ -232,7 +232,7 @@ class ComplexParts(Representation):
         scale: scale factor to apply to the magnitude.
     """
 
-    def __call__(
+    def __call__[TArray: np.ndarray | torch.Tensor](
         self, spectrum: Complex64[TArray, "batch doppler el az rng"],
         aug: Mapping[str, Any] = {}
     ) -> Float32[TArray, "batch doppler el az rng 2"]:

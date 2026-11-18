@@ -9,7 +9,6 @@ from torch import Tensor
 from torchvision import transforms
 
 from . import backend
-from .backend import TArray
 
 
 def msc_from_iq(
@@ -94,7 +93,7 @@ def iq_from_mp(
     ], dim=-1)
 
 
-def _wrap(
+def _wrap[TArray: np.ndarray | torch.Tensor](
     x: Float32[TArray, "T D A ... R"], width: int
 ) -> Float32[TArray, "T D_crop A ... R"]:
     """Wrap doppler velocities."""
@@ -111,7 +110,7 @@ def _wrap(
     return cast(TArray, center)
 
 
-def _resize(
+def _resize[TArray: np.ndarray | torch.Tensor](
     spectrum: Float32[TArray, "T D *A R"],
     nd: int, nr: int
 ) -> Float32[TArray, "T D2 *A R2"]:
@@ -145,7 +144,7 @@ def _resize(
             resized_flat_t.reshape(T, *A, nr, nd).numpy(), -1, 1))
 
 
-def _zeros(shape: tuple[int, ...], like: TArray) -> TArray:
+def _zeros[TArray: np.ndarray | torch.Tensor](shape: tuple[int, ...], like: TArray) -> TArray:
     """Get zeros array with the correct backend, dtype, and device."""
     if isinstance(like, np.ndarray):
         return np.zeros(shape, dtype=like.dtype)
@@ -153,7 +152,7 @@ def _zeros(shape: tuple[int, ...], like: TArray) -> TArray:
         return torch.zeros(shape, dtype=like.dtype, device=like.device)
 
 
-def resize(
+def resize[TArray: np.ndarray | torch.Tensor](
     spectrum: Float32[TArray, "T D *A R"],
     range_scale: float = 1.0, speed_scale: float = 1.0,
 ) -> Float32[TArray, "T D *A R"]:

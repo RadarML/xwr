@@ -4,7 +4,7 @@ import logging
 import threading
 from collections.abc import Iterator
 from queue import Empty, Queue
-from typing import Generic, Literal, TypeVar, cast, overload
+from typing import Literal, cast, overload
 
 import numpy as np
 
@@ -13,10 +13,8 @@ from .config import DCAConfig, XWRConfig
 from .constraints import check_config
 from .radar import XWRBase
 
-TRadar = TypeVar("TRadar", bound=XWRBase)
 
-
-class XWRSystem(Generic[TRadar]):
+class XWRSystem[TRadar: XWRBase]:
     """Radar capture system with a mmWave Radar and DCA1000EVM.
 
     This high-level API provides three different ways to read frames, each
