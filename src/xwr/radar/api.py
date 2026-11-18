@@ -197,6 +197,13 @@ class AWR2944(XWRBase, common.APIMixins):
     # `(ethOscClkEn, driveStrength)` for devices whose `channelCfg` takes
     # these; see [`configure_channels`][xwr.radar.common.configure_channels].
     _ETH_OSC_CLK: tuple[int, int] | None = None
+    # `antGeometryCfg` arguments: (row, column) of each virtual antenna in
+    # TX-major, RX-minor order, followed by the azimuth and elevation spacing
+    # (in wavelengths). Only used by the on-chip processing chain, but is a
+    # mandatory command for the TI demo firmware.
+    _ANT_GEOMETRY = (
+        "1 0 1 1 1 2 1 3 0 2 0 3 0 4 0 5 1 4 1 5 1 6 1 7 "
+        "1 8 1 9 1 10 1 11 0.5 0.8")
     NUM_TX = 4
     NUM_RX = 4
     BYTES_PER_SAMPLE = 2
@@ -260,10 +267,7 @@ class AWR2944(XWRBase, common.APIMixins):
         self.compRangeBiasAndRxChanPhase(rx_phase = [(1, 0)] * 4 * 4)
         self.lvdsStreamCfg()
 
-        # Can't be bothered to figure out what this does
-        self.send(
-            "antGeometryCfg 1 0 1 1 1 2 1 3 0 2 0 3 0 4 0 5 1 4 1 5 1 6 1 7 "
-            "1 8 1 9 1 10 1 11 0.5 0.8")
+        self.send(f"antGeometryCfg {self._ANT_GEOMETRY}")
 
         self.send("lowPower 0 0")
         self.send(common.get_boilerplate())
@@ -298,6 +302,40 @@ class AWR2944P(AWR2944):
     ) -> None:
         super().__init__(port=port, baudrate=baudrate, name=name)
 
+
+class AWR2E44P(AWR2944P):
+    """Interface implementation for the TI AWR2E44P.
+
+    !!! info "Supported devices"
+
+        - AWR2E44PEVM
+
+    The AWR2E44P is the launch-on-package (LOP) variant of the AWR2x44P,
+    i.e., the same die as the AWR2944P with the antennas moved onto the
+    package. It uses the same firmware (the pre-built mmWave MCU Plus SDK
+    AWR2x44P demos are built for the AWR2E44P by default), RF front end, and
+    LVDS interface; only the antenna layout differs.
+
+    The antenna geometry is taken from the TI demo profiles for the AWR2E44P
+    (`ti/demo/awr2x44P/mmw_tdm/profiles/awr2E44P`), which use the same
+    TX1, TX2, TX3, TX4 chirp order as
+    [`configure_channels`][xwr.radar.common.configure_channels].
+
+    Args:
+        port: radar control serial port; typically the lower numbered one.
+        baudrate: baudrate of control port.
+        name: human-readable name.
+    """
+
+    _ANT_GEOMETRY = (
+        "1 0 1 2 1 7 1 9 1 3 1 5 1 10 1 12 1 6 1 8 1 13 1 15 "
+        "0 9 0 11 0 16 0 18 0.5 0.5")
+
+    def __init__(
+        self, port: str | None = None, baudrate: int = 115200,
+        name: str = "AWR2E44P"
+    ) -> None:
+        super().__init__(port=port, baudrate=baudrate, name=name)
 
 class AWRL6844(XWRBase):
     """Interface implementation for the TI AWRL6844.
