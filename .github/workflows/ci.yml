@@ -9,21 +9,29 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v5
 
-    - name: Install uv with Python 3.12
+    - name: Install uv with Python ${{ matrix.python-version }}
       uses: astral-sh/setup-uv@v6
       with:
-        python-version: "3.12"
+        python-version: ${{ matrix.python-version }}
         enable-cache: true
         cache-dependency-glob: "uv.lock"
 
     - name: Install dependencies
       run: |
         uv sync --extra dev --extra torch --extra nn --extra jax --frozen
+
+    - name: Check C extension build
+      run: |
+        uv run --extra dev --extra torch --extra nn --extra jax python -c "import xwr.capture._fast"
 
     - name: Lint with ruff
       run: |
