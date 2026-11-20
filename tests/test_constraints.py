@@ -243,8 +243,25 @@ def test_min_sample_rate_applies_to_awr1843l(radar):
 # ---------------------------------------------------------------------------
 
 def test_frequency_range_pass(radar):
-    # start=77.0, end=77.0 + 3584/1000 = 80.584 GHz, within 76-81
+    # ramp sweeps 70 * 56 = 3920 MHz: 77.0 -> 80.920 GHz, within 76-81
     assert_passed(FrequencyRange.check(radar))
+
+
+def test_frequency_range_counts_full_ramp(radar):
+    # Sampled window ends at 77 + 4000/1000 = 81.000 GHz, exactly at the band
+    # edge, but the ramp keeps going to 77 + 4375/1000 = 81.375 GHz.
+    cfg = replace(radar, freq_slope=78.125)
+    assert cfg.frequency + cfg.bandwidth / 1000 == pytest.approx(81.0)
+    assert cfg.swept_frequency_range[1] == pytest.approx(81.375)
+    assert_failed(FrequencyRange.check(cfg))
+
+
+def test_frequency_range_negative_slope(radar):
+    # A down-chirp from 80 GHz sweeps downward; the low end is what matters.
+    cfg = replace(radar, frequency=80.0, freq_slope=-70.0)
+    assert cfg.swept_frequency_range == pytest.approx((76.08, 80.0))
+    assert_passed(FrequencyRange.check(cfg))
+    assert_failed(FrequencyRange.check(replace(cfg, frequency=79.0)))
 
 
 def test_frequency_range_fail_start_too_low(radar):
@@ -300,8 +317,39 @@ def test_max_bandwidth_fail(radar):
 
 
 def test_max_bandwidth_at_limit(radar):
-    # freq_slope = 4000 / 51.2 = 78.125 → bandwidth exactly 4000 MHz (pass)
-    assert_passed(MaxBandwidth.check(replace(radar, freq_slope=78.125)))
+    # freq_slope = 4000 / 56 = 71.4286 → swept bandwidth exactly 4000 MHz
+    assert_passed(MaxBandwidth.check(replace(radar, freq_slope=4000 / 56)))
+
+
+def test_max_bandwidth_counts_ramp_not_just_adc_window(radar):
+    # freq_slope=78.125 samples exactly 4000 MHz (78.125 * 51.2), but the ramp
+    # runs for the full 56us and sweeps 78.125 * 56 = 4375 MHz, over the limit.
+    cfg = replace(radar, freq_slope=78.125)
+    assert cfg.bandwidth == pytest.approx(4000.0)
+    assert cfg.ramp_bandwidth == pytest.approx(4375.0)
+    assert_failed(MaxBandwidth.check(cfg))
+
+
+def test_max_bandwidth_counts_adc_start_dead_zone(radar):
+    # A long adc_start_time leaves the sampled bandwidth unchanged while the
+    # ramp sweeps much further.
+    cfg = replace(radar, adc_start_time=40.0, ramp_end_time=100.0)
+    assert cfg.bandwidth == pytest.approx(3584.0)      # unchanged
+    assert cfg.ramp_bandwidth == pytest.approx(7000.0)  # 70 * 100
+    assert_failed(MaxBandwidth.check(cfg))
+
+
+def test_max_bandwidth_never_weaker_than_sampled_check(radar):
+    # Degenerate config: ExcessRampTime is violated, so the ADC window
+    # nominally outruns the ramp and the sampled span is the wider one
+    # (80 * 51.2 = 4096 MHz sampled vs 80 * 48 = 3840 MHz swept). Checking
+    # only the swept span would pass this, which would be weaker than the
+    # sampled-only check it replaces, so the wider span is used.
+    cfg = replace(radar, freq_slope=80.0, ramp_end_time=48.0)
+    assert cfg.bandwidth == pytest.approx(4096.0)
+    assert cfg.ramp_bandwidth == pytest.approx(3840.0)
+    assert_failed(ExcessRampTime.check(cfg))
+    assert_failed(MaxBandwidth.check(cfg))
 
 
 def test_max_bandwidth_skip_awrl6844(radar):
