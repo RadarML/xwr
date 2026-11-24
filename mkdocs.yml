@@ -111,13 +111,12 @@ plugins:
       python_xref:
         paths: [src]
         options:
-          extensions:
-          - scripts/griffe_type_params.py:TypeParameterBoundLinks
           docstring_style: google
           relative_crossrefs: true
           separate_signature: true
           line_length: 80
           show_signature_annotations: true
+          show_signature_type_parameters: true
           signature_crossrefs: true
           show_root_full_path: true
           show_root_members_full_path: true
