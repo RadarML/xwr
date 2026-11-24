@@ -2,7 +2,7 @@
 
 ## Hardware
 
-If you have not done so already, set up your radar and capture card according to the [hardware setup guide](./setup.md). Also, ensure that:
+If you have not done so already, set up your radar and capture card according to the [hardware setup guide](setup/index.md). Also, ensure that:
 
 - The micro-USB port on the radar is connected to the capture computer
 - The ethernet port on the capture card is connected to the capture computer
@@ -160,6 +160,7 @@ uv run demo.py --device AWR1843 --rsp AWR1843Boost
     | AWR1843AOPEVM           | AWR1843    | AWR1843AOP      |
     | AWR2944EVM              | AWR2944    | AWR2944EVM      |
     | AWR2944PEVM             | AWR2944P   | AWR2944EVM      |
+    | AWR2E44PEVM             | AWR2E44P   | AWR2E44PEVM     |
     | AWRL6844EVM             | AWRL6844   | AWRL6844EVM     |
 
 ![Spectrum Demo](images/demo.png)

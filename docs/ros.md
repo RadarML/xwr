@@ -4,7 +4,7 @@ A ROS 2 node wrapping the XWR data collection pipeline can be found in the [`xwr
 
 ## Setup
 
-1. Follow the [hardware](setup.md) and [software setup](usage.md) instructions for your radar and capture card.
+1. Follow the [hardware](setup/index.md) and [software setup](usage.md) instructions for your radar and capture card.
 
     - Don't forget to set the capture card's IP address to `192.168.33.30` as described in the software setup.
     - You should also create a [config file](usage.md#radar-configuration)

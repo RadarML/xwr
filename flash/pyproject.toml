@@ -1,0 +1,14 @@
+[project]
+name = "xwr-flash"
+version = "0.6.0"
+description = "Environment for TI's uart_uniflash.py flashing script (mmWave MCU Plus SDK)."
+requires-python = ">=3.12"
+
+dependencies = [
+    "pyserial >= 3.5",
+    "xmodem >= 0.4.7",
+    "tqdm >= 4.66.0",
+]
+
+[tool.uv]
+package = false
