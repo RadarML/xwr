@@ -28,6 +28,7 @@ SHAPE = {
     "AWR1843Boost": (2, 4, 3, 4, 8),
     "AWR1642Boost": (2, 4, 2, 4, 8),
     "AWR2944EVM": (2, 4, 4, 4, 16),
+    "AWR2E44PEVM": (2, 4, 4, 4, 16),
     "AWRL6844EVM": (2, 4, 4, 4, 16),
 }
 
@@ -41,6 +42,16 @@ AWR2944_PARAMS = [
     (False, {}),
     (True, {}),
     (True, {"azimuth": 24}),
+    (True, {"doppler": 8}),
+    (True, {"range": 16}),
+    (True, {"elevation": 4}),
+    ({"range": True, "doppler": True}, {}),
+]
+
+AWR2E44P_PARAMS = [
+    (False, {}),
+    (True, {}),
+    (True, {"azimuth": 32}),
     (True, {"doppler": 8}),
     (True, {"range": 16}),
     (True, {"elevation": 4}),
@@ -94,6 +105,11 @@ def test_numpy_basic():
     data = _i_float32(SHAPE["AWR2944EVM"])
     awr2944 = rspn.AWR2944EVM(window=False, size={})
     assert awr2944(data).shape == (2, 4, 2, 12, 9)
+
+    # AWR2E44PEVM: I-only input, sparse 2x19 virtual array
+    data = _i_float32(SHAPE["AWR2E44PEVM"])
+    awr2e44p = rspn.AWR2E44PEVM(window=False, size={})
+    assert awr2e44p(data).shape == (2, 4, 2, 19, 9)
 
     # AWRL6844EVM: I-only input, 4x4 virtual array; range bins = 16//2+1 = 9
     data = _i_float32(SHAPE["AWRL6844EVM"])
@@ -306,3 +322,86 @@ def test_torch_doppler_correction_backward():
     out = r.elevation_azimuth(r.doppler_correction(r.doppler_range(data)))
     out.abs().sum().backward()
     assert data.grad is not None
+
+
+def test_awr2e44p_virtual_array():
+    """Check AWR2E44PEVM TX-RX positions and calibration against TI's."""
+    # antGeometryCfg from TI's AWR2E44P demo profiles (TX-major, RX-minor).
+    geometry = [
+        (1, 0), (1, 2), (1, 7), (1, 9),
+        (1, 3), (1, 5), (1, 10), (1, 12),
+        (1, 6), (1, 8), (1, 13), (1, 15),
+        (0, 9), (0, 11), (0, 16), (0, 18)]
+
+    # antennaCalibParams from TI's AWR2E44P DDM demo profiles: Im(Q) Re(I).
+    calib = np.array([float(v) for v in (
+        "0.6718 0.3970 0.5714 0.5259 -0.0907 0.8665 0.0989 -0.9754 "
+        "0.8083 0.0366 0.7769 0.2025 0.3331 0.8275 -0.3769 -0.9263 "
+        "-0.6290 -0.4124 -0.5234 -0.5298 0.1282 -0.8125 -0.1418 0.9100 "
+        "0.5869 0.3367 0.4966 0.4459 -0.0732 0.7262 0.0808 -0.8108"
+    ).split()]).reshape(16, 2)
+    calib = calib[:, 1] + 1j * calib[:, 0]
+    calib = calib / np.abs(calib)
+
+    # Label each TX-RX pair with a unique nonzero value.
+    rd = (np.arange(16, dtype=np.float32) + 1).reshape(1, 1, 4, 4, 1)
+    rd = rd.astype(np.complex64)
+    expected = np.zeros((2, 19), dtype=np.complex64)
+    for i, (row, col) in enumerate(geometry):
+        expected[row, col] = (i + 1) * calib[i]
+
+    numpy_mimo = rspn.AWR2E44PEVM().mimo_virtual_array(rd)[0, 0, :, :, 0]
+    assert np.allclose(numpy_mimo, expected, atol=1e-5)
+    jax_mimo = rspj.AWR2E44PEVM().mimo_virtual_array(jnp.array(rd))
+    assert np.allclose(np.array(jax_mimo)[0, 0, :, :, 0], expected, atol=1e-5)
+    torch_mimo = rspt.AWR2E44PEVM().mimo_virtual_array(torch.from_numpy(rd))
+    assert np.allclose(torch_mimo.numpy()[0, 0, :, :, 0], expected, atol=1e-5)
+    # Positions with no TX-RX pair stay empty.
+    assert np.count_nonzero(numpy_mimo) == 16
+
+    with pytest.raises(ValueError):
+        rspn.AWR2E44PEVM().mimo_virtual_array(rd[:, :, :3])
+    with pytest.raises(ValueError):
+        rspj.AWR2E44PEVM().mimo_virtual_array(jnp.array(rd[:, :, :3]))
+    with pytest.raises(ValueError):
+        rspt.AWR2E44PEVM().mimo_virtual_array(torch.from_numpy(rd[:, :, :3]))
+
+
+@pytest.mark.parametrize("window,size", AWR2E44P_PARAMS)
+def test_jax_awr2e44p(window, size):
+    """Test jax vs numpy RSP for AWR2E44PEVM (I-only data)."""
+    rsp_numpy = rspn.AWR2E44PEVM(window=window, size=size)
+    rsp_jax = rspj.AWR2E44PEVM(window=window, size=size)
+
+    data = _i_float32(SHAPE["AWR2E44PEVM"])
+    numpy_result = rsp_numpy(data)
+    jax_result = rsp_jax(jnp.array(data))
+
+    assert np.allclose(numpy_result, np.array(jax_result), atol=1e-4)
+
+
+@pytest.mark.parametrize("window,size", AWR2E44P_PARAMS)
+def test_torch_awr2e44p(window, size):
+    """Test torch vs numpy RSP for AWR2E44PEVM (I-only data)."""
+    rsp_numpy = rspn.AWR2E44PEVM(window=window, size=size)
+    rsp_torch = rspt.AWR2E44PEVM(window=window, size=size)
+
+    data = _i_float32(SHAPE["AWR2E44PEVM"])
+    numpy_result = rsp_numpy(data)
+    torch_result = rsp_torch(torch.from_numpy(data))
+
+    assert np.allclose(numpy_result, torch_result.numpy(), atol=1e-4)
+
+
+def test_torch_awr2e44p_backward():
+    """Test that gradients flow through AWR2E44PEVM in torch."""
+    rng = np.random.default_rng()
+    data = torch.from_numpy(
+        rng.random(SHAPE["AWR2E44PEVM"]).astype(np.float32)
+    ).requires_grad_(True)
+
+    result = rspt.AWR2E44PEVM()(data)
+    result.abs().sum().backward()
+
+    assert data.grad is not None
+    assert data.grad.shape == data.shape
