@@ -177,11 +177,9 @@ logging.basicConfig(level=logging.DEBUG)
 with open("config.yaml") as f:
     cfg = yaml.safe_load(f)
 
-awr = xwr.XWRSystem(**cfg)
-for frame in awr.stream():
-    break
-
-awr.stop()
+with xwr.XWRSystem(**cfg) as awr:
+    for frame in awr.stream():
+        break
 ```
 
 See the [high level API documentation](system.md) for additional details.

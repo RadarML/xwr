@@ -92,22 +92,57 @@ class DCA1000EVM:
         self.fpga_ip = fpga_ip
         self.config_port = config_port
         self.data_port = data_port
-        self.recording = False
-        self.thread: threading.Thread | None = None
 
         self.config_socket: socket.socket = self._create_socket(
             (sys_ip, config_port), timeout)
-        self.data_socket: socket.socket = self._create_socket(
-            (sys_ip, data_port), 0.0)
+        try:
+            self.data_socket: socket.socket = self._create_socket(
+                (sys_ip, data_port), 0.0)
+        except BaseException:  # Omits KeyboardInterrupt and SystemExit
+            self.config_socket.close()
+            raise
 
         self.data_socket.setsockopt(
             socket.SOL_SOCKET, socket.SO_RCVBUF, socket_buffer)
         self.timeout = timeout
+        # Held while a stream is reading from the data socket.
+        self._lock = threading.Lock()
 
         self._warn_ooo_counter = 0
         self._warn_dropped_total = 0
         self._warn_dropped_count = 0
         self._warn_dropped_last = None
+
+    def close(self) -> None:
+        """Close the config and data sockets.
+
+        The capture card object can't be used after this. Calling it again does
+        nothing. Can also be used as a context manager, which calls `close()`
+        on exit.
+
+        If a [`stream`][..] is still running, waits for it to exit (it exits
+        within `timeout` once the capture card stops recording).
+
+        Raises:
+            RuntimeError: if a stream is still running after `timeout + 1`
+                seconds. The sockets are left open, so `close()` can be called
+                again after stopping the capture card and the stream.
+        """
+        if not self._lock.acquire(timeout=self.timeout + 1.0):
+            raise RuntimeError(
+                "A stream is still reading from the capture card; stop the "
+                "capture card and the stream before closing.")
+        try:
+            self.config_socket.close()
+            self.data_socket.close()
+        finally:
+            self._lock.release()
+
+    def __enter__(self) -> "DCA1000EVM":
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.close()
 
     def flush(self) -> None:
         """Clear data receive buffers."""
@@ -209,6 +244,9 @@ class DCA1000EVM:
         radar or capture card, which then terminates the stream and causes this
         method to return.
 
+        Only one stream can read from the capture card at a time; a new stream
+        waits for a previous stream to exit (up to `timeout + 1` seconds).
+
         !!! warning
 
             `shape` should have twice as many samples on the last axis
@@ -218,19 +256,27 @@ class DCA1000EVM:
 
         Args:
             shape: shape of the data to be received.
-        """
-        size = int(np.prod(shape)) * np.dtype(np.uint16).itemsize
-        self._check_bufsize(size)
 
+        Raises:
+            RuntimeError: if another stream is still running.
+        """
+        if not self._lock.acquire(timeout=self.timeout + 1.0):
+            raise RuntimeError("Capture card is already streaming.")
         try:
-            from . import _fast  # type: ignore[import]
-            self.log.debug("Using C extension for streaming.")
-            yield from self._stream_fast(_fast, size)
-        except ImportError:
-            self.log.warning(
-                "C extension not available; using pure Python streaming (this "
-                "may use around 2x more CPU resources).")
-            yield from self._stream_python(size)
+            size = int(np.prod(shape)) * np.dtype(np.uint16).itemsize
+            self._check_bufsize(size)
+
+            try:
+                from . import _fast  # type: ignore[import]
+                self.log.debug("Using C extension for streaming.")
+                yield from self._stream_fast(_fast, size)
+            except ImportError:
+                self.log.warning(
+                    "C extension not available; using pure Python streaming "
+                    "(this may use around 2x more CPU resources).")
+                yield from self._stream_python(size)
+        finally:
+            self._lock.release()
 
     def _stream_fast(
         self, _fast: object, size: int

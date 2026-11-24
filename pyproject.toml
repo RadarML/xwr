@@ -87,6 +87,7 @@ select = [
 ignore = [
     "D102",  # Inheriting docstrings is allowed
     "D107",  # Initializer goes in the class docstring
+    "D105",  # Magic methods are self-explanatory
     "D401",  # "Imperative mood" NLP doesn't always make sense
     "D413",  # No blank lines after section is preferred by mkdocstrings
     "N806",  # We do math, so capitalization should be allowed

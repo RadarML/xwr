@@ -8,7 +8,7 @@ from typing import Generic, Literal, TypeVar, cast, overload
 
 import numpy as np
 
-from .capture import DCA1000EVM, types
+from .capture import DCA1000EVM, DCAError, types
 from .config import DCAConfig, XWRConfig
 from .constraints import check_config
 from .radar import XWRBase
@@ -22,29 +22,39 @@ class XWRSystem(Generic[TRadar]):
     This high-level API provides three different ways to read frames, each
     with different performance characteristics:
 
-    - [`stream`][.]: a simple iterator which yields successive frames. No
-        buffering is done, which may lead to dropped packets if the consumer
-        is too slow.
-    - [`qstream`][.]: a queue-based interface, where a separate thread reads
-        frames into a queue. This prevents dropped packets, but may lead to
-        unbounded latency if the consumer is too slow.
-    - [`dstream`][.]: a "drop frame" iterator, which yields the most recent
-        frame, dropping any frames received while the consumer is processing a
-        frame.
+    [`stream`][.]: debugging, user-managed real-time systems; *no buffering*
+    :   A simple iterator which yields successive frames. No buffering is done,
+        which may lead to dropped packets if the consumer is too slow.
 
-    These correspond to the following use cases:
+    [`qstream`][.]: data collection; *no dropped packets, but unbounded latency*
+    :   A queue-based interface, where a separate thread reads frames into a
+        queue. This prevents dropped packets, but may lead to unbounded latency
+        if the consumer is too slow.
 
-    | Method | Use case | Performance characteristics |
-    |---|---|---|
-    | [`stream`][.] | Debugging, user-managed real-time systems | No buffering |
-    | [`qstream`][.] | Data collection | No dropped packets, but unbounded latency |
-    | [`dstream`][.] | Real-time demos | No dropped packets, but may drop frames |
+    [`dstream`][.]: real-time demos; *no dropped packets, but may skip frames*
+    :   A "drop frame" iterator, which yields the most recent frame, skipping
+        any frames received while the consumer is processing a frame.
+
+    Starting a new stream (with any of these methods) ends the previous one.
 
     !!! info "Known Constraints"
 
         The `XWRSystem` will check for known constraints on initialization,
         and warn or raise if any are violated. See
         [`xwr.constraints`][xwr.constraints] for the full list.
+
+    !!! warning "Releasing resources"
+
+        Use the `XWRSystem` as a context manager, or call [`close`][.] when
+        done; otherwise, the radar may become non-responsive and require a
+        power cycle, and the capture card ports stay bound until the object is
+        garbage collected.
+
+        ```python
+        with xwr.XWRSystem(**cfg) as awr:
+            for frame in awr.dstream():
+                ...
+        ```
 
     Type Parameters:
         TRadar: radar type (subclass of [`XWRBase`][xwr.radar.])
@@ -72,9 +82,15 @@ class XWRSystem(Generic[TRadar]):
         self.strict = strict
         self._check_config(radar, capture)
 
+        self._closed = False
+
         self.dca: DCA1000EVM = capture.create()
-        self.xwr: TRadar = cast(
-            type[TRadar], radar.device_type)(port=radar.port)
+        try:
+            self.xwr: TRadar = cast(
+                type[TRadar], radar.device_type)(port=radar.port)
+        except BaseException:
+            self.dca.close()
+            raise
 
         self.config = radar
         self.fps: float = 1000.0 / radar.frame_period
@@ -99,6 +115,7 @@ class XWRSystem(Generic[TRadar]):
                 times out.
         """
         # send a "stop" command in case the capture card is still running
+        # (this also ends any previous stream)
         self.dca.stop()
         # reboot radar in case it is stuck
         self.dca.reset_ar_device()
@@ -126,7 +143,9 @@ class XWRSystem(Generic[TRadar]):
     ) -> Queue[types.RadarFrame | None] | Queue[np.ndarray | None]:
         """Read into a queue from a threaded worker.
 
-        The threaded worker is run with `daemon=True`. Like [`stream`][..],
+        The radar is configured and started in the calling thread (so this
+        call blocks until the radar has started); frames are then read by a
+        worker thread run with `daemon=True`. Like [`stream`][..],
         `.qstream()` also relies on another worker to trigger [`stop`][..].
 
         !!! note
@@ -141,11 +160,12 @@ class XWRSystem(Generic[TRadar]):
             A queue of `RadarFrame` (or np.ndarray) read by the capture card.
                 When the stream terminates, `None` is written to the queue.
         """
+        frames = self.stream()
         out: Queue[types.RadarFrame | None] | Queue[np.ndarray | None] = Queue()
 
         def worker():
             try:
-                for frame in self.stream():
+                for frame in frames:
                     if numpy:
                         if frame is not None:
                             frame = np.frombuffer(
@@ -157,7 +177,8 @@ class XWRSystem(Generic[TRadar]):
                         out.put(frame)
             except TimeoutError:
                 pass
-            out.put(None)
+            finally:
+                out.put(None)
 
         threading.Thread(target=worker, daemon=True).start()
         return out
@@ -208,10 +229,38 @@ class XWRSystem(Generic[TRadar]):
         timings are too tight, which prevents a soft reset. We simply reboot
         the radar via the capture card instead.
 
-        !!! warning
-
-            If you fail to `.stop()` the system before exiting, the radar may
-            become non-responsive, and require a power cycle.
+        The system can be restarted after `stop()` by calling any of the
+        streaming methods again; use [`close`][..] to release it instead.
         """
         self.dca.stop()
         self.dca.reset_ar_device()
+
+    def close(self) -> None:
+        """Stop the system, and release the capture card and radar port.
+
+        - Waits for any running stream to exit after stopping the capture card.
+        - Unlike [`stop`][..], the system cannot be used after `close()`.
+        - Calling `close()` again does nothing.
+
+        Raises:
+            RuntimeError: if a stream is still running; see
+                [`DCA1000EVM.close`][xwr.capture.DCA1000EVM.close]. Nothing is
+                released in this case, so `close()` can be retried.
+        """
+        if self._closed:
+            return
+
+        try:
+            self.stop()
+        except (TimeoutError, DCAError) as e:
+            self.log.warning(f"Could not stop cleanly before closing: {e!r}")
+
+        self.dca.close()
+        self.xwr.close()
+        self._closed = True
+
+    def __enter__(self) -> "XWRSystem[TRadar]":
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.close()
