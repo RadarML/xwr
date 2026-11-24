@@ -2,6 +2,7 @@
 
 import os
 import socket
+import sys
 import threading
 import time
 import warnings
@@ -13,9 +14,11 @@ import xwr
 from xwr.capture import DCA1000EVM
 
 
-def _make_system():
+def _make_system(timeout: float | None = None):
     with open(os.path.join(os.path.dirname(__file__), "config.yaml")) as f:
         cfg = yaml.safe_load(f)
+    if timeout is not None:
+        cfg['capture']['timeout'] = timeout
 
     device = os.environ.get("XWR_DEVICE")
     if device is None:
@@ -95,6 +98,41 @@ def test_dca_close_raises_if_stream_still_running():
     assert dca.data_socket.fileno() == -1
 
 
+@pytest.fixture(params=["fast", "python"])
+def receiver(request, monkeypatch):
+    """Run a test with the C extension receiver, and the pure-Python one."""
+    if request.param == "python":
+        import xwr.capture
+        monkeypatch.delattr(xwr.capture, "_fast", raising=False)
+        monkeypatch.setitem(sys.modules, "xwr.capture._fast", None)
+    return request.param
+
+
+def test_dca_stop_ends_stream_promptly(receiver, monkeypatch):
+    """A stream ends shortly after `stop()`, even with a long timeout."""
+    dca = _local_dca(timeout=10.0)
+    monkeypatch.setattr(dca, "_config_request", lambda *a, **k: None)  # no FPGA
+
+    t = threading.Thread(target=lambda: list(dca.stream([4])))
+    t.start()
+    time.sleep(0.3)  # reader is now waiting for packets
+
+    start = time.perf_counter()
+    dca.stop()
+    t.join(timeout=2.0)
+    assert not t.is_alive()
+    assert time.perf_counter() - start < 1.0
+    dca.close()
+
+
+def test_dca_stream_waits_for_timeout(receiver):
+    """Without `stop()`, a stream still waits `timeout` seconds for data."""
+    with _local_dca(timeout=0.5) as dca:
+        start = time.perf_counter()
+        assert list(dca.stream([4])) == []
+        assert 0.45 < time.perf_counter() - start < 1.5
+
+
 def test_capture():
     """Test basic capture functionality."""
     system = _make_system()
@@ -162,3 +200,23 @@ def test_new_stream_ends_previous():
         while q1.get(timeout=5.0) is not None:
             pass  # previous stream ended
         assert q2.get(timeout=5.0) is not None
+
+
+def test_restart_and_close_with_long_timeout():
+    """Restarting and closing don't wait for `capture.timeout`."""
+    system = _make_system(timeout=10.0)
+    if system is None:
+        return
+
+    with system:
+        q1 = system.qstream()
+        assert q1.get(timeout=5.0) is not None
+
+        system.stop()
+        q2 = system.qstream()
+        assert q2.get(timeout=5.0) is not None
+        # the previous stream ended, and didn't read any of the new stream
+        assert list(q1.queue)[-1] is None
+
+        start = time.perf_counter()
+    assert time.perf_counter() - start < 3.0

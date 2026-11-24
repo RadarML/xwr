@@ -111,12 +111,15 @@ class XWRSystem(Generic[TRadar]):
             another worker must call [`stop`][..].
 
         Yields:
-            Read frames; the iterator terminates when the capture card stream
-                times out.
+            Read frames; the iterator terminates shortly after [`stop`][..], or
+                if no data is received for `capture.timeout` seconds.
         """
         # send a "stop" command in case the capture card is still running
         # (this also ends any previous stream)
         self.dca.stop()
+        # wait for the previous stream to finish so that it doesn't steal
+        # frames from the new stream
+        self.dca.wait_idle()
         # reboot radar in case it is stuck
         self.dca.reset_ar_device()
         # clear buffer from possible previous data collection
@@ -198,8 +201,8 @@ class XWRSystem(Generic[TRadar]):
             numpy: yield a numpy array instead of a `RadarFrame`.
 
         Yields:
-            Read frames; the iterator terminates when the capture card stream
-                times out.
+            Read frames; the iterator terminates shortly after [`stop`][..], or
+                if no data is received for `capture.timeout` seconds.
         """
         def drop_frames(q):
             dropped = 0
