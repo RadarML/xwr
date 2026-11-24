@@ -182,7 +182,8 @@ class DCAConfig:
         fpga_ip: FPGA IP address; either hard-coded or configured.
         data_port: data network port number.
         config_port: configuration network port number.
-        timeout: Socket read timeout, in seconds.
+        timeout: Time to wait for data before a stream ends, and for
+            responses from the capture card; in seconds.
         socket_buffer: Network read buffer size; should be less than
             [`rmem_max`](https://www.kernel.org/doc/html/latest/admin-guide/sysctl/net.html#rmem-max).
         delay: Packet delay for the capture card, in microseconds.

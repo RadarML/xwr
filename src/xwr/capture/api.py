@@ -69,6 +69,8 @@ class DCA1000EVM:
     """
 
     _MAX_PACKET_SIZE = 2048
+    # Streams check for `stop()` after this many seconds without data.
+    _STOP_POLL_INTERVAL = 0.1
 
     def _create_socket(
         self, addr: tuple[str, int], timeout: float
@@ -107,6 +109,9 @@ class DCA1000EVM:
         self.timeout = timeout
         # Held while a stream is reading from the data socket.
         self._lock = threading.Lock()
+        # Incremented by `stop()`, so running streams can tell that recording
+        # stopped, instead of waiting for `timeout`.
+        self._epoch = 0
 
         self._warn_ooo_counter = 0
         self._warn_dropped_total = 0
@@ -138,6 +143,19 @@ class DCA1000EVM:
         finally:
             self._lock.release()
 
+    def wait_idle(self) -> None:
+        """Wait for any running [`stream`][..] to exit.
+
+        Raises:
+            RuntimeError: if a stream is still running after `timeout + 1`
+                seconds.
+        """
+        if not self._lock.acquire(timeout=self.timeout + 1.0):
+            raise RuntimeError(
+                "A stream is still reading from the capture card; stop the "
+                "capture card and the stream first.")
+        self._lock.release()
+
     def __enter__(self) -> "DCA1000EVM":
         return self
 
@@ -146,7 +164,7 @@ class DCA1000EVM:
 
     def flush(self) -> None:
         """Clear data receive buffers."""
-        self.data_socket.settimeout(0.0)
+        # The data socket is always non-blocking; see `_recv`.
         try:
             while True:
                 data = self.data_socket.recv(self._MAX_PACKET_SIZE)
@@ -154,8 +172,6 @@ class DCA1000EVM:
                     break
         except BlockingIOError:
             pass
-
-        self.data_socket.settimeout(self.timeout)
 
     def setup(
         self, delay: float = 5.0, lvds: defines.LVDS = defines.LVDS.TWO_LANE
@@ -175,7 +191,7 @@ class DCA1000EVM:
             format=defines.DataFormat.BIT16,
             capture=defines.DataCapture.ETH_STREAM)
 
-    def _recv(self) -> types.DataPacket | None:
+    def _recv(self, timeout: float) -> types.DataPacket | None:
         """Receive data.
 
         !!! info
@@ -183,10 +199,13 @@ class DCA1000EVM:
             Due to high packet rates (~10k packets/sec), we only busy-wait, and
             manually track the timeout using `perf_counter`.
 
+        Args:
+            timeout: time to wait for a packet, in seconds.
+
         Returns:
             The received `DataPacket` or `None` if the timeout is reached.
         """
-        timeout = time.perf_counter() + self.timeout
+        timeout = time.perf_counter() + timeout
         while True:
             try:
                 raw, _ = self.data_socket.recvfrom(self._MAX_PACKET_SIZE)
@@ -238,11 +257,8 @@ class DCA1000EVM:
     ) -> Iterator[types.RadarFrame]:
         """Get a python iterator corresponding to the data stream.
 
-        Returns only when the stream is exhausted (i.e., when the radar no
-        longer sends any data). Thus, no method is provided to stop receiving
-        the stream directly; callers should instead send a stop command to the
-        radar or capture card, which then terminates the stream and causes this
-        method to return.
+        The stream ends shortly after [`stop`][..] is called, or if no data
+        is received for `timeout` seconds.
 
         Only one stream can read from the capture card at a time; a new stream
         waits for a previous stream to exit (up to `timeout + 1` seconds).
@@ -282,17 +298,26 @@ class DCA1000EVM:
         self, _fast: object, size: int
     ) -> Iterator[types.RadarFrame]:
         """Stream frames using the C extension (recvmmsg ring-buffer path)."""
+        # Record the current epoch
+        epoch = self._epoch
+        interval = min(self.timeout, self._STOP_POLL_INTERVAL)
+        # Partially received frames are kept in `receiver` across timeouts.
         receiver = _fast.FrameStream(  # type: ignore[attr-defined]
             fd=self.data_socket.fileno(),
             frame_size=size,
             batch_size=64,
             ring_frames=4,
-            timeout=self.timeout,
+            timeout=interval,
         )
+        silent = 0.0
         while True:
             result = receiver.next_frame()
             if result is None:
-                return
+                silent += interval
+                if self._epoch != epoch or silent >= self.timeout:
+                    return
+                continue
+            silent = 0.0
             ts, data, dropped = result
             if dropped:
                 self._warn_dropped(dropped)
@@ -301,13 +326,22 @@ class DCA1000EVM:
 
     def _stream_python(self, size: int) -> Iterator[types.RadarFrame]:
         """Stream frames using the pure-Python fallback path."""
+        # Record the current epoch
+        epoch = self._epoch
+        interval = min(self.timeout, self._STOP_POLL_INTERVAL)
+
         offset = 0
         timestamp = 0.0
         buf = bytearray()
+        silent = 0.0
         while True:
-            packet = self._recv()
+            packet = self._recv(interval)
             if packet is None:
-                return
+                silent += interval
+                if self._epoch != epoch or silent >= self.timeout:
+                    return
+                continue
+            silent = 0.0
 
             if offset == 0:
                 offset = packet.byte_count - (packet.byte_count % size)
@@ -420,7 +454,11 @@ class DCA1000EVM:
         self._config_request(cmd, desc="Start recording")
 
     def stop(self) -> None:
-        """Stop recording data."""
+        """Stop recording data.
+
+        Any running [`stream`][..] ends once no more data is received.
+        """
+        self._epoch += 1
         cmd = types.Request(types.Command.STOP_RECORD, bytes())
         self._config_request(cmd, desc="Stop recording")
 
