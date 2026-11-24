@@ -243,8 +243,20 @@ def test_min_sample_rate_applies_to_awr1843l(radar):
 # ---------------------------------------------------------------------------
 
 def test_frequency_range_pass(radar):
-    # start=77.0, end=77.0 + 3584/1000 = 80.584 GHz, within 76-81
+    # ramp: 70 * 56 = 3920 MHz; start=77.0, end=80.920 GHz, within 76-81
     assert_passed(FrequencyRange.check(radar))
+
+
+def test_frequency_range_at_limit(radar):
+    # ramp: 62.5 * 64 = 4000 MHz exactly; end = 81.0 GHz (pass)
+    cfg = replace(radar, freq_slope=62.5, ramp_end_time=64.0)
+    assert_passed(FrequencyRange.check(cfg))
+
+
+def test_frequency_range_counts_full_ramp(radar):
+    # #71: sampled window ends at 77 + 78.125 * 51.2 / 1000 = 81.0 GHz, but
+    # the ramp ends at 77 + 78.125 * 56 / 1000 = 81.375 GHz
+    assert_failed(FrequencyRange.check(replace(radar, freq_slope=78.125)))
 
 
 def test_frequency_range_fail_start_too_low(radar):
@@ -252,7 +264,7 @@ def test_frequency_range_fail_start_too_low(radar):
 
 
 def test_frequency_range_fail_end_too_high(radar):
-    # freq_slope=80 → bandwidth = 80 * 51.2 = 4096 MHz → end = 77 + 4.096 = 81.096 GHz
+    # freq_slope=80 → ramp = 80 * 56 = 4480 MHz → end = 81.480 GHz
     assert_failed(FrequencyRange.check(replace(radar, freq_slope=80.0)))
 
 
@@ -263,7 +275,7 @@ def test_frequency_range_skip_unknown_device(radar):
 
 
 def test_frequency_range_awrl6844_pass(radar):
-    # AWRL6844 band: 57-64 GHz; end = 60.0 + 3.584 = 63.584 GHz
+    # AWRL6844 band: 57-64 GHz; end = 60.0 + 3.920 = 63.920 GHz
     cfg = replace(radar, device=AWRL6844, frequency=60.0)
     assert_passed(FrequencyRange.check(cfg))
 
@@ -274,7 +286,7 @@ def test_frequency_range_awrl6844_fail_start_too_low(radar):
 
 
 def test_frequency_range_awrl6844_fail_end_too_high(radar):
-    # frequency=62.0, freq_slope=80 → end = 62.0 + 4.096 = 66.096 GHz > 64
+    # frequency=62.0, freq_slope=80 → end = 62.0 + 4.480 = 66.480 GHz > 64
     cfg = replace(radar, device=AWRL6844, frequency=62.0, freq_slope=80.0)
     assert_failed(FrequencyRange.check(cfg))
 
@@ -290,18 +302,28 @@ def test_frequency_range_all_76ghz_devices(radar):
 # ---------------------------------------------------------------------------
 
 def test_max_bandwidth_pass(radar):
-    # bandwidth = 70 * 51.2 = 3584 MHz < 4000 MHz
+    # ramp bandwidth = 70 * 56 = 3920 MHz < 4000 MHz
     assert_passed(MaxBandwidth.check(radar))
 
 
 def test_max_bandwidth_fail(radar):
-    # freq_slope=80 → bandwidth = 80 * 51.2 = 4096 MHz > 4000 MHz
+    # freq_slope=80 → ramp bandwidth = 80 * 56 = 4480 MHz > 4000 MHz
     assert_failed(MaxBandwidth.check(replace(radar, freq_slope=80.0)))
 
 
 def test_max_bandwidth_at_limit(radar):
-    # freq_slope = 4000 / 51.2 = 78.125 → bandwidth exactly 4000 MHz (pass)
-    assert_passed(MaxBandwidth.check(replace(radar, freq_slope=78.125)))
+    # ramp bandwidth = 62.5 * 64 = 4000 MHz exactly (pass)
+    cfg = replace(radar, freq_slope=62.5, ramp_end_time=64.0)
+    assert_passed(MaxBandwidth.check(cfg))
+
+
+def test_max_bandwidth_counts_full_ramp(radar):
+    # #71: sampled bandwidth is 78.125 * 51.2 = 4000 MHz, but the ramp
+    # sweeps 78.125 * 56 = 4375 MHz
+    cfg = replace(radar, freq_slope=78.125)
+    assert cfg.bandwidth == pytest.approx(4000.0)
+    assert cfg.ramp_bandwidth == pytest.approx(4375.0)
+    assert_failed(MaxBandwidth.check(cfg))
 
 
 def test_max_bandwidth_skip_awrl6844(radar):

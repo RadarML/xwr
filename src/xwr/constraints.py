@@ -20,8 +20,8 @@ This module documents and enforces known constraints on radar configurations.
 | [`AdcSamplesPowerOfTwo`][.] | ADC samples: power of 2 |
 | [`MaxSampleRate`][.] | ADC sample rate ≤ device maximum |
 | [`MinSampleRate`][.] | ADC sample rate ≥ device minimum |
-| [`FrequencyRange`][.] | Start/end frequency within device RF band |
-| [`MaxBandwidth`][.] | Chirp bandwidth ≤ device RF maximum |
+| [`FrequencyRange`][.] | Chirp ramp within device RF band |
+| [`MaxBandwidth`][.] | Chirp ramp bandwidth ≤ device RF maximum |
 | [`NetworkUtilization`][.] | Radar throughput < 80% of capture |
 | [`ReceiveBuffer`][.] | Receive buffer must hold ≥ 2 radar frames |
 """
@@ -288,10 +288,12 @@ class MinSampleRate(Constraint):
 
 
 class FrequencyRange(Constraint):
-    """Start and end frequencies must lie within the device RF band.
+    """Chirp ramp must lie within the device RF band.
 
-    Both the start frequency and the end frequency
-    (`start_freq + bandwidth / 1000`) are checked against per-device limits:
+    Both the start frequency and the end frequency of the full ramp
+    (`start_freq + ramp_bandwidth / 1000`; see
+    [`XWRConfig.ramp_bandwidth`][xwr.config.XWRConfig]) are checked against
+    per-device limits:
 
     | Device   | Min (GHz) | Max (GHz) |
     |----------|-----------|-----------|
@@ -320,7 +322,7 @@ class FrequencyRange(Constraint):
                 f"not checked for {radar.device_name}")
         min_freq, max_freq = limits
         start = radar.frequency
-        end = radar.frequency + radar.bandwidth / 1000
+        end = radar.frequency + radar.ramp_bandwidth / 1000
         if start < min_freq:
             return ConstraintCheck(
                 FrequencyRange, False,
@@ -336,10 +338,11 @@ class FrequencyRange(Constraint):
 
 
 class MaxBandwidth(Constraint):
-    """Effective chirp bandwidth must not exceed the device RF limit.
+    """Chirp ramp bandwidth must not exceed the device RF limit.
 
-    Bandwidth is computed as `freq_slope × T_s` (see
-    [`XWRConfig.bandwidth`][xwr.config.XWRConfig]).
+    This applies to the full ramp, `freq_slope × ramp_end_time` (see
+    [`XWRConfig.ramp_bandwidth`][xwr.config.XWRConfig]), not just the portion
+    sampled by the ADC.
 
     | Device   | Maximum  |
     |----------|----------|
@@ -364,11 +367,12 @@ class MaxBandwidth(Constraint):
             return ConstraintCheck(
                 MaxBandwidth, None,
                 f"not checked for {radar.device_name}")
-        passed = radar.bandwidth <= limit
-        detail = f"bandwidth = {radar.bandwidth:.1f} MHz, maximum = {limit:.0f} MHz"
+        bw = radar.ramp_bandwidth
+        passed = bw <= limit
+        detail = f"ramp bandwidth = {bw:.1f} MHz, maximum = {limit:.0f} MHz"
         if not passed:
             detail = (
-                f"bandwidth = {radar.bandwidth:.1f} MHz "
+                f"ramp bandwidth = {bw:.1f} MHz "
                 f"> device maximum {limit:.0f} MHz")
         return ConstraintCheck(MaxBandwidth, passed, detail)
 
