@@ -82,7 +82,7 @@ As a general guideline:
 2. Select a target doppler resolution/maximum doppler.
     - This informs the per-antenna chirp rate and `frame_period`.
 
-3. Select a target range resolution/maximum range, keeping in mind the theoretical range resolution limit of `C / 2B` (the bandwidth `B` is 4GHz for a 77-81 GHz mmWave radar).
+3. Select a target range resolution/maximum range, keeping in mind the theoretical range resolution limit of `C / 2B` (the bandwidth `B` is 4GHz for a 77-81 GHz mmWave radar). Note that this limit applies to the full chirp ramp (`freq_slope * ramp_end_time`), not just the portion sampled by the ADC.
     - Based on the maximum chirp time, you will need to select a `freq_slope`, `sample_rate`, `adc_start_time`, `tx_start_time`, and `ramp_end_time` which keeps the total chirp time under the chirp period.
     - Set the `idle_time` to meet the target per-chirp time.
 

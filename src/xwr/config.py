@@ -47,7 +47,10 @@ class XWRConfig:
         chirp_time: *(derived)* Per-TX antenna inter-chirp time T_c, in microseconds.
         frame_time: *(derived)* Total radar frame time, in ms.
         sample_time: *(derived)* Total sampling time T_s, in us.
-        bandwidth: *(derived)* Effective bandwidth, in MHz.
+        bandwidth: *(derived)* Sampled bandwidth (the part of the ramp
+            sampled by the ADC), in MHz; determines range resolution.
+        ramp_bandwidth: *(derived)* Total bandwidth swept by the chirp ramp,
+            in MHz.
         range_resolution: *(derived)* Range resolution, in m.
         max_range: *(derived)* Maximum range, in m.
         wavelength: *(derived)* Center wavelength, in m.
@@ -122,6 +125,10 @@ class XWRConfig:
     @property
     def bandwidth(self) -> float:
         return self.freq_slope * self.sample_time
+
+    @property
+    def ramp_bandwidth(self) -> float:
+        return self.freq_slope * self.ramp_end_time
 
     @property
     def range_resolution(self) -> float:
