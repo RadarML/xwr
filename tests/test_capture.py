@@ -2,8 +2,11 @@
 
 import os
 import socket
+import threading
+import time
 import warnings
 
+import pytest
 import yaml
 
 import xwr
@@ -45,6 +48,51 @@ def test_dca_close_releases_ports():
     dca = make()
     dca.close()
     dca.close()
+
+
+def _local_dca(timeout: float = 0.2) -> DCA1000EVM:
+    return DCA1000EVM(
+        sys_ip="127.0.0.1", config_port=_free_port(), data_port=_free_port(),
+        timeout=timeout)
+
+
+def test_dca_stream_releases_lock():
+    """A stream that ends (no data within `timeout`) lets the next one run."""
+    with _local_dca() as dca:
+        assert list(dca.stream([4])) == []
+        assert list(dca.stream([4])) == []
+
+
+def test_dca_close_waits_for_stream():
+    """`close()` waits for a stream running in another thread to exit."""
+    dca = _local_dca()
+    errors = []
+
+    def reader():
+        try:
+            list(dca.stream([4]))
+        except Exception as e:  # noqa: BLE001
+            errors.append(e)
+
+    t = threading.Thread(target=reader)
+    t.start()
+    time.sleep(0.05)  # reader is now waiting for packets
+    dca.close()
+    assert not t.is_alive()
+    assert errors == []
+
+
+def test_dca_close_raises_if_stream_still_running():
+    """`close()` refuses to close under an active reader, and can be retried."""
+    dca = _local_dca()
+    dca._lock.acquire()  # simulate a stream that never ends
+    with pytest.raises(RuntimeError):
+        dca.close()
+    assert dca.data_socket.fileno() != -1  # nothing was closed
+
+    dca._lock.release()  # the stream ends
+    dca.close()
+    assert dca.data_socket.fileno() == -1
 
 
 def test_capture():
@@ -98,3 +146,19 @@ def test_sequential_systems():
             frame = q.get(timeout=5.0)
             assert frame is not None
             assert len(frame.data) == system.config.frame_size
+
+
+def test_new_stream_ends_previous():
+    """Starting a new stream ends the previous one."""
+    system = _make_system()
+    if system is None:
+        return
+
+    with system:
+        q1 = system.qstream()
+        assert q1.get(timeout=5.0) is not None
+
+        q2 = system.qstream()
+        while q1.get(timeout=5.0) is not None:
+            pass  # previous stream ended
+        assert q2.get(timeout=5.0) is not None

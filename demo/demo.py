@@ -110,8 +110,6 @@ def cli_main(
 
     continuous = cfg["radar"]["frame_length"] == 1
 
-    awr = xwr.XWRSystem(**cfg)
-
     rsp_inst = getattr(xwr_rsp, rsp)(
         window=False, size={"azimuth": vis.azimuth})
 
@@ -120,23 +118,22 @@ def cli_main(
     else:
         Nr = cfg["radar"]["adc_samples"]
 
-    n_doppler = vis.doppler if continuous else cfg["radar"]["frame_length"]
-    plot = RadarPlot(
-        n_range=Nr, n_doppler=n_doppler, n_azimuth=vis.azimuth,
-        max_range=awr.config.max_range, max_doppler=awr.config.max_doppler,
-        range_resolution=awr.config.range_resolution,
-        pclip=vis.pclip, power=vis.power)
+    with xwr.XWRSystem(**cfg) as awr:
+        n_doppler = vis.doppler if continuous else cfg["radar"]["frame_length"]
+        plot = RadarPlot(
+            n_range=Nr, n_doppler=n_doppler, n_azimuth=vis.azimuth,
+            max_range=awr.config.max_range, max_doppler=awr.config.max_doppler,
+            range_resolution=awr.config.range_resolution,
+            pclip=vis.pclip, power=vis.power)
 
-    framerate = FrameRateLogger(log)
-    try:
-        if continuous:
-            _run_continuous(awr, rsp_inst, plot, framerate, vis.doppler)
-        else:
-            _run_dstream(awr, rsp_inst, plot, framerate)
-
-    except KeyboardInterrupt:
-        log.warning("Demo interrupted by user.")
-        awr.stop()
+        framerate = FrameRateLogger(log)
+        try:
+            if continuous:
+                _run_continuous(awr, rsp_inst, plot, framerate, vis.doppler)
+            else:
+                _run_dstream(awr, rsp_inst, plot, framerate)
+        except KeyboardInterrupt:
+            log.warning("Demo interrupted by user.")
 
 if __name__ == "__main__":
     tyro.cli(cli_main)

@@ -210,5 +210,9 @@ class DCAConfig:
             sys_ip=self.sys_ip, fpga_ip=self.fpga_ip,
             data_port=self.data_port, config_port=self.config_port,
             timeout=self.timeout, socket_buffer=self.socket_buffer)
-        dca.setup(delay=self.delay)
+        try:
+            dca.setup(delay=self.delay)
+        except BaseException:
+            dca.close()
+            raise
         return dca

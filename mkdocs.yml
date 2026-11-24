@@ -2,6 +2,10 @@ site_name: XWR
 site_url: https://radarml.github.io/xwr
 repo_url: https://github.com/RadarML/xwr
 repo_name: RadarML/xwr
+# Zensical only tracks mkdocstrings sources for the `python` handler, not
+# `python_xref`; without this, docstring edits don't rebuild or invalidate pages.
+watch:
+- src
 nav:
   - XWR:
     - Home: index.md
@@ -119,6 +123,9 @@ plugins:
           show_root_heading: true
           show_root_toc_entry: true
           heading_level: 1
+          filters:
+          - "!^_[^_]"  # mkdocstrings default: hide private members
+          - "!^__(enter|exit)__$"  # context manager support is documented in prose
           check_crossrefs_exclude:
           - "^torch\\.(.*)"
           - "^numpy\\.(.*)"
