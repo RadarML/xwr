@@ -88,7 +88,7 @@ The `xwr` library can be installed from [pypi](https://pypi.org/project/xwr/) or
     xwr = { git = "ssh://git@github.com/RadarML/xwr.git" }
     ```
 
-See the [user guide](usage.md) and [hardware setup](setup.md) for instructions on how to configure and use `xwr`.
+See the [user guide](usage.md) and [hardware setup](setup/index.md) for instructions on how to configure and use `xwr`.
 
 !!! warning
 

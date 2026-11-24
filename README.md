@@ -23,10 +23,9 @@ See our [documentation site](https://radarml.github.io/xwr/) for more details, s
 
 > [!IMPORTANT] 
 > Supported Devices:
->    - AWR1843 Family: AWR1843Boost, AWR1843AOPEVM
->    - AWR1642Boost
->    - AWR2X44 Family: AWR2944EVM, AWR2944PEVM, AWR2E44PEVM
->    - AWRL6844EVM
+>    - XWR1642/1843 Family: AWR1843Boost, IWR1843Boost, AWR1642Boost, AWR1843AOPEVM
+>    - AWR2X44(P) Family: AWR2944EVM, AWR2944PEVM, AWR2E44PEVM
+>    - AWRL68XX Family: AWRL6844EVM
 
 ## Install
 

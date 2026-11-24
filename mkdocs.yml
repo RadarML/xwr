@@ -11,12 +11,16 @@ nav:
     - Home: index.md
     - Usage:
       - User Guide: usage.md
-      - Hardware Setup: setup.md
       - Development: develop.md
+      - Firmware: firmware.md
+    - Hardware Setup:
+      - Overview: setup/index.md
+      - XWR1642/1843: setup/xwr1642-1843.md
+      - AWR2X44(P): setup/awr2x44p.md
+      - AWRL68XX: setup/awrl68xx.md
     - High Level API: system.md
     - Constraints: constraints.md
     - ROS Node: ros.md
-    - Firmware: firmware.md
   - Radar Processing:
     - rsp: rsp/index.md
     - rsp.numpy: rsp/numpy.md
@@ -85,7 +89,10 @@ plugins:
       "XWR":
       - index.md: Project overview, supported hardware, and installation
       - usage.md: User guide for operating system setup, radar configuration, and capturing data
-      - setup.md: Hardware setup for the DCA1000EVM capture card and supported TI radar development boards
+      - setup/index.md: Hardware setup overview, supported radar families, and the DCA1000EVM capture card
+      - setup/xwr1642-1843.md: Flashing the XWR1642/1843 family (AWR1843Boost, IWR1843Boost, AWR1642Boost, AWR1843AOP)
+      - setup/awr2x44p.md: Flashing the AWR2X44(P) family (AWR2944EVM, AWR2944PEVM, AWR2E44PEVM)
+      - setup/awrl68xx.md: Flashing the AWRL68XX family (AWRL6844EVM)
       - develop.md: Development environment setup, testing, and documentation
       - system.md: High level API - the XWRSystem capture interface and its XWRConfig/DCAConfig configuration
       - constraints.md: Documented and enforced constraints on radar configurations

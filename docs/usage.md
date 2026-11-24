@@ -2,7 +2,7 @@
 
 ## Hardware
 
-If you have not done so already, set up your radar and capture card according to the [hardware setup guide](./setup.md). Also, ensure that:
+If you have not done so already, set up your radar and capture card according to the [hardware setup guide](setup/index.md). Also, ensure that:
 
 - The micro-USB port on the radar is connected to the capture computer
 - The ethernet port on the capture card is connected to the capture computer
