@@ -2,16 +2,15 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Generic
 
 import numpy as np
 from jaxtyping import Bool, Float32, Int
 
-from .generic import TArray
+from .generic import ArrayLike
 
 
 @dataclass
-class DensePoints(Generic[TArray]):
+class DensePoints[TArray: ArrayLike]:
     """A dense radar point cloud, and the points in it which are valid.
 
     Type Parameters:
@@ -29,7 +28,7 @@ class DensePoints(Generic[TArray]):
     points: Float32[TArray, "batch range doppler 4"]
 
 
-class PointCloud(ABC, Generic[TArray]):
+class PointCloud[TArray: ArrayLike](ABC):
     """Get radar point cloud from post FFT cube.
 
     To convert azimuth-elevation bin indices to azimuth-elevation angles,

@@ -2,14 +2,14 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Generic, cast
+from typing import Any, cast
 
 import numpy as np
 from jaxtyping import Bool, Float
 
-from .generic import TArray
+from .generic import ArrayLike
 
-SignalCube = (
+type SignalCube[TArray: ArrayLike] = (
     Float[TArray, "batch doppler tx rx range"]
     | Float[TArray, "batch doppler range"]
     | Float[TArray, "batch doppler el az range"])
@@ -19,7 +19,7 @@ SignalCube = (
 
 
 @dataclass
-class Detection(Generic[TArray]):
+class Detection[TArray: ArrayLike]:
     """Detected objects, and the statistics they were detected from.
 
     Type Parameters:
@@ -38,7 +38,7 @@ class Detection(Generic[TArray]):
     snr: Float[TArray, "batch range doppler"]
 
 
-class CFAR(ABC, Generic[TArray]):
+class CFAR[TArray: ArrayLike](ABC):
     """Abstract, backend-agnostic CFAR base class.
 
     The following implementations are available:
@@ -111,7 +111,7 @@ class CFAR(ABC, Generic[TArray]):
             signal_cube.shape[0], signal_cube.shape[1], signal_cube.shape[-1])
         return cast(Any, signal_cube).reshape((batch, doppler, -1, rng))
 
-    def __call__(self, signal_cube: SignalCube) -> Detection[TArray]:
+    def __call__(self, signal_cube: SignalCube[TArray]) -> Detection[TArray]:
         """Run 2D CFAR detection.
 
         !!! note
@@ -133,7 +133,7 @@ class CFAR(ABC, Generic[TArray]):
         return self._cfar(self._flatten(signal_cube))
 
 
-class CACFAR(CFAR[TArray], ABC):
+class CACFAR[TArray: ArrayLike](CFAR[TArray], ABC):
     """Cell-averaging CFAR.
 
     ```
@@ -187,7 +187,7 @@ class CACFAR(CFAR[TArray], ABC):
         self.mask: Float[np.ndarray, "kr kd"] = mask
 
 
-class CASOCFAR(CFAR[TArray], ABC):
+class CASOCFAR[TArray: ArrayLike](CFAR[TArray], ABC):
     """Cell-averaging Smallest of CFAR.
 
     !!! info

@@ -4,10 +4,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from typing import (
     Any,
-    Generic,
     Literal,
     Protocol,
-    TypeVar,
     cast,
     runtime_checkable,
 )
@@ -18,7 +16,12 @@ from jaxtyping import Complex64, Float32, Int16
 
 @runtime_checkable
 class ArrayLike(Protocol):
-    """Array with shape and dtype."""
+    """Array with shape and dtype.
+
+    This is the bound of the `TArray` type parameter of backend-agnostic
+    components, and is satisfied by numpy `np.ndarray`, jax `jax.Array`, and
+    torch `Tensor`.
+    """
 
     @property
     def shape(self) -> tuple[int, ...]: ...
@@ -56,10 +59,8 @@ def _check_backend(x: ArrayLike) -> Literal["jax", "torch", "numpy"]:
             "Expected numpy.ndarray, jax.Array, or torch.Tensor.")
 
 
-TArray = TypeVar("TArray", bound=ArrayLike)
 
-
-def iqiq_from_iiqq(
+def iqiq_from_iiqq[TArray: ArrayLike](
     iiqq: Int16[TArray, "... n"],
     sample_swap: bool = False,
 ) -> Int16[TArray, "... n/2 2"]:
@@ -114,7 +115,7 @@ def iqiq_from_iiqq(
         return cast(Int16[TArray, "... n/2 2"], iq)
 
 
-def iq_from_iiqq(
+def iq_from_iiqq[TArray: ArrayLike](
     iiqq: Int16[TArray, "... n"] | Complex64[TArray, "... _n"],
     sample_swap: bool = False,
 ) -> Complex64[TArray, "... n2"]:
@@ -193,7 +194,7 @@ def iq_from_iiqq(
         return cast(Complex64[TArray, "... n/2"], iq)
 
 
-def _to_float32(
+def _to_float32[TArray: ArrayLike](
     x: Int16[TArray, "..."] | Float32[TArray, "..."]
 ) -> Float32[TArray, "..."]:
     backend = _check_backend(x)
@@ -210,7 +211,7 @@ def _to_float32(
         return cast(Float32[TArray, "..."], x.float())
 
 
-class RSP(ABC, Generic[TArray]):
+class RSP[TArray: ArrayLike](ABC):
     """Abstract, backend-agnostic Radar Signal Processing base class.
 
     !!! info

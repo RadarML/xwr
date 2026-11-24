@@ -1,7 +1,5 @@
 """Calibrated Spectrum Processing."""
 
-from typing import Generic, TypeVar
-
 import jax
 from jax import numpy as jnp
 from jax.scipy.signal import convolve2d
@@ -11,8 +9,6 @@ from xwr.rsp import iq_from_iiqq
 from xwr.rsp import spectrum as base
 
 from .rsp import RSPJax
-
-TRSP = TypeVar("TRSP", bound=RSPJax)
 
 # Rgister [`Detection`][xwr.rsp.] as a pytree, so that it can be
 # returned from a `jax.jit`-ed function.
@@ -134,7 +130,7 @@ class CASOCFAR(base.CASOCFAR[Array]):
         return base.Detection(obj_mask, signal, snr)
 
 
-class CalibratedSpectrum(Generic[TRSP]):
+class CalibratedSpectrum[TRSP: RSPJax]:
     """Radar processing with zero-doppler calibration.
 
     !!! info "Zero Doppler Calibration"
