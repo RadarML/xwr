@@ -6,9 +6,12 @@
 import logging
 import re
 import time
+from typing import TypeVar
 
 import serial
 from serial.tools import list_ports
+
+TXWR = TypeVar("TXWR", bound="XWRBase")
 
 
 class XWRError(Exception):
@@ -207,3 +210,18 @@ class XWRBase:
         """
         self.send(self._STOP_COMMAND)
         self.log.info("Radar Stopped.")
+
+    def close(self) -> None:
+        """Close the serial port.
+
+        Does not stop the radar; see [`XWRSystem.close`][xwr.XWRSystem.close].
+        """
+        self.port.close()
+
+    def __enter__(self: TXWR) -> TXWR:
+        """Use as a context manager; calls `close()` on exit."""
+        return self
+
+    def __exit__(self, *exc) -> None:
+        """Close on exiting the context."""
+        self.close()

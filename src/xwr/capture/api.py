@@ -3,7 +3,6 @@
 import logging
 import socket
 import struct
-import threading
 import time
 from collections.abc import Iterator, Sequence
 
@@ -92,13 +91,15 @@ class DCA1000EVM:
         self.fpga_ip = fpga_ip
         self.config_port = config_port
         self.data_port = data_port
-        self.recording = False
-        self.thread: threading.Thread | None = None
 
         self.config_socket: socket.socket = self._create_socket(
             (sys_ip, config_port), timeout)
-        self.data_socket: socket.socket = self._create_socket(
-            (sys_ip, data_port), 0.0)
+        try:
+            self.data_socket: socket.socket = self._create_socket(
+                (sys_ip, data_port), 0.0)
+        except BaseException:  # Omits KeyboardInterrupt and SystemExit
+            self.config_socket.close()
+            raise
 
         self.data_socket.setsockopt(
             socket.SOL_SOCKET, socket.SO_RCVBUF, socket_buffer)
@@ -108,6 +109,23 @@ class DCA1000EVM:
         self._warn_dropped_total = 0
         self._warn_dropped_count = 0
         self._warn_dropped_last = None
+
+    def close(self) -> None:
+        """Close the config and data sockets.
+
+        The capture card object can't be used after this, and any stream
+        reading from it must have exited first. Calling it again does nothing.
+        """
+        self.config_socket.close()
+        self.data_socket.close()
+
+    def __enter__(self) -> "DCA1000EVM":
+        """Use as a context manager; calls `close()` on exit."""
+        return self
+
+    def __exit__(self, *exc) -> None:
+        """Close on exiting the context."""
+        self.close()
 
     def flush(self) -> None:
         """Clear data receive buffers."""
