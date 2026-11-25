@@ -7,6 +7,7 @@ import pytest
 from xwr.config import DCAConfig, XWRConfig
 from xwr.constraints import (
     AdcSamplesPowerOfTwo,
+    BurstIdleTime,
     ConstraintCheck,
     CubeSizeLimit,
     ExcessRampTime,
@@ -17,8 +18,8 @@ from xwr.constraints import (
     MaxSampleRate,
     MinSampleRate,
     NetworkUtilization,
-    RFDutyCycle,
     ReceiveBuffer,
+    RFDutyCycle,
     check_config,
 )
 from xwr.radar import (
@@ -29,6 +30,7 @@ from xwr.radar import (
     AWR2944,
     AWR2944P,
     AWRL6844,
+    AWRL6888,
 )
 
 # ---------------------------------------------------------------------------
@@ -393,7 +395,7 @@ def test_check_config_all_pass(radar, capture):
 
 def test_check_config_returns_all_constraints(radar, capture):
     results = check_config(radar, capture, log=False)
-    assert len(results) == 12  # one per constraint class
+    assert len(results) == 13  # one per constraint class
     assert all(isinstance(r, ConstraintCheck) for r in results)
 
 
@@ -417,3 +419,86 @@ def test_check_config_log(radar, capture, caplog):
     with caplog.at_level(logging.DEBUG, logger="xwr/constraints"):
         check_config(radar, capture, log=True)
     assert caplog.records
+
+
+# ---------------------------------------------------------------------------
+# AWRL6888
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def awrl6888():
+    """The default `AWRL6888.setup` config (verified on hardware)."""
+    return XWRConfig(
+        device=AWRL6888,
+        frequency=60.0,
+        idle_time=20.0,
+        adc_start_time=5.0,
+        ramp_end_time=36.0,
+        tx_start_time=1.5,
+        freq_slope=100.0,
+        adc_samples=256,
+        sample_rate=10_000,
+        frame_length=32,
+        frame_period=100.0,
+    )
+
+
+def test_awrl6888_all_pass(awrl6888, capture):
+    results = check_config(awrl6888, capture, log=False)
+    failed = [r for r in results if r.passed is False]
+    assert not failed, failed
+
+
+def test_awrl6888_shape(awrl6888):
+    # 8 TX x 2 RX banks = 16 chirps per loop, 4 ADC chains per chirp.
+    assert awrl6888.shape == (32, 16, 4, 256)
+    assert awrl6888.raw_shape == (32, 16, 4, 256)
+    # chirp loop time = 16 chirps x (20 + 36) us
+    assert awrl6888.chirp_time == pytest.approx(16 * 56.0)
+
+
+def test_awrl6888_cube_size_limit(awrl6888):
+    # frame_size = 32 * 16 * 4 * 256 * 2 = 1 MiB (TI profile_8T8R_tdm.cfg)
+    assert awrl6888.frame_size == 1024 * 1024
+    assert_passed(CubeSizeLimit.check(awrl6888))
+    assert_failed(CubeSizeLimit.check(replace(awrl6888, frame_length=64)))
+
+
+def test_awrl6888_sample_rate(awrl6888):
+    assert_passed(MaxSampleRate.check(replace(awrl6888, sample_rate=25_000)))
+    assert_failed(MaxSampleRate.check(replace(awrl6888, sample_rate=40_000)))
+    assert_passed(MinSampleRate.check(replace(awrl6888, sample_rate=2_000)))
+    assert_failed(MinSampleRate.check(replace(awrl6888, sample_rate=1_000)))
+
+
+def test_awrl6888_frequency_range(awrl6888):
+    # end = 60.0 + 100 * 36 / 1000 = 63.6 GHz
+    assert_passed(FrequencyRange.check(awrl6888))
+    assert_failed(FrequencyRange.check(replace(awrl6888, frequency=56.0)))
+    assert_failed(FrequencyRange.check(replace(awrl6888, frequency=61.0)))
+    assert_skipped(MaxBandwidth.check(awrl6888))
+
+
+def test_awrl6888_rf_duty_cycle(awrl6888):
+    # RF duty = 36 * 16 * 32 / (100 * 1000) = 18.4%
+    assert_passed(RFDutyCycle.check(awrl6888))
+    # 16 chirps per loop: 36 * 16 * 128 / (100 * 1000) = 73.7%
+    assert_failed(RFDutyCycle.check(replace(awrl6888, frame_length=128)))
+
+
+def test_awrl6888_burst_idle_time(awrl6888):
+    # burst = 16 * (20 + 36) * 32 = 28,672us; idle = 100,000 - 28,672us
+    assert_passed(BurstIdleTime.check(awrl6888))
+    # One loop per frame: burst = 896us. A 0.95 ms period leaves only 54us
+    # of idle time, even though the frame duty cycle (94.3%) is fine.
+    short = replace(awrl6888, frame_length=1, frame_period=0.95)
+    assert_failed(BurstIdleTime.check(short))
+    assert_passed(FrameDutyCycle.check(short))
+    # 896 + 135 = 1031us
+    assert_passed(BurstIdleTime.check(replace(short, frame_period=1.031)))
+    assert_failed(BurstIdleTime.check(replace(short, frame_period=1.030)))
+
+
+def test_burst_idle_time_skip_other_devices(radar):
+    assert_skipped(BurstIdleTime.check(radar))
+    assert_skipped(BurstIdleTime.check(replace(radar, device=AWRL6844)))

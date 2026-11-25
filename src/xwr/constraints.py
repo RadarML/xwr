@@ -14,6 +14,7 @@ This module documents and enforces known constraints on radar configurations.
 |------------|-------------|
 | [`FrameDutyCycle`][.] | Active transmit time < 99% of frame period |
 | [`RFDutyCycle`][.] | RF on-time < 50% of frame period |
+| [`BurstIdleTime`][.] | Frame period leaves the device's minimum burst idle time |
 | [`ExcessRampTime`][.] | ADC window must complete before ramp ends |
 | [`CubeSizeLimit`][.] | Data cube must fit in device L3 buffer |
 | [`FrameLengthPowerOfTwo`][.] | Frame length: power of 2 |
@@ -105,6 +106,49 @@ class RFDutyCycle(Constraint):
         return ConstraintCheck(RFDutyCycle, passed, detail)
 
 
+class BurstIdleTime(Constraint):
+    """Frame period must leave the device's minimum idle time after a burst.
+
+    Some firmware requires an idle gap after each burst of chirps. If the
+    gap is too short, the radar may accept the configuration but silently
+    never chirp.
+
+    In particular, [`AWRL6888`][xwr.radar.AWRL6888] sends each frame as
+    a single burst followed by the minimum idle time, so the burst and its
+    idle time must both fit within the frame period:
+
+        frame_period × 1000 - chirp_time × frame_length ≥ min_idle
+
+    | Device   | Minimum idle |
+    |----------|--------------|
+    | AWRL6888 | 135 μs       |
+    """
+
+    # Source: *Parameter Tuning and Customization Guide for the xWRL6888
+    # mmWave Demo*, `frameCfg` (burst constraints).
+    _LIMITS: ClassVar[dict[str, float]] = {
+        "AWRL6888": 135.0,
+    }
+
+    @staticmethod
+    def check(radar, capture=None):
+        limit = BurstIdleTime._LIMITS.get(radar.device_name)
+        if limit is None:
+            return ConstraintCheck(
+                BurstIdleTime, None,
+                f"not checked for {radar.device_name}")
+        burst_us = radar.chirp_time * radar.frame_length
+        idle = radar.frame_period * 1e3 - burst_us
+        passed = idle >= limit
+        detail = f"burst idle time = {idle:.1f}us, minimum = {limit:.0f}us"
+        if not passed:
+            detail = (
+                f"burst idle time = {idle:.1f}us < device minimum "
+                f"{limit:.0f}us (frame_period must be "
+                f"≥ {(burst_us + limit) / 1e3:.3f}ms)")
+        return ConstraintCheck(BurstIdleTime, passed, detail)
+
+
 class ExcessRampTime(Constraint):
     """ADC sampling must complete before the frequency ramp ends.
 
@@ -145,6 +189,7 @@ class CubeSizeLimit(Constraint):
     | AWR2944P | 3 MiB    |
     | AWR2E44P | 3 MiB    |
     | AWRL6844 | 896 KiB  |
+    | AWRL6888 | 1 MiB    |
     """
 
     _LIMITS: ClassVar[dict[str, int]] = {
@@ -155,6 +200,7 @@ class CubeSizeLimit(Constraint):
         "AWR2944P": 3 * 1024 * 1024,
         "AWR2E44P": 3 * 1024 * 1024,
         "AWRL6844": 896 * 1024,
+        "AWRL6888": 1024 * 1024,
     }
 
     @staticmethod
@@ -234,6 +280,7 @@ class MaxSampleRate(Constraint):
     | AWR2944P | 45,000 Ksps |
     | AWR2E44P | 45,000 Ksps |
     | AWRL6844 | 25,000 Ksps |
+    | AWRL6888 | 25,000 Ksps |
     """
 
     _LIMITS: ClassVar[dict[str, int]] = {
@@ -244,6 +291,7 @@ class MaxSampleRate(Constraint):
         "AWR2944P": 45_000,
         "AWR2E44P": 45_000,
         "AWRL6844": 25_000,
+        "AWRL6888": 25_000,
     }
 
     @staticmethod
@@ -268,11 +316,13 @@ class MinSampleRate(Constraint):
     | Device   | Minimum    |
     |----------|------------|
     | AWR1843  | 2,000 Ksps |
+    | AWRL6888 | 2,000 Ksps |
     """
 
     _LIMITS: ClassVar[dict[str, int]] = {
         "AWR1843":  2_000,
         "AWR1843L": 2_000,
+        "AWRL6888": 2_000,
     }
 
     @staticmethod
@@ -307,6 +357,7 @@ class FrequencyRange(Constraint):
     | AWR2944P | 76        | 81        |
     | AWR2E44P | 76        | 81        |
     | AWRL6844 | 57        | 64        |
+    | AWRL6888 | 57        | 64        |
     """
 
     _LIMITS: ClassVar[dict[str, tuple[float, float]]] = {
@@ -317,6 +368,7 @@ class FrequencyRange(Constraint):
         "AWR2944P": (76.0, 81.0),
         "AWR2E44P": (76.0, 81.0),
         "AWRL6844": (57.0, 64.0),
+        "AWRL6888": (57.0, 64.0),
     }
 
     @staticmethod
@@ -457,6 +509,7 @@ def check_config(
     CONSTRAINTS: list[type[Constraint]] = [
         FrameDutyCycle,
         RFDutyCycle,
+        BurstIdleTime,
         ExcessRampTime,
         CubeSizeLimit,
         FrameLengthPowerOfTwo,

@@ -69,6 +69,11 @@ class XWRBase:
     _START_COMMAND = "sensorStart"
     # Command used to stop the radar
     _STOP_COMMAND = "sensorStop"
+    # If set, commands are written in chunks of this many bytes, with a
+    # `_WRITE_CHUNK_DELAY` (seconds) pause between chunks, for firmware which
+    # drops characters when long commands are sent at full speed.
+    _WRITE_CHUNK_SIZE: int | None = None
+    _WRITE_CHUNK_DELAY: float = 0.0
 
     # -- public constants --
 
@@ -146,6 +151,17 @@ class XWRBase:
                 raise TimeoutError()
         return rx_buf
 
+    def _write(self, data: bytes) -> None:
+        """Write to the serial port, in chunks if `_WRITE_CHUNK_SIZE` is set."""
+        if self._WRITE_CHUNK_SIZE is None:
+            self.port.write(data)
+            return
+
+        for i in range(0, len(data), self._WRITE_CHUNK_SIZE):
+            self.port.write(data[i:i + self._WRITE_CHUNK_SIZE])
+            self.port.flush()
+            time.sleep(self._WRITE_CHUNK_DELAY)
+
     def send(self, cmd: str, timeout: float = 10.0) -> None:
         """Send message, and wait for a response.
 
@@ -171,7 +187,7 @@ class XWRBase:
             return
 
         self.log.debug("Send: {}".format(cmd))
-        self.port.write((cmd + '\n').encode('ascii'))
+        self._write((cmd + '\n').encode('ascii'))
         rx_buf = self._wait_for_response(timeout=timeout)
 
         # Remove all the cruft
