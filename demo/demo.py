@@ -1,4 +1,4 @@
-"""Simple range-doppler and range-azimuth visualization demo."""
+"""Simple range-doppler, range-azimuth, and elevation visualization demo."""
 
 import logging
 import os
@@ -110,8 +110,17 @@ def cli_main(
 
     continuous = cfg["radar"]["frame_length"] == 1
 
-    rsp_inst = getattr(xwr_rsp, rsp)(
-        window=False, size={"azimuth": vis.azimuth})
+    # Only zero-pad elevation if the virtual array has more than one row.
+    rsp_cls = getattr(xwr_rsp, rsp)
+    device_cls = getattr(xwr.radar, cfg["radar"]["device"])
+    n_elevation = rsp_cls().mimo_virtual_array(np.zeros(
+        (1, 1, device_cls.NUM_TX, device_cls.NUM_RX, 1), dtype=np.complex64)
+    ).shape[2]
+    size = {"azimuth": vis.azimuth}
+    if n_elevation > 1 and vis.elevation is not None:
+        size["elevation"] = n_elevation = vis.elevation
+    rsp_inst = rsp_cls(
+        window=False, size=size, doppler_correction=vis.doppler_correction)
 
     if rsp_inst.SAMPLE_TYPE == "I":
         Nr = cfg["radar"]["adc_samples"] // 2 + 1
@@ -122,7 +131,9 @@ def cli_main(
         n_doppler = vis.doppler if continuous else cfg["radar"]["frame_length"]
         plot = RadarPlot(
             n_range=Nr, n_doppler=n_doppler, n_azimuth=vis.azimuth,
-            max_range=awr.config.max_range, max_doppler=awr.config.max_doppler,
+            n_elevation=n_elevation, min_range=vis.min_range,
+            max_range=awr.config.max_range,
+            max_doppler=awr.config.max_doppler,
             range_resolution=awr.config.range_resolution,
             pclip=vis.pclip, power=vis.power)
 

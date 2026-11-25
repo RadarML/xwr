@@ -6,7 +6,7 @@ import numpy as np
 from jax import numpy as jnp
 from jaxtyping import Array, Complex64, Float32, Int, Int16, Shaped
 
-from xwr.rsp import RSP, iq_from_iiqq
+from xwr.rsp import RSP, _awrl6888, iq_from_iiqq
 
 
 class RSPJax(RSP[Array], ABC):
@@ -438,4 +438,87 @@ class AWR2E44PEVM(RSPJax):
         return jnp.zeros(
             (batch, doppler, *self._SHAPE, range), dtype=jnp.complex64
         ).at[:, :, jnp.array(self._ROW), jnp.array(self._COL), :].set(
+            rd * jnp.array(self._CALIBRATION)[None, None, :, :, None])
+
+
+class AWRL6888EVM(RSPJax):
+    """Radar Signal Processing for AWRL6888EVM.
+
+    !!! info "Chirp Order"
+
+        The AWRL6888 captures 4 of its 8 RX per chirp, so each of the 8 TX
+        fires twice per chirp loop (once per RX bank), and data is reported
+        as 16 "TX" chirp slots x 4 RX chains; see
+        [`AWRL6888`][xwr.radar.AWRL6888]. Chirp slot `s` is TX `t = s // 2`
+        with RX bank `s % 2`.
+
+    !!! info "Antenna Array"
+
+        The AWRL6888EVM has a staggered virtual array on an 8x9 grid, where
+        each row (elevation) corresponds to one TX, and the two RX banks are
+        interleaved in azimuth:
+        ```
+          az: 0   1   2   3   4   5   6   7   8
+        el 0: A   B   A   B   A   B   A   B         <- TX slot 7 (chirps 14, 15)
+        el 1:     A   B   A   B   A   B   A   B     <- TX slot 6 (chirps 12, 13)
+        ...
+        el 6: A   B   A   B   A   B   A   B         <- TX slot 1 (chirps 2, 3)
+        el 7:     A   B   A   B   A   B   A   B     <- TX slot 0 (chirps 0, 1)
+        ```
+        That is, chirp slot `s` and RX chain `k` is at elevation
+        `7 - s // 2` and azimuth `[1, 0, 1, 0, 1, 0, 1, 0][s // 2] + 2 * k +
+        s % 2`, i.e., TI's layout with elevation reversed so that the output
+        is in image order (verified on hardware).
+        Empty positions are filled with zeros. The grid spacing is taken to be
+        1/2 wavelength in both axes, as in the TI demo processing chain
+        (`lambdaOverDistX = lambdaOverDistZ = 2` in `dpc.c`).
+
+        Source: `antGeometryTX` and `antGeometryRX` in the TI demo profile
+        (`mmwave_l_sdk_{version}/examples/mmw_demo/mmwave_demo_L688x/profiles/
+        profile_8T8R_tdm.cfg`), where the row index is azimuth and the column
+        index is elevation (`antForwardMapLUT` in `dpc.c`).
+
+    !!! tip "Doppler Correction"
+
+        Each elevation row is a different TX slot, i.e., transmitted at a
+        different time within each chirp loop, so the elevation of moving
+        targets is biased by their Doppler unless `doppler_correction=True`.
+
+    !!! info "Channel Phase Calibration"
+
+        Each chirp slot / RX chain is multiplied by a unit-magnitude phase
+        correction before forming the virtual array. The corrections are the
+        phases of `compRangeBiasAndRxChanPhase` in the same TI demo profile,
+        which are given as a range bias followed by `Re Im` pairs in virtual
+        antenna order (= chirp slot-major, RX chain-minor order). Amplitudes
+        are not corrected.
+
+    Args:
+        window: whether to apply a hanning window. If `bool`, the same option
+            is applied to all axes. If `dict`, specify per axis with keys
+            "range", "doppler", "azimuth", and "elevation".
+        size: target size for each axis after zero-padding, specified by axis.
+            If an axis is not specified, it is not padded.
+    """
+
+    SAMPLE_TYPE = "I"
+
+    # (elevation, azimuth) of each (chirp slot, RX chain), and unit-magnitude
+    # phase calibration; see `xwr/rsp/_awrl6888.py`.
+    _EL = _awrl6888.EL
+    _AZ = _awrl6888.AZ
+    _SHAPE = _awrl6888.SHAPE
+    _CALIBRATION = _awrl6888.CALIBRATION
+
+    def mimo_virtual_array(
+        self, rd: Complex64[Array, "#batch doppler tx rx range"]
+    ) -> Complex64[Array, "#batch doppler el az range"]:
+        batch, doppler, tx, rx, range = rd.shape
+        if tx != 16 or rx != 4:
+            raise ValueError(
+                f"Expected (tx, rx)=16x4, got tx={tx} and rx={rx}.")
+
+        return jnp.zeros(
+            (batch, doppler, *self._SHAPE, range), dtype=jnp.complex64
+        ).at[:, :, jnp.array(self._EL), jnp.array(self._AZ), :].set(
             rd * jnp.array(self._CALIBRATION)[None, None, :, :, None])

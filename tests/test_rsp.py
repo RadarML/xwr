@@ -30,6 +30,7 @@ SHAPE = {
     "AWR2944EVM": (2, 4, 4, 4, 16),
     "AWR2E44PEVM": (2, 4, 4, 4, 16),
     "AWRL6844EVM": (2, 4, 4, 4, 16),
+    "AWRL6888EVM": (2, 4, 16, 4, 16),
 }
 
 
@@ -401,6 +402,116 @@ def test_torch_awr2e44p_backward():
     ).requires_grad_(True)
 
     result = rspt.AWR2E44PEVM()(data)
+    result.abs().sum().backward()
+
+    assert data.grad is not None
+    assert data.grad.shape == data.shape
+
+
+AWRL6888_PARAMS = [
+    (False, {}),
+    (True, {}),
+    (True, {"azimuth": 32}),
+    (True, {"doppler": 8}),
+    (True, {"range": 16}),
+    (True, {"elevation": 16}),
+    ({"range": True, "doppler": True}, {}),
+]
+
+
+def test_awrl6888_virtual_array():
+    """Check AWRL6888EVM virtual array and calibration against TI's."""
+    # antGeometryTX/RX from TI's profile_8T8R_tdm.cfg; (row, col) pairs where
+    # the row is azimuth and the column is elevation.
+    tx = np.array([int(v) for v in "1 0 0 1 1 2 0 3 1 4 0 5 1 6 0 7".split()])
+    rx = np.array([int(v) for v in "0 0 2 0 4 0 6 0 1 0 3 0 5 0 7 0".split()])
+    tx, rx = tx.reshape(8, 2), rx.reshape(8, 2)
+
+    # compRangeBiasAndRxChanPhase from TI's profile_8T8R_tdm.cfg
+    from xwr.radar import AWRL6888
+    calib = np.array([
+        float(v) for v in AWRL6888._COMP_RANGE_BIAS_RX_PHASE.split()[1:]])
+    calib = calib.reshape(64, 2)
+    calib = calib[:, 0] + 1j * calib[:, 1]
+    calib = calib / np.abs(calib)
+
+    # Label each chirp slot / RX chain with a unique nonzero value.
+    rd = (np.arange(64, dtype=np.float32) + 1).reshape(1, 1, 16, 4, 1)
+    rd = rd.astype(np.complex64)
+    expected = np.zeros((8, 9), dtype=np.complex64)
+    for s in range(16):
+        for k in range(4):
+            # TI virtual antenna: TX t, RX m (TX-major, RX-minor).
+            t, m = s // 2, (s % 2) * 4 + k
+            # Elevation is reversed relative to TI's geometry (image order).
+            az = tx[t, 0] + rx[m, 0]
+            el = 7 - (tx[t, 1] + rx[m, 1])
+            expected[el, az] = (s * 4 + k + 1) * calib[t * 8 + m]
+
+    numpy_mimo = rspn.AWRL6888EVM().mimo_virtual_array(rd)[0, 0, :, :, 0]
+    assert np.allclose(numpy_mimo, expected, atol=1e-5)
+    jax_mimo = rspj.AWRL6888EVM().mimo_virtual_array(jnp.array(rd))
+    assert np.allclose(np.array(jax_mimo)[0, 0, :, :, 0], expected, atol=1e-5)
+    torch_mimo = rspt.AWRL6888EVM().mimo_virtual_array(torch.from_numpy(rd))
+    assert np.allclose(torch_mimo.numpy()[0, 0, :, :, 0], expected, atol=1e-5)
+    # 64 of the 72 positions are filled.
+    assert np.count_nonzero(numpy_mimo) == 64
+
+    # 8x8 (physical TX x RX) input is rejected.
+    rd8 = np.zeros((1, 1, 8, 8, 1), dtype=np.complex64)
+    with pytest.raises(ValueError):
+        rspn.AWRL6888EVM().mimo_virtual_array(rd8)
+    with pytest.raises(ValueError):
+        rspj.AWRL6888EVM().mimo_virtual_array(jnp.array(rd8))
+    with pytest.raises(ValueError):
+        rspt.AWRL6888EVM().mimo_virtual_array(torch.from_numpy(rd8))
+
+
+def test_numpy_awrl6888_shape():
+    """Check AWRL6888EVM output shape: 8x9 virtual array, range = 16//2+1."""
+    data = _i_float32(SHAPE["AWRL6888EVM"])
+    out = rspn.AWRL6888EVM(window=False, size={})(data)
+    assert out.shape == (2, 4, 8, 9, 9)
+
+
+@pytest.mark.parametrize("window,size", AWRL6888_PARAMS)
+@pytest.mark.parametrize("doppler_correction", [False, True])
+def test_jax_awrl6888(window, size, doppler_correction):
+    """Test jax vs numpy RSP for AWRL6888EVM (I-only data)."""
+    kwargs = dict(
+        window=window, size=size, doppler_correction=doppler_correction)
+    data = _i_float32(SHAPE["AWRL6888EVM"])
+    numpy_result = rspn.AWRL6888EVM(**kwargs)(data)
+    jax_result = rspj.AWRL6888EVM(**kwargs)(jnp.array(data))
+    # float32 FFT error scales with the output's peak (the DC bin, ~1e3 here
+    # with 16 chirp slots), so a fixed atol=1e-4 is flaky.
+    assert np.allclose(
+        numpy_result, np.array(jax_result),
+        atol=1e-6 * np.abs(numpy_result).max())
+
+
+@pytest.mark.parametrize("window,size", AWRL6888_PARAMS)
+@pytest.mark.parametrize("doppler_correction", [False, True])
+def test_torch_awrl6888(window, size, doppler_correction):
+    """Test torch vs numpy RSP for AWRL6888EVM (I-only data)."""
+    kwargs = dict(
+        window=window, size=size, doppler_correction=doppler_correction)
+    data = _i_float32(SHAPE["AWRL6888EVM"])
+    numpy_result = rspn.AWRL6888EVM(**kwargs)(data)
+    torch_result = rspt.AWRL6888EVM(**kwargs)(torch.from_numpy(data))
+    assert np.allclose(
+        numpy_result, torch_result.numpy(),
+        atol=1e-6 * np.abs(numpy_result).max())
+
+
+def test_torch_awrl6888_backward():
+    """Test that gradients flow through AWRL6888EVM in torch."""
+    rng = np.random.default_rng()
+    data = torch.from_numpy(
+        rng.random(SHAPE["AWRL6888EVM"]).astype(np.float32)
+    ).requires_grad_(True)
+
+    result = rspt.AWRL6888EVM()(data)
     result.abs().sum().backward()
 
     assert data.grad is not None
