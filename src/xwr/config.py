@@ -136,6 +136,10 @@ class XWRConfig:
 
     @property
     def max_range(self) -> float:
+        # The range FFT of real-only samples is conjugate-symmetric, so only
+        # half of the bins are unique.
+        if self.device_type.BYTES_PER_SAMPLE == 2:
+            return self.range_resolution * self.adc_samples / 2
         return self.range_resolution * self.adc_samples
 
     @property
