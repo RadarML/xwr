@@ -1,0 +1,23 @@
+# This can be passed to `AWRSystem` by simply unpacking:
+# system = AWRSystem(**config)
+radar:  # -> AWRConfig
+  device: AWRL6888
+  port: null  # auto-detect
+  # Full 57-64 GHz sweep for best range resolution (2.6 cm, 64 range bins);
+  # 64 doppler bins with +/-1.35 m/s max doppler.
+  frequency: 57.0
+  idle_time: 9.97
+  adc_start_time: 7.8
+  ramp_end_time: 46.7
+  tx_start_time: 1.5
+  freq_slope: 149.8
+  adc_samples: 128
+  sample_rate: 3333
+  frame_length: 64
+  frame_period: 100.0
+capture:  # -> DCAConfig
+  sys_ip: 192.168.33.30
+  fpga_ip: 192.168.33.180
+  data_port: 4098
+  config_port: 4096
+  timeout: 10.0

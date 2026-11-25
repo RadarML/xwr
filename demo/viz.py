@@ -18,14 +18,25 @@ class VisualizationConfig:
             instead of the min/max.
         power: power to raise the range-doppler spectrum to before plotting.
         azimuth: azimuth FFT resolution, i.e. number of azimuth bins.
+        min_range: minimum range used to pick the range bin shown in the
+            azimuth-elevation view, in m (to skip near-range leakage).
+        elevation: elevation FFT resolution, i.e. number of elevation bins. If
+            `None`, the native number of elevation rows in the virtual array
+            is used (no zero padding). Ignored for radars with a single
+            elevation row, which do not show elevation views.
         doppler: number of chirps to use for signal processing (if not already
             specified by the modulation, i.e., for continuous chirping).
+        doppler_correction: apply TDM-MIMO doppler correction before the angle
+            FFTs; see `xwr.rsp.RSP.doppler_correction`.
     """
 
     pclip: float = 0.1
     power: float = 0.5
     azimuth: int = 128
+    min_range: float = 0.3
+    elevation: int | None = None
     doppler: int = 128
+    doppler_correction: bool = False
 
 
 class BEVProjector:
@@ -62,25 +73,39 @@ class BEVProjector:
 
         self.range_idx = np.clip(
             np.round(r_grid / range_resolution).astype(int), 0, n_range - 1)
-        self.azimuth_idx = np.clip(
-            np.round(np.interp(theta_grid, angles, np.arange(n_azimuth)))
-            .astype(int),
+        # Linearly interpolate between azimuth bins, so that coarse angle
+        # spectra (e.g., few elevation bins) are not drawn as hard wedges.
+        az = np.clip(
+            np.interp(theta_grid, angles, np.arange(n_azimuth)),
             0, n_azimuth - 1)
+        self.azimuth_idx = np.floor(az).astype(int)
+        self.azimuth_idx_hi = np.minimum(self.azimuth_idx + 1, n_azimuth - 1)
+        self.azimuth_frac = az - self.azimuth_idx
         self.mask = r_grid <= max_range
 
     def project(self, ra: np.ndarray) -> np.ndarray:
         """Resample a (range, azimuth) spectrum onto the BEV (x, y) grid."""
+        lo = ra[self.range_idx, self.azimuth_idx]
+        hi = ra[self.range_idx, self.azimuth_idx_hi]
         return np.where(
-            self.mask, ra[self.range_idx, self.azimuth_idx], np.nan)
+            self.mask, lo + self.azimuth_frac * (hi - lo), np.nan)
 
 
 class RadarPlot:
-    """Live range-doppler / bird's-eye-view range-azimuth radar plot.
+    """Live radar spectrum plot.
+
+    Shows range-doppler and bird's-eye-view range-azimuth plots; if the radar
+    has more than one elevation bin, a side-view range-elevation plot and a
+    front-view azimuth-elevation plot (at the strongest range bin) are also
+    shown.
 
     Args:
         n_range: number of range bins.
         n_doppler: number of doppler bins.
         n_azimuth: number of azimuth bins (FFT size).
+        n_elevation: number of elevation bins (FFT size).
+        min_range: minimum range used to pick the range bin shown in the
+            azimuth-elevation view, in m.
         max_range: maximum range, in m.
         max_doppler: maximum doppler velocity, in m/s.
         range_resolution: range resolution, in m/bin.
@@ -92,16 +117,23 @@ class RadarPlot:
 
     def __init__(
         self, n_range: int, n_doppler: int, n_azimuth: int, max_range: float,
-        max_doppler: float, range_resolution: float,
-        pclip: float = 1.0, power: float = 1.0
+        max_doppler: float, range_resolution: float, n_elevation: int = 1,
+        min_range: float = 0.3, pclip: float = 1.0, power: float = 1.0
     ) -> None:
         self.pclip = pclip
         self.power = power
+        self.range_resolution = range_resolution
+        self.min_range_bin = max(1, int(np.ceil(min_range / range_resolution)))
         self.projector = BEVProjector(
             n_range, n_azimuth, max_range, range_resolution)
+        self.elevation = n_elevation > 1
 
         plt.ion()
-        self.fig, axs = plt.subplots(1, 2)
+        if self.elevation:
+            self.fig, axs2d = plt.subplots(2, 2, figsize=(10, 8))
+            axs = axs2d.flatten()
+        else:
+            self.fig, axs = plt.subplots(1, 2)
 
         # `animated=True` excludes these from normal full draws; they are
         # only ever rendered explicitly, via `draw_artist` in `_on_draw` and
@@ -123,6 +155,33 @@ class RadarPlot:
         axs[1].set_xlabel("x (m)")
         axs[1].set_ylabel("y (m)")
 
+        animated = [self.im_rd, self.im_bev]
+        if self.elevation:
+            # Side view: forward range (y) vs. height (z).
+            self.el_projector = BEVProjector(
+                n_range, n_elevation, max_range, range_resolution)
+            self.im_re = axs[2].imshow(
+                np.zeros((self.el_projector.n_x, self.el_projector.n_y),
+                         dtype=np.float32),
+                cmap="viridis", aspect='equal', origin='lower',
+                extent=(0, max_range, -max_range, max_range),
+                animated=True)
+            axs[2].set_xlabel("y (m)")
+            axs[2].set_ylabel("z (m)")
+
+            # Front view: elevation-azimuth, in image order (row 0 is up).
+            self.im_ae = axs[3].imshow(
+                np.zeros((n_elevation, n_azimuth), dtype=np.float32),
+                cmap="viridis", aspect='equal', origin='upper',
+                extent=(-1, 1, -1, 1), interpolation='bilinear',
+                animated=True)
+            axs[3].set_xlabel("sin(azimuth)")
+            axs[3].set_ylabel("sin(elevation)")
+            self.ae_text = axs[3].text(
+                0.02, 0.98, "", transform=axs[3].transAxes, ha="left",
+                va="top", fontsize=10, color="white", animated=True)
+            animated += [self.im_re, self.im_ae, self.ae_text]
+
         self.fps_text = self.fig.text(
             0.99, 0.01, "", ha="right", va="bottom", fontsize=12,
             color="white", bbox=dict(
@@ -135,7 +194,7 @@ class RadarPlot:
         self.fig.canvas.mpl_connect(
             'resize_event', lambda event: self.fig.tight_layout())
 
-        self._animated = (self.im_rd, self.im_bev, self.fps_text)
+        self._animated = (*animated, self.fps_text)
         self._bg = None
         self.fig.canvas.mpl_connect('draw_event', self._on_draw)
         self.fig.canvas.draw()
@@ -159,6 +218,25 @@ class RadarPlot:
 
         self.im_bev.set_data(bev)
         self.im_bev.set_clim(vmin=np.nanmin(bev), vmax=np.nanmax(bev))
+
+        if self.elevation:
+            # (el, az, range) power, averaged over batch and doppler.
+            p = np.mean(dear**2, axis=(0, 1))
+
+            # Flip elevation so that index 0 is down, to match the
+            # (left-to-right) azimuth convention used by the projector.
+            re = np.sqrt(np.mean(p, axis=1)).T[:, ::-1]
+            side = self.el_projector.project(re).T
+            self.im_re.set_data(side)
+            self.im_re.set_clim(vmin=np.nanmin(side), vmax=np.nanmax(side))
+
+            # Strongest range bin beyond `min_range` (skips near leakage).
+            r0 = min(self.min_range_bin, p.shape[-1] - 1)
+            r = int(np.argmax(np.sum(p[..., r0:], axis=(0, 1)))) + r0
+            ae = np.sqrt(p[..., r])
+            self.im_ae.set_data(ae)
+            self.im_ae.set_clim(vmin=ae.min(), vmax=ae.max())
+            self.ae_text.set_text(f"range = {r * self.range_resolution:.2f} m")
 
         if fps is not None:
             self.fps_text.set_text(f"{fps:.2f} fps")
