@@ -162,6 +162,15 @@ uv run demo.py --device AWR1843 --rsp AWR1843Boost
     | AWR2944PEVM             | AWR2944P   | AWR2944EVM      |
     | AWR2E44PEVM             | AWR2E44P   | AWR2E44PEVM     |
     | AWRL6844EVM             | AWRL6844   | AWRL6844EVM     |
+    | AWRL6888EVM             | AWRL6888   | AWRL6888EVM     |
+
+!!! tip "AWRL6888EVM"
+
+    Use the included `config_awrl6888.yaml`, which sweeps the full 57-64 GHz band for the best range resolution (2.6 cm, up to ~1.7 m). Each elevation row is transmitted at a different time, so we recommend enabling Doppler correction:
+    ```sh
+    uv run demo.py --config config_awrl6888.yaml --rsp AWRL6888EVM \
+        --vis.doppler-correction --vis.azimuth 32 --vis.elevation 32
+    ```
 
 ![Spectrum Demo](images/demo.png)
 

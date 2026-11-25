@@ -92,7 +92,7 @@ plugins:
       - setup/index.md: Hardware setup overview, supported radar families, and the DCA1000EVM capture card
       - setup/xwr1642-1843.md: Flashing the XWR1642/1843 family (AWR1843Boost, IWR1843Boost, AWR1642Boost, AWR1843AOP)
       - setup/awr2x44p.md: Flashing the AWR2X44(P) family (AWR2944EVM, AWR2944PEVM, AWR2E44PEVM)
-      - setup/awrl68xx.md: Flashing the AWRL68XX family (AWRL6844EVM)
+      - setup/awrl68xx.md: Flashing the AWRL68XX family (AWRL6844EVM, AWRL6888EVM)
       - develop.md: Development environment setup, testing, and documentation
       - system.md: High level API - the XWRSystem capture interface and its XWRConfig/DCAConfig configuration
       - constraints.md: Documented and enforced constraints on radar configurations
