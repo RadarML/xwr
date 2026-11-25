@@ -35,10 +35,11 @@ from .api import (
     AWR2944,
     AWR2944P,
     AWRL6844,
+    AWRL6888,
 )
 from .base import XWRBase, XWRError
 
 __all__ = [
     "defines", "AWR1642", "AWR1843", "AWR1843L", "AWR2944", "AWR2944P",
-    "AWR2E44P", "AWRL6844",
+    "AWR2E44P", "AWRL6844", "AWRL6888",
     "XWRError", "XWRBase"]
