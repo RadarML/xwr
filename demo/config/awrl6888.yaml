@@ -1,7 +1,6 @@
-# This can be passed to `AWRSystem` by simply unpacking:
-# system = AWRSystem(**config)
+# Demo config for the AWRL6888.
+# Selected by `demo.py --device`, which also sets `radar.device`.
 radar:  # -> AWRConfig
-  device: AWRL6888
   port: null  # auto-detect
   # Full 57-64 GHz sweep for best range resolution (2.6 cm, 64 range bins);
   # 64 doppler bins with +/-1.35 m/s max doppler.

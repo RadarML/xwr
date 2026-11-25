@@ -1,4 +1,6 @@
-# Continuous chirp configuration (frame_length=1; slow time handled in software)
+# Continuous chirp configuration (frame_length=1; slow time handled in software).
+# Not matched to a device automatically; use, for example:
+#   uv run demo.py --config config/continuous.yaml --device AWR1843
 radar:  # -> AWRConfig
   port: null  # auto-detect
   frequency: 77.0
