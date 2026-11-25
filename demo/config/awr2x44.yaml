@@ -1,7 +1,6 @@
-# This can be passed to `AWRSystem` by simply unpacking:
-# system = AWRSystem(**config)
+# Demo config for the AWR2944, AWR2944P, and AWR2E44P.
+# Selected by `demo.py --device`, which also sets `radar.device`.
 radar:  # -> AWRConfig
-  device: AWR2E44P
   port: null  # auto-detect
   frequency: 77.0
   idle_time: 100.0

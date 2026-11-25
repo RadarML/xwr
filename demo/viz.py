@@ -23,11 +23,16 @@ class VisualizationConfig:
         elevation: elevation FFT resolution, i.e. number of elevation bins. If
             `None`, the native number of elevation rows in the virtual array
             is used (no zero padding). Ignored for radars with a single
-            elevation row, which do not show elevation views.
+            elevation row, which do not show elevation views. Padding is
+            costly: in our testing on the AWRL6888, `--vis.azimuth 32
+            --vis.elevation 32` takes about 35-40 ms per frame, while 64 x 64
+            takes about 130 ms, which is too slow for 10 fps.
         doppler: number of chirps to use for signal processing (if not already
             specified by the modulation, i.e., for continuous chirping).
         doppler_correction: apply TDM-MIMO doppler correction before the angle
-            FFTs; see `xwr.rsp.RSP.doppler_correction`.
+            FFTs; see `xwr.rsp.RSP.doppler_correction`. Without it, moving
+            targets appear at the wrong angle, since each TX fires at a
+            different time.
     """
 
     pclip: float = 0.1
@@ -36,7 +41,7 @@ class VisualizationConfig:
     min_range: float = 0.3
     elevation: int | None = None
     doppler: int = 128
-    doppler_correction: bool = False
+    doppler_correction: bool = True
 
 
 class BEVProjector:

@@ -142,34 +142,35 @@ As a general guideline:
 With [`uv` installed](https://docs.astral.sh/uv/getting-started/installation/) and the XWR repository cloned:
 ```sh
 cd demo
-uv run demo.py --device AWR1843 --rsp AWR1843Boost
+uv run demo.py --device AWR1843
 ```
 
 !!! info
 
-    Replace the `--device` and `--rsp` with specifications according to your radar development board.
+    Replace `--device` with your radar, which should be the name of a class in [`xwr.radar`][xwr.radar]. The name is case-insensitive, and the `AWR` / `AWRL` prefix can be left out (e.g. `--device 1843`).
 
-    - `--device` should be the name of a class in [`xwr.radar`][xwr.radar]
-    - `--rsp` should be the name of a class in [`xwr.rsp`][xwr.rsp.numpy]
+    The demo loads the config in `demo/config/` that matches the device, and picks a default `--rsp` (a class in [`xwr.rsp`][xwr.rsp.numpy]):
 
-    | Radar                   | `--device` | `--rsp`         |
-    |-------------------------|------------|-----------------|
-    | AWR1642Boost            | AWR1642    | AWR1642Boost    |
-    | AWR1843Boost            | AWR1843    | AWR1843Boost    |
-    | AWR1843Boost, 1642 Mode | AWR1843L   | AWR1642Boost    |
-    | AWR1843AOPEVM           | AWR1843    | AWR1843AOP      |
-    | AWR2944EVM              | AWR2944    | AWR2944EVM      |
-    | AWR2944PEVM             | AWR2944P   | AWR2944EVM      |
-    | AWR2E44PEVM             | AWR2E44P   | AWR2E44PEVM     |
-    | AWRL6844EVM             | AWRL6844   | AWRL6844EVM     |
-    | AWRL6888EVM             | AWRL6888   | AWRL6888EVM     |
+    | Radar                   | `--device` | Default `--rsp` | Config         |
+    |-------------------------|------------|-----------------|----------------|
+    | AWR1642Boost            | AWR1642    | AWR1642Boost    | `awr1x4x.yaml` |
+    | AWR1843Boost            | AWR1843    | AWR1843Boost    | `awr1x4x.yaml` |
+    | AWR1843Boost, 1642 Mode | AWR1843L   | AWR1642Boost    | `awr1x4x.yaml` |
+    | AWR2944EVM              | AWR2944    | AWR2944EVM      | `awr2x44.yaml` |
+    | AWR2944PEVM             | AWR2944P   | AWR2944EVM      | `awr2x44.yaml` |
+    | AWR2E44PEVM             | AWR2E44P   | AWR2E44PEVM     | `awr2x44.yaml` |
+    | AWRL6844EVM             | AWRL6844   | AWRL6844EVM     | `awrl6844.yaml` |
+    | AWRL6888EVM             | AWRL6888   | AWRL6888EVM     | `awrl6888.yaml` |
 
-!!! tip "AWRL6888EVM"
+    For the AWR1843AOPEVM, use `--device AWR1843 --rsp AWR1843AOP`.
 
-    Use the included `config_awrl6888.yaml`, which sweeps the full 57-64 GHz band for the best range resolution (2.6 cm, up to ~1.7 m). Each elevation row is transmitted at a different time, so we recommend enabling Doppler correction:
+??? info "Config matching"
+
+    Configs are named after the device they apply to, with `x` matching any single character: for example, `awr2x44.yaml` applies to the AWR2944, AWR2944P, and AWR2E44P. If a device name has a suffix (such as the `P` in `AWR2944P`), a config for the full name (`awr2944p.yaml`) is preferred, falling back to the name without the suffix. If several configs match, the one with the fewest `x` is used.
+
+    To use a different config, pass its path with `--config`; `--device` then overrides the config's `radar.device` field. For example, `config/continuous.yaml` streams individual chirps and accumulates them into frames in software:
     ```sh
-    uv run demo.py --config config_awrl6888.yaml --rsp AWRL6888EVM \
-        --vis.doppler-correction --vis.azimuth 32 --vis.elevation 32
+    uv run demo.py --config config/continuous.yaml --device AWR1843
     ```
 
 ![Spectrum Demo](images/demo.png)
