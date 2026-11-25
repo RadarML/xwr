@@ -55,7 +55,8 @@ class XWRBase:
     Attributes:
         NUM_TX: number of TX antennas.
         NUM_RX: number of RX antennas.
-        BYTES_PER_SAMPLE: number of bytes per ADC sample.
+        BYTES_PER_SAMPLE: number of bytes per ADC sample: `2 * 2` for complex
+            (IQ) samples, or `2` for real-only (I) samples.
     """
 
     # -- internal constants --
