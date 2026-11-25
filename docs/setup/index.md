@@ -19,7 +19,8 @@ All supported radars follow the same basic procedure: set the radar's SOP pins t
 | [AWR2944EVM](awr2x44p.md) | [AWR2X44(P)](awr2x44p.md) | mmWave MCU Plus SDK | UniFlash | 12V | Jumpers |
 | [AWR2944PEVM](awr2x44p.md) | [AWR2X44(P)](awr2x44p.md) | mmWave MCU Plus SDK | `uart_uniflash.py` | 12V | Jumpers |
 | [AWR2E44PEVM](awr2x44p.md) | [AWR2X44(P)](awr2x44p.md) | mmWave MCU Plus SDK | `uart_uniflash.py` | 12V | Jumpers |
-| [AWRL6844EVM](awrl68xx.md) | [AWRL68XX](awrl68xx.md) | mmWave L-SDK | UniFlash | — | DIP switches |
+| [AWRL6844EVM](awrl68xx.md) | [AWRL68XX](awrl68xx.md) | mmWave L-SDK | UniFlash (Windows) | — | DIP switches |
+| [AWRL6888EVM](awrl68xx.md) | [AWRL68XX](awrl68xx.md) | mmWave L-SDK | UniFlash (Windows) | 5V-12V | DIP switches |
 
 ## DCA1000EVM Capture Card
 
